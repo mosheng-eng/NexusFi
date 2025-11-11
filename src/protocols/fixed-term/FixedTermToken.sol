@@ -77,17 +77,13 @@ abstract contract FixedTermToken is ERC721EnumerableUpgradeable {
         string memory image = string(
             abi.encodePacked(
                 "data:image/svg+xml;base64,",
-                Base64.encode(
-                    abi.encodePacked(
-                        '<svg width="300" height="300" viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">',
-                        '<path d="M150 31.0352C215.668 31.0352 268.902 84.2697 268.902 149.938C268.902 215.605 215.668 268.841 150 268.841C84.332 268.841 31.0975 215.605 31.0975 149.938C31.0978 84.2698 84.3321 31.0352 150 31.0352Z" fill="#2D48FF"/> ',
-                        '<path d="M142.009 115.69L121.24 115.69L139.009 150L121.24 184.31H189.1L204.379 214.864H84.6208L99.8972 184.31H120.666L102.897 150L120.666 115.69H99.8992L84.6208 85.1358L157.285 85.1357L142.009 115.69Z" fill="white"/> ',
-                        '<circle cx="218.975" cy="147.93" r="35.1149" fill="#01E16D" stroke="#2E48FE" stroke-width="5.22981"/> ',
-                        '<path d="M238.739 159.03H234.256V151.607H226.51V147.303H234.256V139.736H238.739V147.303H246.449V151.607H238.739V159.03Z" fill="#2E48FE"/> ',
-                        '<path d="M202.857 162.268H197.995V143.173H192.5V139.861C196.163 139.755 197.96 139.509 199.158 136.726H202.857V162.268Z" fill="#2E48FE"/> ',
-                        '<path d="M215.052 136.268C220.16 136.268 223.437 138.663 223.437 143.137C223.437 147.894 218.786 152.931 210.93 158.181H224.036V162.268H205.258V158.322C213.466 151.734 218.54 147.436 218.54 143.384C218.54 141.129 217.166 139.861 214.77 139.861C212.621 139.861 210.437 141.165 210.437 144.969H205.716C205.61 139.72 209.415 136.268 215.052 136.268Z" fill="#2E48FE"/> ',
-                        "</svg> "
-                    )
+                Base64.encode( 
+                    abi.encodePacked('<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">',
+                        '<g>',
+                        '<title>Layer 1</title>',
+                        '<text fill="#FFAFCC" stroke-width="0" x="290.16313" y="235.37489" id="svg_1" font-size="24" font-family="Noto Sans JP" text-anchor="start" xml:space="preserve" stroke="#000" transform="matrix(5.74209 0 0 5.90761 -1413.14 -1069.99)">MoS</text>',
+                        '</g>',
+                        '</svg>')
                 )
             )
         );
@@ -117,7 +113,7 @@ abstract contract FixedTermToken is ERC721EnumerableUpgradeable {
                 '"name":"Fixed Term Deposit #',
                 tokenId_.toString(),
                 '",',
-                '"description":"A Cayman Islands-based private equity fund targeting investments in the global renewable energy sector. Puhua Capital serves as the investment general partner, and Ant Financial serves as the technical general partner.",',
+                '"description":"A Cayman Islands-based private equity fund targeting investments in the global renewable energy sector.",',
                 '"image":"',
                 image,
                 '",',
