@@ -35,13 +35,13 @@ contract UnderlyingTokenExchangerTest is Test {
     modifier deployUnderlyingToken() {
         vm.startPrank(_owner);
 
-        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(_owner, "lbUSD", "lbUSD"));
+        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(_owner, "mosUSD", "mosUSD"));
 
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_owner));
 
         vm.stopPrank();
 
-        vm.label(address(_underlyingToken), "lbUSD");
+        vm.label(address(_underlyingToken), "mosUSD");
 
         _;
     }
@@ -254,7 +254,7 @@ contract UnderlyingTokenExchangerTest is Test {
         _deployer.deployExchanger(addrs, properties);
 
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
-        _deployer.deployUnderlyingToken(address(0), "lbUSD", "lbUSD");
+        _deployer.deployUnderlyingToken(address(0), "mosUSD", "mosUSD");
     }
 
     function testBoringExchange() public {
@@ -300,6 +300,6 @@ contract UnderlyingTokenExchangerTest is Test {
     function testNondirectCallToToken() public {
         UnderlyingToken mockContract = new UnderlyingToken();
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
-        mockContract.initialize(_owner, "lbUSD", "lbUSD");
+        mockContract.initialize(_owner, "mosUSD", "mosUSD");
     }
 }

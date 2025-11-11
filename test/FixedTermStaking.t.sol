@@ -70,13 +70,13 @@ contract FixedTermStakingTest is Test {
     modifier deployUnderlyingToken() {
         vm.startPrank(_owner);
 
-        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(_owner, "lbUSD", "lbUSD"));
+        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(_owner, "mosUSD", "mosUSD"));
 
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_owner));
 
         vm.stopPrank();
 
-        vm.label(address(_underlyingToken), "lbUSD");
+        vm.label(address(_underlyingToken), "mosUSD");
 
         _;
     }
@@ -105,14 +105,14 @@ contract FixedTermStakingTest is Test {
     modifier deployFixedTermStaking() {
         _assetsInfoBasket.push(
             FixedTermStaking.AssetInfo({
-                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@lbUSD", "MMF@lbUSD")),
+                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
             FixedTermStaking.AssetInfo({
-                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@lbUSD", "RWA@lbUSD")),
+                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
@@ -127,8 +127,8 @@ contract FixedTermStakingTest is Test {
                         | (uint256(_startFeedTime) << 192)
                 ),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD12M+",
-                "lbUSD12M+",
+                "mosUSD12M+",
+                "mosUSD12M+",
                 _assetsInfoBasket
             )
         );
@@ -137,9 +137,9 @@ contract FixedTermStakingTest is Test {
 
         vm.stopPrank();
 
-        vm.label(address(_fixedTermStaking), "lbUSD12M+");
-        vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@lbUSD");
-        vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@lbUSD");
+        vm.label(address(_fixedTermStaking), "mosUSD12M+");
+        vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@mosUSD");
+        vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@mosUSD");
 
         _;
     }
@@ -608,8 +608,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -621,8 +621,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -634,8 +634,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -647,8 +647,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -660,8 +660,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -673,8 +673,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -686,8 +686,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -699,8 +699,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(0) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -713,7 +713,7 @@ contract FixedTermStakingTest is Test {
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
             "",
-            "lbUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
 
@@ -725,7 +725,7 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
+            "mosUSD12M+",
             "",
             _assetsInfoBasket
         );
@@ -738,8 +738,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             new FixedTermStaking.AssetInfo[](0)
         );
 
@@ -753,8 +753,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
         _assetsInfoBasket[0].targetVault = originalTargetVault;
@@ -769,8 +769,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
         _assetsInfoBasket[0].weight = originalWeight;
@@ -789,8 +789,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
         _assetsInfoBasket[0].weight = originalWeight0;
@@ -799,7 +799,7 @@ contract FixedTermStakingTest is Test {
         FixedTermStaking.AssetInfo memory originalAssetInfo = _assetsInfoBasket[0];
         _assetsInfoBasket[0] = FixedTermStaking.AssetInfo({
             targetVault: address(
-                new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@lbUSD", "MMF@lbUSD")
+                new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@mosUSD", "MMF@mosUSD")
             ),
             weight: 500_000 // 50%
         });
@@ -817,8 +817,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
         _assetsInfoBasket[0] = originalAssetInfo;
@@ -837,8 +837,8 @@ contract FixedTermStakingTest is Test {
                     | (uint256(_startFeedTime) << 192)
             ),
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-            "lbUSD12M+",
-            "lbUSD12M+",
+            "mosUSD12M+",
+            "mosUSD12M+",
             _assetsInfoBasket
         );
     }
@@ -1105,8 +1105,8 @@ contract FixedTermStakingTest is Test {
                                 | (uint256(_startFeedTime) << 192)
                         ),
                         (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                        "lbUSD12M+",
-                        "lbUSD12M+",
+                        "mosUSD12M+",
+                        "mosUSD12M+",
                         _assetsInfoBasket
                     )
                 )
@@ -1241,21 +1241,21 @@ contract FixedTermStakingTest is Test {
     function testAddNewAssetIntoBasket() public {
         FixedTermStaking.AssetInfo[] memory assetsIntoBasket = new FixedTermStaking.AssetInfo[](2);
         assetsIntoBasket[0] = FixedTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@lbUSD", "MMF@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
             weight: 250_000 // 25%
         });
         assetsIntoBasket[1] = FixedTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@lbUSD", "RWA@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
             weight: 250_000 // 25%
         });
 
         FixedTermStaking.AssetInfo[] memory newAssetsIntoBasket = new FixedTermStaking.AssetInfo[](2);
         newAssetsIntoBasket[0] = FixedTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@lbUSD", "BTC@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 300_000 // 30%
         });
         newAssetsIntoBasket[1] = FixedTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@lbUSD", "ETH@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@mosUSD", "ETH@mosUSD")),
             weight: 300_000 // 30%
         });
 
@@ -1269,8 +1269,8 @@ contract FixedTermStakingTest is Test {
                         | (uint256(_startFeedTime) << 192)
                 ),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD12M+",
-                "lbUSD12M+",
+                "mosUSD12M+",
+                "mosUSD12M+",
                 assetsIntoBasket
             )
         );
@@ -1302,7 +1302,7 @@ contract FixedTermStakingTest is Test {
         fixedTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
         newAssetsIntoBasket[0] = FixedTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@lbUSD", "BTC@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
         vm.expectRevert(
@@ -1314,7 +1314,7 @@ contract FixedTermStakingTest is Test {
         fixedTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
         newAssetsIntoBasket[0] = FixedTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@lbUSD", "BTC@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
         vm.prank(_owner);

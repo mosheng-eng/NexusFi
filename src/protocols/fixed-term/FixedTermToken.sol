@@ -73,7 +73,7 @@ abstract contract FixedTermToken is ERC721EnumerableUpgradeable {
 
         (uint128 principal, uint64 startDate, uint64 maturityDate) = readFixedTermTokenDetails(tokenId_);
 
-        /// @dev lbUSD12M+ logo svg
+        /// @dev mosUSD12M+ logo svg
         string memory image = string(
             abi.encodePacked(
                 "data:image/svg+xml;base64,",
@@ -96,7 +96,7 @@ abstract contract FixedTermToken is ERC721EnumerableUpgradeable {
         string memory attributes = string(
             abi.encodePacked(
                 "[",
-                '{"trait_type":"Product Name","display_type":"string","value": "lbUSD12M+"},',
+                '{"trait_type":"Product Name","display_type":"string","value": "mosUSD12M+"},',
                 '{"trait_type":"Principal (raw)","display_type":"number","value":',
                 uint256(principal).toString(),
                 "},",

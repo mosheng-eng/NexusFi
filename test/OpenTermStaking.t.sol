@@ -63,13 +63,13 @@ contract OpenTermStakingTest is Test {
     modifier deployUnderlyingToken() {
         vm.startPrank(_owner);
 
-        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(_owner, "lbUSD", "lbUSD"));
+        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(_owner, "mosUSD", "mosUSD"));
 
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_owner));
 
         vm.stopPrank();
 
-        vm.label(address(_underlyingToken), "lbUSD");
+        vm.label(address(_underlyingToken), "mosUSD");
 
         _;
     }
@@ -98,14 +98,14 @@ contract OpenTermStakingTest is Test {
     modifier deployOpenTermStaking() {
         _assetsInfoBasket.push(
             OpenTermStaking.AssetInfo({
-                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@lbUSD", "MMF@lbUSD")),
+                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
             OpenTermStaking.AssetInfo({
-                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@lbUSD", "RWA@lbUSD")),
+                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
@@ -117,8 +117,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -127,9 +127,9 @@ contract OpenTermStakingTest is Test {
 
         vm.stopPrank();
 
-        vm.label(address(_openTermStaking), "lbUSD+");
-        vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@lbUSD");
-        vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@lbUSD");
+        vm.label(address(_openTermStaking), "mosUSD+");
+        vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@mosUSD");
+        vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@mosUSD");
 
         _;
     }
@@ -572,8 +572,8 @@ contract OpenTermStakingTest is Test {
                 [address(0x0), address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -584,8 +584,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(0x0), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -596,8 +596,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(0x0), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -608,8 +608,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(0x0)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -620,8 +620,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(50_001) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -632,8 +632,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(50_001) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -644,8 +644,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(0) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -657,7 +657,7 @@ contract OpenTermStakingTest is Test {
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
                 "",
-                "lbUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -668,7 +668,7 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
+                "mosUSD+",
                 "",
                 _assetsInfoBasket
             )
@@ -680,8 +680,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 new OpenTermStaking.AssetInfo[](0)
             )
         );
@@ -694,8 +694,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -709,8 +709,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -728,8 +728,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -739,7 +739,7 @@ contract OpenTermStakingTest is Test {
         OpenTermStaking.AssetInfo memory originalAssetInfo = _assetsInfoBasket[0];
         _assetsInfoBasket[0] = OpenTermStaking.AssetInfo({
             targetVault: address(
-                new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@lbUSD", "MMF@lbUSD")
+                new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@mosUSD", "MMF@mosUSD")
             ),
             weight: 500_000 // 50%
         });
@@ -755,8 +755,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -772,8 +772,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(0x1234), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 _assetsInfoBasket
             )
         );
@@ -1095,21 +1095,21 @@ contract OpenTermStakingTest is Test {
     function testAddNewAssetIntoBasket() public {
         OpenTermStaking.AssetInfo[] memory assetsIntoBasket = new OpenTermStaking.AssetInfo[](2);
         assetsIntoBasket[0] = OpenTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@lbUSD", "MMF@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
             weight: 250_000 // 25%
         });
         assetsIntoBasket[1] = OpenTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@lbUSD", "RWA@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
             weight: 250_000 // 25%
         });
 
         OpenTermStaking.AssetInfo[] memory newAssetsIntoBasket = new OpenTermStaking.AssetInfo[](2);
         newAssetsIntoBasket[0] = OpenTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@lbUSD", "BTC@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 300_000 // 30%
         });
         newAssetsIntoBasket[1] = OpenTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@lbUSD", "ETH@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@mosUSD", "ETH@mosUSD")),
             weight: 300_000 // 30%
         });
 
@@ -1120,8 +1120,8 @@ contract OpenTermStakingTest is Test {
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
                 ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD+",
-                "lbUSD+",
+                "mosUSD+",
+                "mosUSD+",
                 assetsIntoBasket
             )
         );
@@ -1153,7 +1153,7 @@ contract OpenTermStakingTest is Test {
         openTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
         newAssetsIntoBasket[0] = OpenTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@lbUSD", "BTC@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
         vm.expectRevert(
@@ -1165,7 +1165,7 @@ contract OpenTermStakingTest is Test {
         openTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
         newAssetsIntoBasket[0] = OpenTermStaking.AssetInfo({
-            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@lbUSD", "BTC@lbUSD")),
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
         vm.prank(_owner);

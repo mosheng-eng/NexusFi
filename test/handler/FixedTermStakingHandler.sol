@@ -77,11 +77,11 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     }
 
     function _deployUnderlyingToken() internal {
-        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(address(this), "lbUSD", "lbUSD"));
+        _underlyingToken = UnderlyingToken(_deployer.deployUnderlyingToken(address(this), "mosUSD", "mosUSD"));
 
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(this));
 
-        vm.label(address(_underlyingToken), "lbUSD");
+        vm.label(address(_underlyingToken), "mosUSD");
     }
 
     function _deployWhitelist() internal {
@@ -103,14 +103,14 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     function _deployFixedTermStaking() internal {
         _assetsInfoBasket.push(
             FixedTermStaking.AssetInfo({
-                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@lbUSD", "MMF@lbUSD")),
+                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
             FixedTermStaking.AssetInfo({
-                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@lbUSD", "RWA@lbUSD")),
+                targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
@@ -123,15 +123,15 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
                         | (uint256(_startFeedTime) << 192)
                 ),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD12M+",
-                "lbUSD12M+",
+                "mosUSD12M+",
+                "mosUSD12M+",
                 _assetsInfoBasket
             )
         );
 
-        vm.label(address(_fixedTermStaking), "lbUSD12M+");
-        vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@lbUSD");
-        vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@lbUSD");
+        vm.label(address(_fixedTermStaking), "mosUSD12M+");
+        vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@mosUSD");
+        vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@mosUSD");
     }
 
     function _deployExchanger() internal {
