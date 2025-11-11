@@ -69,10 +69,10 @@ contract UnderlyingTokenExchanger is Initializable, AccessControlUpgradeable, Re
     /// @param _who The address to be checked against the whitelist
     modifier onlyWhitelist(address _who) {
         if (_whitelist == address(0)) {
-            revert Errors.Uninitialized("whitelist");
+            revert Errors.ZeroAddress("whitelist");
         }
         if (_who == address(0)) {
-            revert Errors.ZeroAddress("whitelist");
+            revert Errors.ZeroAddress("user");
         }
         if (!IWhitelist(_whitelist).isWhitelisted(_who)) {
             revert IWhitelist.NotWhitelisted(_who);
@@ -269,6 +269,38 @@ contract UnderlyingTokenExchanger is Initializable, AccessControlUpgradeable, Re
             _token1_token0_rate = new_exchange_rate_;
             emit ExchangeRatesUpdated(zeroForOne_, old_rate, new_exchange_rate_);
         }
+    }
+
+    function token0() external view returns (address) {
+        return _token0;
+    }
+
+    function token0Decimals() external view returns (uint8) {
+        return _token0_decimals;
+    }
+
+    function token1() external view returns (address) {
+        return _token1;
+    }
+
+    function token1Decimals() external view returns (uint8) {
+        return _token1_decimals;
+    }
+
+    function whitelist() external view returns (address) {
+        return _whitelist;
+    }
+
+    function precision() external view returns (uint64) {
+        return _precision;
+    }
+
+    function token0ToToken1Rate() external view returns (uint64) {
+        return _token0_token1_rate;
+    }
+
+    function token1ToToken0Rate() external view returns (uint64) {
+        return _token1_token0_rate;
     }
 
     function contractName() external pure returns (string memory) {

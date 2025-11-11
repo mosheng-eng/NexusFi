@@ -15,11 +15,13 @@ import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 
-import {Test} from "forge-std/Test.sol";
+import {stdStorage, StdStorage, Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 contract UnderlyingTokenExchangerTest is Test {
+    using stdStorage for StdStorage;
+
     DeployContractSuit internal _deployer = new DeployContractSuit();
     UnderlyingTokenExchanger internal _exchanger;
     Whitelist internal _whitelist;
@@ -301,5 +303,104 @@ contract UnderlyingTokenExchangerTest is Test {
         UnderlyingToken mockContract = new UnderlyingToken();
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
         mockContract.initialize(_owner, "mosUSD", "mosUSD");
+    }
+
+    function testBoringExchangerOnlyWhitelist() public {
+        BoringUnderlyingTokenExchanger boringExchanger = new BoringUnderlyingTokenExchanger();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "whitelist"));
+        boringExchanger.boringTestOnlyWhitelist();
+
+        stdstore.target(address(boringExchanger)).sig(UnderlyingTokenExchanger.whitelist.selector).checked_write(
+            address(_whitelist)
+        );
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "user"));
+        vm.prank(address(0x0));
+        boringExchanger.boringTestOnlyWhitelist();
+        vm.expectRevert(abi.encodeWithSelector(IWhitelist.NotWhitelisted.selector, _nonWhitelistedUser1));
+        vm.prank(_nonWhitelistedUser1);
+        boringExchanger.boringTestOnlyWhitelist();
+    }
+
+    function testBoringExchangerOnlyInitialized() public {
+        BoringUnderlyingTokenExchanger boringExchanger = new BoringUnderlyingTokenExchanger();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringExchanger)).sig(UnderlyingTokenExchanger.token0.selector)
+            .checked_write(address(_underlyingToken));
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringExchanger)).sig(
+            UnderlyingTokenExchanger.token0Decimals.selector
+        ).checked_write(6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringExchanger)).sig(UnderlyingTokenExchanger.token1.selector)
+            .checked_write(address(_depositToken));
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringExchanger)).sig(
+            UnderlyingTokenExchanger.token1Decimals.selector
+        ).checked_write(6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "precision"));
+        boringExchanger.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringExchanger)).sig(UnderlyingTokenExchanger.precision.selector)
+            .checked_write(1e6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0_token1_rate"));
+        boringExchanger.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringExchanger)).sig(
+            UnderlyingTokenExchanger.token0ToToken1Rate.selector
+        ).checked_write(1e6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1_token0_rate"));
+        boringExchanger.boringTestOnlyInitialized();
+    }
+
+    function testToken0() public view {
+        assertEq(_exchanger.token0(), address(_underlyingToken));
+    }
+
+    function testToken1() public view {
+        assertEq(_exchanger.token1(), address(_depositToken));
+    }
+
+    function testToken0Decimals() public view {
+        assertEq(_exchanger.token0Decimals(), 6);
+    }
+
+    function testToken1Decimals() public view {
+        assertEq(_exchanger.token1Decimals(), 6);
+    }
+
+    function testWhitelist() public view {
+        assertEq(_exchanger.whitelist(), address(_whitelist));
+    }
+
+    function testPrecision() public view {
+        assertEq(_exchanger.precision(), 1e6);
+    }
+
+    function testToken0ToToken1Rate() public view {
+        assertEq(_exchanger.token0ToToken1Rate(), 1e6);
+    }
+
+    function testToken1ToToken0Rate() public view {
+        assertEq(_exchanger.token1ToToken0Rate(), 1e6);
+    }
+}
+
+contract BoringUnderlyingTokenExchanger is UnderlyingTokenExchanger {
+    function boringTestOnlyWhitelist() external view onlyWhitelist(msg.sender) returns (bool) {
+        return true;
+    }
+
+    function boringTestOnlyInitialized() external view onlyInitialized returns (bool) {
+        return true;
     }
 }
