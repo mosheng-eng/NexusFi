@@ -8,7 +8,7 @@ import {ERC721EnumerableUpgradeable} from
     "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 
 /// @title FixedTermToken
-/// @author RiftWriter
+/// @author Mr.Silent
 /// @notice ERC721 token representing fixed-term deposits.
 /// @notice This contract is designed to be inherited by FixedTermStaking.
 abstract contract FixedTermToken is ERC721EnumerableUpgradeable {

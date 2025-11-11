@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.24;
 
+/// @title Roles
+/// @author Mr.Silent
+/// @notice Library defining role constants for access control.
 library Roles {
     bytes32 public constant OWNER_ROLE = keccak256(abi.encodePacked("OWNER_ROLE"));
     bytes32 public constant OPERATOR_ROLE = keccak256(abi.encodePacked("OPERATOR_ROLE"));

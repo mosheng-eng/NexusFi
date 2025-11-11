@@ -5,9 +5,10 @@ pragma solidity ^0.8.24;
 import {BLSHelper} from "./BLSHelper.sol";
 
 /// @title BLS library
+/// @author Mr.Silent
 /// @notice Provides functions for BLS signature scheme operations
-/// @dev Precompiled contracts are used for elliptic curve operations
-/// @dev please refer to https://www.evm.codes/precompiled for more details
+/// @notice Precompiled contracts are used for elliptic curve operations
+/// @notice please refer to https://www.evm.codes/precompiled for more details
 library BLS {
     /// @notice Error reverted if trying to sum zero points
     error EmptyPointsToSum();
@@ -190,9 +191,6 @@ library BLS {
                 // solium-disable-next-line security/no-inline-assembly
                 assembly {
                     success := staticcall(sub(gas(), 2000), 0x0B, input, 0x0100, output, 0x80)
-                    // Use "invalid" to make gas estimation work
-                    switch success
-                    case 0 { invalid() }
                 }
 
                 if (!success) {
@@ -250,9 +248,6 @@ library BLS {
                 // solium-disable-next-line security/no-inline-assembly
                 assembly {
                     success := staticcall(sub(gas(), 2000), 0x0D, input, 0x0200, output, 0x0100)
-                    // Use "invalid" to make gas estimation work
-                    switch success
-                    case 0 { invalid() }
                 }
 
                 if (!success) {
@@ -303,9 +298,6 @@ library BLS {
             // solium-disable-next-line security/no-inline-assembly
             assembly {
                 success := staticcall(sub(gas(), 2000), 0x10, add(input, 0x20), 0x40, output, 0x80)
-                // Use "invalid" to make gas estimation work
-                switch success
-                case 0 { invalid() }
             }
 
             if (!success) {
@@ -341,9 +333,6 @@ library BLS {
             // solium-disable-next-line security/no-inline-assembly
             assembly {
                 success := staticcall(sub(gas(), 2000), 0x11, add(input, 0x20), 0x80, output, 0x0100)
-                // Use "invalid" to make gas estimation work
-                switch success
-                case 0 { invalid() }
             }
 
             if (!success) {
@@ -393,9 +382,6 @@ library BLS {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(sub(gas(), 2000), 0x0C, add(input, 0x20), mul(len, 0xA0), output, 0x80)
-            // Use "invalid" to make gas estimation work
-            switch success
-            case 0 { invalid() }
         }
 
         if (!success) {
@@ -459,9 +445,6 @@ library BLS {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(sub(gas(), 2000), 0x0E, add(input, 0x20), mul(len, 0x0120), output, 0x0100)
-            // Use "invalid" to make gas estimation work
-            switch success
-            case 0 { invalid() }
         }
 
         if (!success) {
@@ -541,13 +524,10 @@ library BLS {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(sub(gas(), 2000), 0x0F, input, 0x0300, output, 0x20)
-            // Use "invalid" to make gas estimation work
-            switch success
-            case 0 { invalid() }
         }
 
         if (!success) {
-            revert PairWhenPKOnG2Failed();
+            revert PairWhenPKOnG1Failed();
         }
 
         pairResult_ = (output[0] == 1);
@@ -600,9 +580,6 @@ library BLS {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(sub(gas(), 2000), 0x0F, input, 0x0300, output, 0x20)
-            // Use "invalid" to make gas estimation work
-            switch success
-            case 0 { invalid() }
         }
 
         if (!success) {
@@ -651,13 +628,10 @@ library BLS {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(sub(gas(), 2000), 0x0F, add(input, 0x20), mul(len, 0x0180), output, 0x20)
-            // Use "invalid" to make gas estimation work
-            switch success
-            case 0 { invalid() }
         }
 
         if (!success) {
-            revert PairWhenPKOnG2Failed();
+            revert GeneralPairingFailed();
         }
 
         pairResult_ = (output[0] == 1);

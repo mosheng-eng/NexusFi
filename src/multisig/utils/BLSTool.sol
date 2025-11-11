@@ -4,6 +4,10 @@ pragma solidity ^0.8.24;
 
 import {BLS} from "./BLS.sol";
 
+/// @title BLSTool
+/// @author Mr.Silent
+/// @notice Library providing utility functions for BLS12-381 operations, including aggregation and signature building.
+/// @notice Functions can be used for both G1 and G2 curve operations.
 library BLSTool {
     using BLS for BLS.G1Point;
     using BLS for BLS.G2Point;

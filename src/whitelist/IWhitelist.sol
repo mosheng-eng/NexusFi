@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/// @title IWhitelist
+/// @author Mr.Silent
+/// @notice Interface for a whitelist contract to manage access control.
+/// @notice Allows adding, removing, enabling, and disabling whitelist functionality.
 interface IWhitelist {
     /// @dev Emitted when addr is added to the whitelist.
     event WhitelistAdded(address indexed addr);

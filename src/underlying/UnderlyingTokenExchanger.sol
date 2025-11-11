@@ -15,6 +15,10 @@ import {Roles} from "src/common/Roles.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 
+/// @title UnderlyingTokenExchanger
+/// @author Mr.Silent
+/// @notice Contract to exchange between two ERC20 tokens at predefined exchange rates, with optional whitelist
+/// @notice One token is assumed to be the underlying token (token0), the other is a depositing token (token1)
 contract UnderlyingTokenExchanger is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
@@ -265,5 +269,9 @@ contract UnderlyingTokenExchanger is Initializable, AccessControlUpgradeable, Re
             _token1_token0_rate = new_exchange_rate_;
             emit ExchangeRatesUpdated(zeroForOne_, old_rate, new_exchange_rate_);
         }
+    }
+
+    function contractName() external pure returns (string memory) {
+        return "UnderlyingTokenExchanger";
     }
 }

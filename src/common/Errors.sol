@@ -2,7 +2,9 @@
 
 pragma solidity ^0.8.24;
 
-/// @dev Common errors used across multiple contracts.
+/// @title Errors
+/// @author Mr.Silent
+/// @notice Library defining common error types for the NexusFi protocol.
 library Errors {
     /// @dev Reverted when an address is zero.
     /// @param name The name of the address variable that is zero.

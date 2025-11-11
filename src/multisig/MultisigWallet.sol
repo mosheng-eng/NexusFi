@@ -25,6 +25,20 @@ contract MultisigWallet is
     using BLS for BLS.G1Point[];
     using BLS for BLS.G2Point[];
 
+    /// @notice Emitted when the status of an operation changes
+    /// @param operationHash The hash of the operation
+    /// @param oldStatus The previous status of the operation
+    /// @param newStatus The new status of the operation
+    event OperationStatusChanged(bytes32 indexed operationHash, OperationStatus oldStatus, OperationStatus newStatus);
+
+    /// @notice Error reverted if the operation status does not match the expected status
+    /// @param operationHash The hash of the operation
+    /// @param expectedStatus The expected status of the operation
+    /// @param actualStatus The actual status of the operation
+    event OperationStatusNotMatch(
+        bytes32 indexed operationHash, OperationStatus expectedStatus, OperationStatus actualStatus
+    );
+
     /// @notice Error reverted if the wallet mode is not supported
     error UnsupportedWalletMode(uint8 walletMode);
 
@@ -209,6 +223,7 @@ contract MultisigWallet is
     /// @notice Submit a batch of operations to the multisig wallet
     /// @param operations_ The array of operations to be submitted
     /// @return operationsHash_ The array of operation hashes corresponding to the submitted operations
+    /// @dev Each operation's nonce must be unique and sequentially increasing as the order in the array
     function submitOperations(Operation[] memory operations_)
         public
         nonReentrant
@@ -271,9 +286,11 @@ contract MultisigWallet is
                     revert AggregatedSignatureNotMatchPublicKeys(i);
                 } else {
                     operations_[i].status = OperationStatus.APPROVED;
+                    emit OperationStatusChanged(operationsHash_[i], OperationStatus.NONE, OperationStatus.APPROVED);
                 }
             } else {
                 operations_[i].status = OperationStatus.PENDING;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.NONE, OperationStatus.PENDING);
             }
 
             _nonce += 1;
@@ -290,6 +307,64 @@ contract MultisigWallet is
                 data: operations_[i].data,
                 aggregatedSignature: operations_[i].aggregatedSignature
             });
+        }
+    }
+
+    /// @notice Verify a batch of operations with their aggregated signatures
+    /// @param operationsHash_ The array of operation hashes to be verified
+    /// @param aggregatedSignatures_ The array of aggregated signatures corresponding to the operation hashes
+    /// @return results_ The array of boolean results indicating whether each operation is approved or not
+    /// @dev Each operation must be in PENDING status to be verified
+    /// @dev Only one chance to verify each operation.
+    /// @dev After verification, the operation status will be updated to APPROVED or REJECTED
+    function verifyOperations(bytes32[] calldata operationsHash_, bytes[] calldata aggregatedSignatures_)
+        public
+        nonReentrant
+        whenNotPaused
+        initialized
+        returns (bool[] memory results_)
+    {
+        uint256 operationNumber = operationsHash_.length;
+
+        if (operationNumber == 0) {
+            revert EmptyOperations();
+        }
+        if (operationNumber != aggregatedSignatures_.length) {
+            revert Errors.InvalidValue("operationsHash_ and aggregatedSignatures_ length mismatch");
+        }
+
+        results_ = new bool[](operationNumber);
+
+        for (uint256 i = 0; i < operationNumber; ++i) {
+            Operation storage op = _operations[operationsHash_[i]];
+
+            if (op.status == OperationStatus.NONE) {
+                results_[i] = false;
+                continue;
+            }
+
+            if (aggregatedSignatures_[i].length == 0) {
+                results_[i] = false;
+                continue;
+            }
+
+            if (op.status != OperationStatus.PENDING) {
+                results_[i] = false;
+                emit OperationStatusNotMatch(operationsHash_[i], OperationStatus.PENDING, op.status);
+                continue;
+            }
+
+            results_[i] = _verifySignatures(aggregatedSignatures_[i], abi.encode(operationsHash_[i]));
+
+            op.aggregatedSignature = aggregatedSignatures_[i];
+
+            if (results_[i]) {
+                op.status = OperationStatus.APPROVED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.PENDING, OperationStatus.APPROVED);
+            } else {
+                op.status = OperationStatus.REJECTED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.PENDING, OperationStatus.REJECTED);
+            }
         }
     }
 
@@ -318,13 +393,16 @@ contract MultisigWallet is
             }
 
             op.status = OperationStatus.EXECUTING;
+            emit OperationStatusChanged(operationsHash_[i], OperationStatus.APPROVED, OperationStatus.EXECUTING);
 
             (bool success,) = op.target.call{value: op.value, gas: op.gasLimit}(op.data);
 
             if (success) {
                 op.status = OperationStatus.EXECUTED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.EXECUTING, OperationStatus.EXECUTED);
             } else {
                 op.status = OperationStatus.FAILED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.EXECUTING, OperationStatus.FAILED);
             }
         }
     }

@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
+import {Errors} from "../src/common/Errors.sol";
 import {MultisigWallet} from "../src/multisig/MultisigWallet.sol";
 import {BLS} from "../src/multisig/utils/BLS.sol";
 import {BLSTool} from "../src/multisig/utils/BLSTool.sol";
@@ -415,7 +416,7 @@ contract MultisigWalletTest is Test {
         assertTrue(sigOnG1.pairWhenPKOnG2(pkOnG2, msgOnG1));
     }
 
-    function testSubmitOperationsWithoutSIGToWalletPKOnG1() public {
+    function testSubmitOperationsWithoutSIGToWalletPKOnG1() public returns (bytes32) {
         (MultisigWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_multisigWalletPKOnG1);
 
         bytes32[] memory operationsHash = _multisigWalletPKOnG1.submitOperations(operations);
@@ -424,9 +425,11 @@ contract MultisigWalletTest is Test {
         assertEq(operationsHash[0], operationHash);
         (,,,,,, MultisigWallet.OperationStatus status,,,) = _multisigWalletPKOnG1._operations(operationHash);
         assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.PENDING));
+
+        return operationHash;
     }
 
-    function testSubmitOperationsWithoutSIGToWalletPKOnG2() public {
+    function testSubmitOperationsWithoutSIGToWalletPKOnG2() public returns (bytes32) {
         (MultisigWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_multisigWalletPKOnG2);
 
         bytes32[] memory operationsHash = _multisigWalletPKOnG2.submitOperations(operations);
@@ -435,9 +438,63 @@ contract MultisigWalletTest is Test {
         assertEq(operationsHash[0], operationHash);
         (,,,,,, MultisigWallet.OperationStatus status,,,) = _multisigWalletPKOnG2._operations(operationHash);
         assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.PENDING));
+
+        return operationHash;
     }
 
-    function testSubmitOperationsWithSIGToWalletPKOnG1() public {
+    function testVerifyOperationsInWalletPKOnG1() public {
+        (MultisigWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_multisigWalletPKOnG1);
+
+        bytes32[] memory operationsHash = _multisigWalletPKOnG1.submitOperations(operations);
+
+        assertEq(operationsHash.length, 1);
+        assertEq(operationsHash[0], operationHash);
+        (,,,,,, MultisigWallet.OperationStatus status,,,) = _multisigWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.PENDING));
+
+        bytes[] memory aggregatedSignatures = new bytes[](1);
+        aggregatedSignatures[0] = _signOnG2(operationHash);
+
+        _multisigWalletPKOnG1.verifyOperations(operationsHash, aggregatedSignatures);
+
+        (,,,,,, status,,,) = _multisigWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.APPROVED));
+
+        vm.warp(block.timestamp + 2 days);
+
+        _multisigWalletPKOnG1.executeOperations(operationsHash);
+
+        (,,,,,, status,,,) = _multisigWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.EXECUTED));
+    }
+
+    function testVerifyOperationsInWalletPKOnG2() public {
+        (MultisigWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_multisigWalletPKOnG2);
+
+        bytes32[] memory operationsHash = _multisigWalletPKOnG2.submitOperations(operations);
+
+        assertEq(operationsHash.length, 1);
+        assertEq(operationsHash[0], operationHash);
+        (,,,,,, MultisigWallet.OperationStatus status,,,) = _multisigWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.PENDING));
+
+        bytes[] memory aggregatedSignatures = new bytes[](1);
+        aggregatedSignatures[0] = _signOnG1(operationHash);
+
+        _multisigWalletPKOnG2.verifyOperations(operationsHash, aggregatedSignatures);
+
+        (,,,,,, status,,,) = _multisigWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.APPROVED));
+
+        vm.warp(block.timestamp + 2 days);
+
+        _multisigWalletPKOnG2.executeOperations(operationsHash);
+
+        (,,,,,, status,,,) = _multisigWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.EXECUTED));
+    }
+
+    function testSubmitOperationsWithSIGToWalletPKOnG1() public returns (bytes32, bytes memory) {
         (MultisigWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_multisigWalletPKOnG1);
         assertEq(operations.length, 1);
 
@@ -459,9 +516,11 @@ contract MultisigWalletTest is Test {
         assertEq(operationsHash[0], operationHash);
         (,,,,,, MultisigWallet.OperationStatus status,,,) = _multisigWalletPKOnG1._operations(operationHash);
         assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.APPROVED));
+
+        return (operationHash, operations[0].aggregatedSignature);
     }
 
-    function testSubmitOperationsWithSIGToWalletPKOnG2() public {
+    function testSubmitOperationsWithSIGToWalletPKOnG2() public returns (bytes32, bytes memory) {
         (MultisigWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_multisigWalletPKOnG2);
         assertEq(operations.length, 1);
 
@@ -483,6 +542,8 @@ contract MultisigWalletTest is Test {
         assertEq(operationsHash[0], operationHash);
         (,,,,,, MultisigWallet.OperationStatus status,,,) = _multisigWalletPKOnG2._operations(operationHash);
         assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.APPROVED));
+
+        return (operationHash, operations[0].aggregatedSignature);
     }
 
     function testExecuteOperationsToWalletPKOnG1() public {
@@ -545,6 +606,387 @@ contract MultisigWalletTest is Test {
         assertEq(uint8(status), uint8(MultisigWallet.OperationStatus.EXECUTED));
     }
 
+    function testInitializedModifier() public {
+        MultisigWallet directCallMultisigWallet = new MultisigWallet();
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "Mode or PK is not set"));
+        directCallMultisigWallet.submitOperations(new MultisigWallet.Operation[](0));
+
+        MultisigWallet nondirectCallMultisigWalletG1 = MultisigWallet(
+            address(
+                _deployer.deployMultisigWallet(
+                    _owner,
+                    MultisigWallet.WalletMode.PUBLIC_KEY_ON_G1,
+                    abi.encode(BLS.G1Point({X: BLS.Unit({upper: 0, lower: 0}), Y: BLS.Unit({upper: 0, lower: 0})}))
+                )
+            )
+        );
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "Mode or PK is not set"));
+        nondirectCallMultisigWalletG1.submitOperations(new MultisigWallet.Operation[](0));
+
+        MultisigWallet nondirectCallMultisigWalletG2 = MultisigWallet(
+            address(
+                _deployer.deployMultisigWallet(
+                    _owner,
+                    MultisigWallet.WalletMode.PUBLIC_KEY_ON_G2,
+                    abi.encode(
+                        BLS.G2Point({
+                            X0: BLS.Unit({upper: 0, lower: 0}),
+                            X1: BLS.Unit({upper: 0, lower: 0}),
+                            Y0: BLS.Unit({upper: 0, lower: 0}),
+                            Y1: BLS.Unit({upper: 0, lower: 0})
+                        })
+                    )
+                )
+            )
+        );
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "Mode or PK is not set"));
+        nondirectCallMultisigWalletG2.submitOperations(new MultisigWallet.Operation[](0));
+    }
+
+    function testInvalidInitialize() public {
+        vm.expectRevert(MultisigWallet.EmptyPublicKey.selector);
+        _deployer.deployMultisigWallet(_owner, MultisigWallet.WalletMode.PUBLIC_KEY_ON_G1, abi.encodePacked(""));
+        vm.expectRevert(MultisigWallet.EmptyPublicKey.selector);
+        _deployer.deployMultisigWallet(_owner, MultisigWallet.WalletMode.PUBLIC_KEY_ON_G2, abi.encodePacked(""));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(MultisigWallet.InvalidPublicKey.selector, "Invalid public key length for G1")
+        );
+        _deployer.deployMultisigWallet(
+            _owner, MultisigWallet.WalletMode.PUBLIC_KEY_ON_G1, abi.encode(BLS.Unit({upper: 0, lower: 0}))
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(MultisigWallet.InvalidPublicKey.selector, "Invalid public key length for G2")
+        );
+        _deployer.deployMultisigWallet(
+            _owner, MultisigWallet.WalletMode.PUBLIC_KEY_ON_G2, abi.encode(BLS.Unit({upper: 0, lower: 0}))
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(MultisigWallet.UnsupportedWalletMode.selector, 0));
+        _deployer.deployMultisigWallet(
+            _owner, MultisigWallet.WalletMode.UNKNOWN, abi.encode(BLS.Unit({upper: 0, lower: 0}))
+        );
+    }
+
+    function testSubmitInvalidOperations() public {
+        console.log("case1: empty operations");
+        vm.expectRevert(MultisigWallet.EmptyOperations.selector);
+        _multisigWalletPKOnG1.submitOperations(new MultisigWallet.Operation[](0));
+        vm.expectRevert(MultisigWallet.EmptyOperations.selector);
+        _multisigWalletPKOnG2.submitOperations(new MultisigWallet.Operation[](0));
+
+        MultisigWallet.Operation[] memory operationsG1;
+        bytes32 operationHashG1;
+        MultisigWallet.Operation[] memory operationsG2;
+        bytes32 operationHashG2;
+
+        console.log("case2: target is zero address");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].target = address(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "Operation.target"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].target = address(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "Operation.target"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case3: Operation.expirationTime earlier than Operation.effectiveTime");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].expirationTime = operationsG1[0].effectiveTime - 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.InvalidValue.selector, "Operation.expirationTime earlier than Operation.effectiveTime"
+            )
+        );
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].expirationTime = operationsG2[0].effectiveTime - 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.InvalidValue.selector, "Operation.expirationTime earlier than Operation.effectiveTime"
+            )
+        );
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case4: Operation.expirationTime earlier than current time");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        vm.warp(block.timestamp + 30 days + 1 minutes);
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.expirationTime earlier than current time")
+        );
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        vm.warp(block.timestamp + 30 days + 1 minutes);
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.expirationTime earlier than current time")
+        );
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case5: Operation.gasLimit too low");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].gasLimit = 21000 - 1;
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.gasLimit too low"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].gasLimit = 21000 - 1;
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.gasLimit too low"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case6: Operation.nonce invalid");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].nonce = operationsG1[0].nonce + 1;
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.nonce invalid"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].nonce = operationsG2[0].nonce + 1;
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.nonce invalid"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case7: Operation.hashCheckCode invalid");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].hashCheckCode = bytes8(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.hashCheckCode invalid"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].hashCheckCode = bytes8(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.hashCheckCode invalid"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case8: Operation.data too short");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].data = new bytes(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.data too short"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].data = new bytes(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.data too short"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case9: Operation.aggregatedSignature invalid");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].aggregatedSignature = abi.encodePacked("0xff");
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.aggregatedSignature invalid"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].aggregatedSignature = abi.encodePacked("0xff");
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.aggregatedSignature invalid"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case10: Operation.hashCheckCode mismatch");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].hashCheckCode = bytes8(keccak256(abi.encodePacked("mismatch")));
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.hashCheckCode mismatch"));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].hashCheckCode = bytes8(keccak256(abi.encodePacked("mismatch")));
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.hashCheckCode mismatch"));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case11: Operation already exists (impossible)");
+
+        /*
+        // This is impossible to happen based on current protocol design, so comment it out.
+        console.log("case11: Operation already exists");
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        operationsG1[0].nonce = operationsG1[0].nonce + 1;
+        vm.expectRevert(MultisigWallet.OperationExists.selector);
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+        operationsG2[0].nonce = operationsG2[0].nonce + 1;
+        vm.expectRevert(MultisigWallet.OperationExists.selector);
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+        */
+
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].aggregatedSignature = _signOnG2(operationHashG1);
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].aggregatedSignature = _signOnG1(operationHashG2);
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+
+        console.log("case12: Aggregated signature not match public keys");
+        bytes memory invalidAggregatedSignatureG2 = operationsG1[0].aggregatedSignature;
+        (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].aggregatedSignature = invalidAggregatedSignatureG2;
+        vm.expectRevert(abi.encodeWithSelector(MultisigWallet.AggregatedSignatureNotMatchPublicKeys.selector, 0));
+        _multisigWalletPKOnG1.submitOperations(operationsG1);
+        bytes memory invalidAggregatedSignatureG1 = operationsG2[0].aggregatedSignature;
+        (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].aggregatedSignature = invalidAggregatedSignatureG1;
+        vm.expectRevert(abi.encodeWithSelector(MultisigWallet.AggregatedSignatureNotMatchPublicKeys.selector, 0));
+        _multisigWalletPKOnG2.submitOperations(operationsG2);
+    }
+
+    function testVerifyInvalidOperations() public {
+        vm.expectRevert(MultisigWallet.EmptyOperations.selector);
+        _multisigWalletPKOnG1.verifyOperations(new bytes32[](0), new bytes[](0));
+        vm.expectRevert(MultisigWallet.EmptyOperations.selector);
+        _multisigWalletPKOnG2.verifyOperations(new bytes32[](0), new bytes[](0));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.InvalidValue.selector, "operationsHash_ and aggregatedSignatures_ length mismatch"
+            )
+        );
+        _multisigWalletPKOnG1.verifyOperations(new bytes32[](1), new bytes[](0));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.InvalidValue.selector, "operationsHash_ and aggregatedSignatures_ length mismatch"
+            )
+        );
+        _multisigWalletPKOnG2.verifyOperations(new bytes32[](1), new bytes[](0));
+
+        MultisigWallet.Operation[] memory operationsG1;
+        bytes32[] memory operationHashG1;
+        MultisigWallet.Operation[] memory operationsG2;
+        bytes32[] memory operationHashG2;
+        bytes[] memory aggregatedSignaturesG1 = new bytes[](1);
+        bytes[] memory aggregatedSignaturesG2 = new bytes[](1);
+        aggregatedSignaturesG1[0] = abi.encodePacked("0xff");
+        aggregatedSignaturesG2[0] = abi.encodePacked("0xff");
+        bytes32 validOpHashG1;
+        (operationsG1, validOpHashG1) = _operations(_multisigWalletPKOnG1);
+        operationHashG1 = _multisigWalletPKOnG1.submitOperations(operationsG1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.InvalidSignature.selector, "Invalid aggregated signature length for G1"
+            )
+        );
+        _multisigWalletPKOnG1.verifyOperations(operationHashG1, aggregatedSignaturesG2);
+        bytes32 validOpHashG2;
+        (operationsG2, validOpHashG2) = _operations(_multisigWalletPKOnG2);
+        operationHashG2 = _multisigWalletPKOnG2.submitOperations(operationsG2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.InvalidSignature.selector, "Invalid aggregated signature length for G2"
+            )
+        );
+        _multisigWalletPKOnG2.verifyOperations(operationHashG2, aggregatedSignaturesG1);
+
+        operationHashG1 = new bytes32[](5);
+        operationHashG2 = new bytes32[](5);
+        aggregatedSignaturesG1 = new bytes[](5);
+        aggregatedSignaturesG2 = new bytes[](5);
+
+        /// @dev op1: unexisting operation
+        operationHashG1[0] = keccak256(abi.encodePacked("unexisting operation for wallet PK on G1"));
+        aggregatedSignaturesG2[0] = _signOnG2(operationHashG1[0]);
+        operationHashG2[0] = keccak256(abi.encodePacked("unexisting operation for wallet PK on G2"));
+        aggregatedSignaturesG1[0] = _signOnG1(operationHashG2[0]);
+        /// @dev op2: no aggregated signature
+        operationHashG1[1] = validOpHashG1;
+        aggregatedSignaturesG2[1] = abi.encodePacked("");
+        operationHashG2[1] = validOpHashG2;
+        aggregatedSignaturesG1[1] = abi.encodePacked("");
+        /// @dev op3: not pending operation
+        (operationHashG1[2], aggregatedSignaturesG2[2]) = testSubmitOperationsWithSIGToWalletPKOnG1();
+        (operationHashG2[2], aggregatedSignaturesG1[2]) = testSubmitOperationsWithSIGToWalletPKOnG2();
+        /// @dev op4: valid but not match aggregated signature
+        operationHashG1[3] = testSubmitOperationsWithoutSIGToWalletPKOnG1();
+        aggregatedSignaturesG2[3] = aggregatedSignaturesG2[2];
+        operationHashG2[3] = testSubmitOperationsWithoutSIGToWalletPKOnG2();
+        aggregatedSignaturesG1[3] = aggregatedSignaturesG1[2];
+        /// @dev op5: valid and match aggregated signature
+        operationHashG1[4] = testSubmitOperationsWithoutSIGToWalletPKOnG1();
+        aggregatedSignaturesG2[4] = _signOnG2(operationHashG1[4]);
+        operationHashG2[4] = testSubmitOperationsWithoutSIGToWalletPKOnG2();
+        aggregatedSignaturesG1[4] = _signOnG1(operationHashG2[4]);
+
+        bool[] memory resultsG1 = _multisigWalletPKOnG1.verifyOperations(operationHashG1, aggregatedSignaturesG2);
+        assertFalse(resultsG1[0]);
+        assertFalse(resultsG1[1]);
+        assertFalse(resultsG1[2]);
+        assertFalse(resultsG1[3]);
+        assertTrue(resultsG1[4]);
+        bool[] memory resultsG2 = _multisigWalletPKOnG2.verifyOperations(operationHashG2, aggregatedSignaturesG1);
+        assertFalse(resultsG2[0]);
+        assertFalse(resultsG2[1]);
+        assertFalse(resultsG2[2]);
+        assertFalse(resultsG2[3]);
+        assertTrue(resultsG2[4]);
+    }
+
+    function testExecuteInvalidOperations() public {
+        vm.expectRevert(MultisigWallet.EmptyOperations.selector);
+        _multisigWalletPKOnG1.executeOperations(new bytes32[](0));
+        vm.expectRevert(MultisigWallet.EmptyOperations.selector);
+        _multisigWalletPKOnG2.executeOperations(new bytes32[](0));
+
+        MultisigWallet.Operation[] memory operationsG1;
+        bytes32[] memory operationHashG1;
+        MultisigWallet.Operation[] memory operationsG2;
+        bytes32[] memory operationHashG2;
+
+        (operationsG1,) = _operations(_multisigWalletPKOnG1);
+        operationHashG1 = _multisigWalletPKOnG1.submitOperations(operationsG1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.ExecuteUnapprovedOperation.selector, MultisigWallet.OperationStatus.PENDING
+            )
+        );
+        _multisigWalletPKOnG1.executeOperations(operationHashG1);
+        (operationsG2,) = _operations(_multisigWalletPKOnG2);
+        operationHashG2 = _multisigWalletPKOnG2.submitOperations(operationsG2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.ExecuteUnapprovedOperation.selector, MultisigWallet.OperationStatus.PENDING
+            )
+        );
+        _multisigWalletPKOnG2.executeOperations(operationHashG2);
+
+        bytes32 operationHash;
+        (operationsG1, operationHash) = _operations(_multisigWalletPKOnG1);
+        operationsG1[0].aggregatedSignature = _signOnG2(operationHash);
+        operationHashG1 = _multisigWalletPKOnG1.submitOperations(operationsG1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.ExecuteUneffectiveOperation.selector,
+                operationsG1[0].effectiveTime,
+                uint32(block.timestamp)
+            )
+        );
+        _multisigWalletPKOnG1.executeOperations(operationHashG1);
+        (operationsG2, operationHash) = _operations(_multisigWalletPKOnG2);
+        operationsG2[0].aggregatedSignature = _signOnG1(operationHash);
+        operationHashG2 = _multisigWalletPKOnG2.submitOperations(operationsG2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.ExecuteUneffectiveOperation.selector,
+                operationsG2[0].effectiveTime,
+                uint32(block.timestamp)
+            )
+        );
+        _multisigWalletPKOnG2.executeOperations(operationHashG2);
+
+        uint256 currentTime = block.timestamp + 31 days;
+        vm.warp(currentTime);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.ExecuteExpiredOperation.selector, operationsG1[0].expirationTime, uint32(currentTime)
+            )
+        );
+        _multisigWalletPKOnG1.executeOperations(operationHashG1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultisigWallet.ExecuteExpiredOperation.selector, operationsG2[0].expirationTime, uint32(currentTime)
+            )
+        );
+        _multisigWalletPKOnG2.executeOperations(operationHashG2);
+
+        vm.mockCallRevert(operationsG1[0].target, operationsG1[0].data, abi.encode(uint256(0)));
+        vm.mockCallRevert(operationsG2[0].target, operationsG2[0].data, abi.encode(uint256(0)));
+        vm.warp(block.timestamp - 2 days);
+        _multisigWalletPKOnG1.executeOperations(operationHashG1);
+        (,,,,,, MultisigWallet.OperationStatus statusG1,,,) = _multisigWalletPKOnG1._operations(operationHashG1[0]);
+        assertTrue(statusG1 == MultisigWallet.OperationStatus.FAILED);
+        _multisigWalletPKOnG2.executeOperations(operationHashG2);
+        (,,,,,, MultisigWallet.OperationStatus statusG2,,,) = _multisigWalletPKOnG2._operations(operationHashG2[0]);
+        assertTrue(statusG2 == MultisigWallet.OperationStatus.FAILED);
+        vm.clearMockedCalls();
+    }
+
     function _operations(MultisigWallet multisigWallet_)
         internal
         view
@@ -570,6 +1012,34 @@ contract MultisigWalletTest is Test {
             )
         );
         operations_[0].hashCheckCode = bytes8(operationHash_);
+    }
+
+    function _signOnG2(bytes32 operationHash_) internal view returns (bytes memory aggregatedSignature_) {
+        uint256[] memory sks = new uint256[](_privateKeys.length);
+        bytes[] memory messages = new bytes[](_privateKeys.length);
+
+        for (uint256 i = 0; i < _privateKeys.length; i++) {
+            sks[i] = _privateKeys[i];
+            messages[i] = abi.encode(operationHash_);
+        }
+
+        BLS.G2Point memory sigOnG2 = BLSTool.buildSIGsOnG2(sks, messages);
+
+        aggregatedSignature_ = abi.encode(sigOnG2);
+    }
+
+    function _signOnG1(bytes32 operationHash_) internal view returns (bytes memory aggregatedSignature_) {
+        uint256[] memory sks = new uint256[](_privateKeys.length);
+        bytes[] memory messages = new bytes[](_privateKeys.length);
+
+        for (uint256 i = 0; i < _privateKeys.length; i++) {
+            sks[i] = _privateKeys[i];
+            messages[i] = abi.encode(operationHash_);
+        }
+
+        BLS.G1Point memory sigOnG1 = BLSTool.buildSIGsOnG1(sks, messages);
+
+        aggregatedSignature_ = abi.encode(sigOnG1);
     }
 
     function _calldata() internal view returns (bytes memory calldata_) {

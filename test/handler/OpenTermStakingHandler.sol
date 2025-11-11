@@ -3,7 +3,7 @@
 pragma solidity ^0.8.24;
 
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
-import {FixedTermStaking} from "src/protocols/fixed-term/FixedTermStaking.sol";
+import {OpenTermStaking} from "src/protocols/open-term/OpenTermStaking.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
@@ -17,19 +17,19 @@ import {CommonBase} from "forge-std/Base.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {StdAssertions} from "forge-std/StdAssertions.sol";
+import {console} from "forge-std/console.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBase {
+contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBase {
     DeployContractSuit internal _deployer = new DeployContractSuit();
-    FixedTermStaking internal _fixedTermStaking;
+    OpenTermStaking internal _openTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;
-    FixedTermStaking.AssetInfo[] internal _assetsInfoBasket;
+    OpenTermStaking.AssetInfo[] internal _assetsInfoBasket;
     DepositAsset internal _depositToken;
     UnderlyingTokenExchanger internal _exchanger;
 
-    uint64 internal _lockPeriod = 365 days;
     uint64 internal _stakeFeeRate = 1_000; // in base points, 0.1%
     uint64 internal _unstakeFeeRate = 1_000; // in base points, 0.2%
     uint64 internal _startFeedTime = 1759301999; // 2025-10-01 14:59:59 UTC+8
@@ -37,19 +37,21 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     uint128 internal _dustBalance = 1_000 * 10 ** 6; // 1,000 USDC
     uint128 internal _maxSupply = 1_000_000_000_000 * 10 ** 6; // 1000 billion USDC
 
+    address[] internal _addrs;
+
     constructor() {
         _timeBegin();
         _deployUnderlyingToken();
         _deployWhitelist();
         _deployDepositToken();
         _deployExchanger();
-        _deployFixedTermStaking();
+        _deployOpenTermStaking();
         _setContractDependencies();
         _oneDayPassed();
     }
 
-    function getFixedTermStaking() external view returns (FixedTermStaking) {
-        return _fixedTermStaking;
+    function getOpenTermStaking() external view returns (OpenTermStaking) {
+        return _openTermStaking;
     }
 
     function getDepositToken() external view returns (DepositAsset) {
@@ -60,7 +62,7 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
         return _assetsInfoBasket.length;
     }
 
-    function getAssetInfoInBasket(uint256 index_) external view returns (FixedTermStaking.AssetInfo memory) {
+    function getAssetInfoInBasket(uint256 index_) external view returns (OpenTermStaking.AssetInfo memory) {
         return _assetsInfoBasket[index_];
     }
 
@@ -100,36 +102,33 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
         vm.label(address(_depositToken), "USDC");
     }
 
-    function _deployFixedTermStaking() internal {
+    function _deployOpenTermStaking() internal {
         _assetsInfoBasket.push(
-            FixedTermStaking.AssetInfo({
+            OpenTermStaking.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@lbUSD", "MMF@lbUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
-            FixedTermStaking.AssetInfo({
+            OpenTermStaking.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@lbUSD", "RWA@lbUSD")),
                 weight: 500_000 // 50%
             })
         );
 
-        _fixedTermStaking = FixedTermStaking(
-            _deployer.deployFixedTermStaking(
+        _openTermStaking = OpenTermStaking(
+            _deployer.deployOpenTermStaking(
                 [address(this), address(_underlyingToken), address(_whitelist), address(_exchanger)],
-                (
-                    uint256(_lockPeriod) | (uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128)
-                        | (uint256(_startFeedTime) << 192)
-                ),
+                ((uint256(_stakeFeeRate) << 64) | (uint256(_unstakeFeeRate) << 128) | (uint256(_startFeedTime) << 192)),
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
-                "lbUSD12M+",
-                "lbUSD12M+",
+                "lbUSD+",
+                "lbUSD+",
                 _assetsInfoBasket
             )
         );
 
-        vm.label(address(_fixedTermStaking), "lbUSD12M+");
+        vm.label(address(_openTermStaking), "lbUSD+");
         vm.label(address(_assetsInfoBasket[0].targetVault), "MMF@lbUSD");
         vm.label(address(_assetsInfoBasket[1].targetVault), "RWA@lbUSD");
     }
@@ -147,19 +146,54 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     }
 
     function _setContractDependencies() internal {
-        _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_fixedTermStaking));
+        _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_openTermStaking));
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_exchanger));
 
-        _exchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, address(_fixedTermStaking));
+        _exchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, address(_openTermStaking));
     }
 
     function stake(address user_, uint128 amountToStake_) external {
+        _feed();
+        _oneDayPassed();
+
         vm.assume(user_ != address(0x0) && user_.code.length == 0);
         amountToStake_ = uint128(bound(amountToStake_, 10 ** 6, 9_000_000 * 10 ** 6));
 
         _fundUser(user_, amountToStake_);
         _whitelistUser(user_);
         _stake(user_, amountToStake_);
+
+        _addrs.push(user_);
+    }
+
+    function unstake(uint128 userIndex_, uint128 unstakePercent_) external {
+        _feed();
+        _oneDayPassed();
+
+        userIndex_ = uint128(bound(userIndex_, 0, uint128(_addrs.length - 1)));
+        unstakePercent_ = uint128(bound(unstakePercent_, 1, 100_000)); // in base points, 100%
+        address user = _addrs[userIndex_];
+
+        uint256 userBalanceBeforeUnstake = _openTermStaking.balanceOf(user);
+        uint256 amountToUnstake = (userBalanceBeforeUnstake * unstakePercent_) / 1_000_000;
+
+        vm.prank(user);
+        _openTermStaking.unstake(uint128(amountToUnstake));
+    }
+
+    function updateVaultNAV(uint128 interestForMMFVault_, uint128 interestForRWAVault_) external {
+        require(_assetsInfoBasket.length == 2, "This test is only for two assets!");
+
+        interestForMMFVault_ = uint128(
+            bound(interestForMMFVault_, 10 ** 6, _depositToken.balanceOf(_assetsInfoBasket[0].targetVault)) * 40_000
+                / 1_000_000 / 365
+        );
+        interestForRWAVault_ = uint128(
+            bound(interestForRWAVault_, 10 ** 6, _depositToken.balanceOf(_assetsInfoBasket[1].targetVault)) * 40_000
+                / 1_000_000 / 365
+        );
+        _depositToken.mint(_assetsInfoBasket[0].targetVault, interestForMMFVault_);
+        _depositToken.mint(_assetsInfoBasket[1].targetVault, interestForRWAVault_);
     }
 
     function _fundUser(address user_, uint128 amount_) internal {
@@ -182,23 +216,22 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
         uint256 userBalanceBeforeStake = _underlyingToken.balanceOf(user_);
         assertEq(userBalanceBeforeStake, amountToStake_);
 
-        _underlyingToken.approve(address(_fixedTermStaking), uint256(amountToStake_));
-        _fixedTermStaking.stake(amountToStake_);
+        _underlyingToken.approve(address(_openTermStaking), uint256(amountToStake_));
+        _openTermStaking.stake(amountToStake_);
 
         uint256 userBalanceAfterStake = _underlyingToken.balanceOf(user_);
-        uint256 stakingProtocolBalanceAfterStake = _underlyingToken.balanceOf(address(_fixedTermStaking));
-        uint256 totalAssetValueInBasket = _fixedTermStaking.getTotalAssetValueInBasket();
-        uint256 totalFee = _fixedTermStaking._totalFee();
-        uint256 totalPrincipal = _fixedTermStaking._totalPrincipal();
+        uint256 stakingProtocolBalanceAfterStake = _underlyingToken.balanceOf(address(_openTermStaking));
+
+        uint256 totalFee = _openTermStaking._totalFee();
+        uint256 totalInterestBearing = _openTermStaking._totalInterestBearing();
         assertEq(userBalanceAfterStake, 0);
-        assertEq(stakingProtocolBalanceAfterStake, totalFee + totalPrincipal);
-        assertLe(
-            totalAssetValueInBasket > totalPrincipal
-                ? totalAssetValueInBasket - totalPrincipal
-                : totalPrincipal - totalAssetValueInBasket,
-            1000
-        );
+        assertEq(stakingProtocolBalanceAfterStake, totalFee + totalInterestBearing);
 
         vm.stopPrank();
+    }
+
+    function _feed() internal {
+        vm.warp(_currentTime + 1 minutes);
+        _openTermStaking.feed(_currentTime);
     }
 }

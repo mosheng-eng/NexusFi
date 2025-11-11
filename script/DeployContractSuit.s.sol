@@ -9,6 +9,7 @@ import {Vm} from "forge-std/Vm.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {FixedTermStaking} from "src/protocols/fixed-term/FixedTermStaking.sol";
+import {OpenTermStaking} from "src/protocols/open-term/OpenTermStaking.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
 import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";
@@ -61,6 +62,7 @@ contract DeployContractSuit is Script {
          * [0~63]: uint64 lockPeriod_,
          * [64~127]: uint64 stakeFeeRate_,
          * [128~191]: uint64 unstakeFeeRate_,
+         * [192~255]: uint64 startFeedTime_
          */
         uint256 properties_,
         /**
@@ -84,6 +86,41 @@ contract DeployContractSuit is Script {
                     name_,
                     symbol_,
                     assetsInfoBasket_
+                )
+            )
+        );
+    }
+
+    function deployOpenTermStaking(
+        /**
+         * 0: address owner_,
+         * 1: address underlyingToken_,
+         * 2: address whitelist_,
+         * 3: address exchanger_,
+         */
+        address[4] calldata addrs_,
+        /**
+         * [0~63]: uint64 reserveField_,
+         * [64~127]: uint64 stakeFeeRate_,
+         * [128~191]: uint64 unstakeFeeRate_,
+         * [192~255]: uint64 startFeedTime_
+         */
+        uint256 properties_,
+        /**
+         * [0~127]: uint128 dustBalance_,
+         * [128~255]: uint128 maxSupply_,
+         */
+        uint256 limits_,
+        string calldata name_,
+        string calldata symbol_,
+        OpenTermStaking.AssetInfo[] calldata assetsInfoBasket_
+    ) external returns (address) {
+        return address(
+            new TransparentUpgradeableProxy(
+                address(new OpenTermStaking()),
+                addrs_[0],
+                abi.encodeWithSelector(
+                    OpenTermStaking.initialize.selector, addrs_, properties_, limits_, name_, symbol_, assetsInfoBasket_
                 )
             )
         );

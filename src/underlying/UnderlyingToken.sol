@@ -11,6 +11,10 @@ import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/crypt
 import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
 
+/// @title UnderlyingToken
+/// @author Mr.Silent
+/// @notice ERC20 token used as the underlying asset for staking contracts.
+/// @notice This contract supports minting and burning functionalities controlled by roles.
 contract UnderlyingToken is Initializable, EIP712Upgradeable, AccessControlUpgradeable, ERC20BurnableUpgradeable {
     constructor() {
         _disableInitializers();

@@ -3,14 +3,15 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
+import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 
@@ -136,12 +137,16 @@ contract UnderlyingTokenExchangerTest is Test {
         vm.startPrank(_whitelistedUser1);
 
         _depositToken.approve(address(_exchanger), 1_000_000 * 10 ** 6);
+        vm.expectEmit(true, false, false, true, address(_exchanger));
+        emit UnderlyingTokenExchanger.Exchanged(_whitelistedUser1, true, 1_000_000 * 10 ** 6, 1_000_000 * 10 ** 6);
         _exchanger.exchange(1_000_000 * 10 ** 6, true);
 
         assertEq(_underlyingToken.balanceOf(_whitelistedUser1), 1_000_000 * 10 ** 6);
         assertEq(_depositToken.balanceOf(_whitelistedUser1), 0);
 
         _underlyingToken.approve(address(_exchanger), 1_000_000 * 10 ** 6);
+        vm.expectEmit(true, false, false, true, address(_exchanger));
+        emit UnderlyingTokenExchanger.Exchanged(_whitelistedUser1, false, 1_000_000 * 10 ** 6, 1_000_000 * 10 ** 6);
         _exchanger.exchange(1_000_000 * 10 ** 6, false);
 
         assertEq(_underlyingToken.balanceOf(_whitelistedUser1), 0);
@@ -205,5 +210,96 @@ contract UnderlyingTokenExchangerTest is Test {
         exchanger2.exchange(1_000_000 * 10 ** 6, true);
 
         vm.stopPrank();
+    }
+
+    function testContractName() public view {
+        assertEq(_exchanger.contractName(), "UnderlyingTokenExchanger");
+        assertEq(_underlyingToken.contractName(), "UnderlyingToken");
+    }
+
+    function testInvalidInitialize() public {
+        address[4] memory addrs = [address(_underlyingToken), address(_depositToken), address(_whitelist), _owner];
+        uint256 properties = (uint256(1e6) | (uint256(1e6) << 64) | (uint256(1e6) << 128));
+
+        addrs[0] = address(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "token0"));
+        _deployer.deployExchanger(addrs, properties);
+        addrs[0] = address(_underlyingToken);
+
+        addrs[1] = address(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "token1"));
+        _deployer.deployExchanger(addrs, properties);
+        addrs[1] = address(_depositToken);
+
+        addrs[2] = address(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "whitelist"));
+        _deployer.deployExchanger(addrs, properties);
+        addrs[2] = address(_whitelist);
+
+        addrs[3] = address(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
+        _deployer.deployExchanger(addrs, properties);
+        addrs[3] = _owner;
+
+        properties = (uint256(0) | (uint256(1e6) << 64) | (uint256(1e6) << 128));
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "precision"));
+        _deployer.deployExchanger(addrs, properties);
+
+        properties = (uint256(1e6) | (uint256(0) << 64) | (uint256(1e6) << 128));
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "token0_token1_rate"));
+        _deployer.deployExchanger(addrs, properties);
+
+        properties = (uint256(1e6) | (uint256(1e6) << 64) | (uint256(0) << 128));
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "token1_token0_rate"));
+        _deployer.deployExchanger(addrs, properties);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
+        _deployer.deployUnderlyingToken(address(0), "lbUSD", "lbUSD");
+    }
+
+    function testBoringExchange() public {
+        vm.startPrank(_whitelistedUser1);
+        _depositToken.approve(address(_exchanger), 1_000_000 * 10 ** 6);
+        _underlyingToken.approve(address(_exchanger), 1_000_000 * 10 ** 6);
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "amountIn"));
+        vm.prank(_whitelistedUser1);
+        _exchanger.exchange(0, true);
+
+        vm.startPrank(_whitelistedUser1);
+        _exchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        _exchanger.dryrunExchange(250_000 * 10 ** 6, false);
+        _exchanger.exchange(500_000 * 10 ** 6, true);
+        _exchanger.exchange(250_000 * 10 ** 6, false);
+        vm.stopPrank();
+    }
+
+    function testExtractDepositTokenForInvestment() public {
+        address manager = makeAddr("manager");
+        vm.prank(_owner);
+        _exchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, manager);
+
+        vm.startPrank(manager);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "amount"));
+        _exchanger.extractDepositTokenForInvestment(0);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InsufficientBalance.selector, 0, 1));
+        _exchanger.extractDepositTokenForInvestment(1);
+        vm.stopPrank();
+    }
+
+    function testNondirectCallToExchanger() public {
+        address[4] memory addrs = [address(_underlyingToken), address(_depositToken), address(_whitelist), _owner];
+        uint256 properties = (uint256(1e6) | (uint256(1e6) << 64) | (uint256(1e6) << 128));
+
+        UnderlyingTokenExchanger mockContract = new UnderlyingTokenExchanger();
+        vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
+        mockContract.initialize(addrs, properties);
+    }
+
+    function testNondirectCallToToken() public {
+        UnderlyingToken mockContract = new UnderlyingToken();
+        vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
+        mockContract.initialize(_owner, "lbUSD", "lbUSD");
     }
 }

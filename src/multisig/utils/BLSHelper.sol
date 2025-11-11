@@ -4,6 +4,10 @@ pragma solidity ^0.8.24;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+/// @title BLSHelper
+/// @author Mr.Silent
+/// @notice Library providing helper functions for BLS12-381 operations, including hashing to field elements.
+/// @notice Implements expand_message_xmd as per RFC9380 for hashing to field elements.
 library BLSHelper {
     error EllTooLarge(uint256 ell);
     error LengthTooLarge(uint256 len_in_bytes);
@@ -108,7 +112,9 @@ library BLSHelper {
 
         // Step 2: Perform checks
         if (ell > 255) revert EllTooLarge(ell);
+        /* // if ell <= 255, len_in_bytes_ <= 255 *32 - 31 = 8129
         if (len_in_bytes_ > 65535) revert LengthTooLarge(len_in_bytes_);
+        */
         if (bytes(dst_).length > 255) revert DSTTooLong(bytes(dst_).length);
 
         // Step 3: Construct DST_prime

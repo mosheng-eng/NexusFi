@@ -25,6 +25,20 @@ contract ThresholdWallet is
     using BLS for BLS.G1Point[];
     using BLS for BLS.G2Point[];
 
+    /// @notice Emitted when the status of an operation changes
+    /// @param operationHash The hash of the operation
+    /// @param oldStatus The previous status of the operation
+    /// @param newStatus The new status of the operation
+    event OperationStatusChanged(bytes32 indexed operationHash, OperationStatus oldStatus, OperationStatus newStatus);
+
+    /// @notice Error reverted if the operation status does not match the expected status
+    /// @param operationHash The hash of the operation
+    /// @param expectedStatus The expected status of the operation
+    /// @param actualStatus The actual status of the operation
+    event OperationStatusNotMatch(
+        bytes32 indexed operationHash, OperationStatus expectedStatus, OperationStatus actualStatus
+    );
+
     /// @notice Error reverted if the wallet mode is not supported
     error UnsupportedWalletMode(uint8 walletMode);
 
@@ -295,6 +309,7 @@ contract ThresholdWallet is
         }
 
         _walletMode = walletMode_;
+        _threshold = threshold_;
 
         _grantRole(Roles.OWNER_ROLE, msg.sender);
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
@@ -303,6 +318,7 @@ contract ThresholdWallet is
     /// @notice Submit a batch of operations to the threshold wallet
     /// @param operations_ The array of operations to be submitted
     /// @return operationsHash_ The array of operation hashes corresponding to the submitted operations
+    /// @dev Each operation's nonce must be unique and sequentially increasing as the order in the array
     function submitOperations(Operation[] memory operations_)
         public
         nonReentrant
@@ -373,9 +389,11 @@ contract ThresholdWallet is
                     revert AggregatedSignatureNotMatchPublicKeys(i);
                 } else {
                     operations_[i].status = OperationStatus.APPROVED;
+                    emit OperationStatusChanged(operationsHash_[i], OperationStatus.NONE, OperationStatus.APPROVED);
                 }
             } else {
                 operations_[i].status = OperationStatus.PENDING;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.NONE, OperationStatus.PENDING);
             }
 
             _nonce += 1;
@@ -393,6 +411,58 @@ contract ThresholdWallet is
                 aggregatedSignature: operations_[i].aggregatedSignature,
                 signers: operations_[i].signers
             });
+        }
+    }
+
+    function verifyOperations(
+        bytes32[] calldata operationsHash_,
+        bytes[] calldata aggregatedSignatures_,
+        bytes[][] calldata signers_
+    ) public nonReentrant whenNotPaused initialized returns (bool[] memory results_) {
+        uint256 operationNumber = operationsHash_.length;
+
+        if (operationNumber == 0) {
+            revert EmptyOperations();
+        }
+        if (operationNumber != aggregatedSignatures_.length) {
+            revert Errors.InvalidValue("operationsHash_ and aggregatedSignatures_ length mismatch");
+        }
+        if (operationNumber != signers_.length) {
+            revert Errors.InvalidValue("operationsHash_ and signers_ length mismatch");
+        }
+
+        results_ = new bool[](operationNumber);
+
+        for (uint256 i = 0; i < operationNumber; ++i) {
+            Operation storage op = _operations[operationsHash_[i]];
+
+            if (op.status == OperationStatus.NONE) {
+                results_[i] = false;
+                continue;
+            }
+
+            if (aggregatedSignatures_[i].length == 0) {
+                results_[i] = false;
+                continue;
+            }
+
+            if (op.status != OperationStatus.PENDING) {
+                results_[i] = false;
+                emit OperationStatusNotMatch(operationsHash_[i], OperationStatus.PENDING, op.status);
+                continue;
+            }
+
+            results_[i] = _verifySignatures(aggregatedSignatures_[i], abi.encode(operationsHash_[i]), signers_[i]);
+
+            op.aggregatedSignature = aggregatedSignatures_[i];
+
+            if (results_[i]) {
+                op.status = OperationStatus.APPROVED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.PENDING, OperationStatus.APPROVED);
+            } else {
+                op.status = OperationStatus.REJECTED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.PENDING, OperationStatus.REJECTED);
+            }
         }
     }
 
@@ -421,13 +491,16 @@ contract ThresholdWallet is
             }
 
             op.status = OperationStatus.EXECUTING;
+            emit OperationStatusChanged(operationsHash_[i], OperationStatus.APPROVED, OperationStatus.EXECUTING);
 
             (bool success,) = op.target.call{value: op.value, gas: op.gasLimit}(op.data);
 
             if (success) {
                 op.status = OperationStatus.EXECUTED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.EXECUTING, OperationStatus.EXECUTED);
             } else {
                 op.status = OperationStatus.FAILED;
+                emit OperationStatusChanged(operationsHash_[i], OperationStatus.EXECUTING, OperationStatus.FAILED);
             }
         }
     }
@@ -529,6 +602,10 @@ contract ThresholdWallet is
         g2Points[2] = _aggregatedPublicKeyOnG2;
 
         return BLS.generalPairing(g1Points, g2Points);
+    }
+
+    function readWalletMode() public view returns (WalletMode) {
+        return _walletMode;
     }
 
     /// @notice Calculate the operation hash
