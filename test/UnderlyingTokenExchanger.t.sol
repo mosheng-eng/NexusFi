@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
@@ -205,13 +207,39 @@ contract UnderlyingTokenExchangerTest is Test {
     function testNonInitializedExchanger() public {
         UnderlyingTokenExchanger exchanger2 = new UnderlyingTokenExchanger();
 
-        vm.startPrank(_whitelistedUser1);
-
-        _depositToken.approve(address(exchanger2), 1_000_000 * 10 ** 6);
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
         exchanger2.exchange(1_000_000 * 10 ** 6, true);
 
-        vm.stopPrank();
+        stdstore.enable_packed_slots().target(address(exchanger2)).sig(UnderlyingTokenExchanger.token0.selector)
+            .checked_write(address(_underlyingToken));
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        exchanger2.exchange(1_000_000 * 10 ** 6, true);
+
+        stdstore.enable_packed_slots().target(address(exchanger2)).sig(UnderlyingTokenExchanger.token0Decimals.selector)
+            .checked_write(6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        exchanger2.exchange(1_000_000 * 10 ** 6, true);
+
+        stdstore.enable_packed_slots().target(address(exchanger2)).sig(UnderlyingTokenExchanger.token1.selector)
+            .checked_write(address(_depositToken));
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        exchanger2.exchange(1_000_000 * 10 ** 6, true);
+
+        stdstore.enable_packed_slots().target(address(exchanger2)).sig(UnderlyingTokenExchanger.token1Decimals.selector)
+            .checked_write(6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "precision"));
+        exchanger2.exchange(1_000_000 * 10 ** 6, true);
+
+        stdstore.enable_packed_slots().target(address(exchanger2)).sig(UnderlyingTokenExchanger.precision.selector)
+            .checked_write(1e6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0_token1_rate"));
+        exchanger2.exchange(1_000_000 * 10 ** 6, true);
+
+        stdstore.enable_packed_slots().target(address(exchanger2)).sig(
+            UnderlyingTokenExchanger.token0ToToken1Rate.selector
+        ).checked_write(1e6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1_token0_rate"));
+        exchanger2.exchange(1_000_000 * 10 ** 6, true);
     }
 
     function testContractName() public view {
@@ -260,6 +288,10 @@ contract UnderlyingTokenExchangerTest is Test {
     }
 
     function testBoringExchange() public {
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "user"));
+        vm.prank(address(0x0));
+        _exchanger.exchange(500_000 * 10 ** 6, true);
+
         vm.startPrank(_whitelistedUser1);
         _depositToken.approve(address(_exchanger), 1_000_000 * 10 ** 6);
         _underlyingToken.approve(address(_exchanger), 1_000_000 * 10 ** 6);
@@ -303,6 +335,26 @@ contract UnderlyingTokenExchangerTest is Test {
         UnderlyingToken mockContract = new UnderlyingToken();
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
         mockContract.initialize(_owner, "mosUSD", "mosUSD");
+
+        address operator = makeAddr("operator");
+        stdstore.target(address(mockContract)).sig(AccessControlUpgradeable.hasRole.selector).with_key(
+            Roles.OPERATOR_ROLE
+        ).with_key(operator).checked_write(true);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0x0)));
+        vm.prank(operator);
+        mockContract.mint(address(0x0), 1_000_000 * 10 ** 6);
+
+        vm.expectEmit(true, true, false, true, address(mockContract));
+        emit IERC20.Transfer(address(0x0), operator, 1_000_000 * 10 ** 6);
+        vm.prank(operator);
+        mockContract.mint(operator, 1_000_000 * 10 ** 6);
+
+        vm.store(
+            address(mockContract),
+            0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00,
+            bytes32(uint256(0x00))
+        );
+        mockContract.initialize(_owner, "mock", "mock");
     }
 
     function testBoringExchangerOnlyWhitelist() public {
@@ -322,44 +374,86 @@ contract UnderlyingTokenExchangerTest is Test {
         boringExchanger.boringTestOnlyWhitelist();
     }
 
-    function testBoringExchangerOnlyInitialized() public {
-        BoringUnderlyingTokenExchanger boringExchanger = new BoringUnderlyingTokenExchanger();
+    function testOnlyInitialized() public {
+        UnderlyingTokenExchanger boringExchanger = new UnderlyingTokenExchanger();
 
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
 
         stdstore.enable_packed_slots().target(address(boringExchanger)).sig(UnderlyingTokenExchanger.token0.selector)
             .checked_write(address(_underlyingToken));
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
 
         stdstore.enable_packed_slots().target(address(boringExchanger)).sig(
             UnderlyingTokenExchanger.token0Decimals.selector
         ).checked_write(6);
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
 
         stdstore.enable_packed_slots().target(address(boringExchanger)).sig(UnderlyingTokenExchanger.token1.selector)
             .checked_write(address(_depositToken));
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
 
         stdstore.enable_packed_slots().target(address(boringExchanger)).sig(
             UnderlyingTokenExchanger.token1Decimals.selector
         ).checked_write(6);
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "precision"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "precision"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "precision"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "precision"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
 
         stdstore.enable_packed_slots().target(address(boringExchanger)).sig(UnderlyingTokenExchanger.precision.selector)
             .checked_write(1e6);
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0_token1_rate"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0_token1_rate"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0_token1_rate"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token0_token1_rate"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
 
         stdstore.enable_packed_slots().target(address(boringExchanger)).sig(
             UnderlyingTokenExchanger.token0ToToken1Rate.selector
         ).checked_write(1e6);
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1_token0_rate"));
-        boringExchanger.boringTestOnlyInitialized();
+        boringExchanger.exchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1_token0_rate"));
+        boringExchanger.dryrunExchange(500_000 * 10 ** 6, true);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1_token0_rate"));
+        boringExchanger.extractDepositTokenForInvestment(500_000 * 10 ** 6);
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "token1_token0_rate"));
+        boringExchanger.updateExchangeRate(true, 1_000_000);
     }
 
     function testToken0() public view {
@@ -397,10 +491,6 @@ contract UnderlyingTokenExchangerTest is Test {
 
 contract BoringUnderlyingTokenExchanger is UnderlyingTokenExchanger {
     function boringTestOnlyWhitelist() external view onlyWhitelist(msg.sender) returns (bool) {
-        return true;
-    }
-
-    function boringTestOnlyInitialized() external view onlyInitialized returns (bool) {
         return true;
     }
 }
