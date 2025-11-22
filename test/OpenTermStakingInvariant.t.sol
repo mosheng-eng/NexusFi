@@ -3,7 +3,7 @@
 pragma solidity ^0.8.24;
 
 import {OpenTermStakingHandler} from "test/handler/OpenTermStakingHandler.sol";
-import {OpenTermStaking} from "src/protocols/open-term/OpenTermStaking.sol";
+import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";

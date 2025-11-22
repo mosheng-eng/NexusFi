@@ -8,8 +8,8 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
-import {FixedTermStaking} from "src/protocols/fixed-term/FixedTermStaking.sol";
-import {OpenTermStaking} from "src/protocols/open-term/OpenTermStaking.sol";
+import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
+import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
 import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";

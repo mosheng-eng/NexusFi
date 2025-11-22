@@ -3,7 +3,7 @@
 pragma solidity ^0.8.24;
 
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
-import {OpenTermStaking} from "src/protocols/open-term/OpenTermStaking.sol";
+import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";

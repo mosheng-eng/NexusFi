@@ -13,7 +13,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {OpenTermToken} from "src/protocols/open-term/OpenTermToken.sol";
+import {OpenTermToken} from "src/protocols/lender/open-term/OpenTermToken.sol";
 import {Errors} from "src/common/Errors.sol";
 import {Roles} from "src/common/Roles.sol";
 

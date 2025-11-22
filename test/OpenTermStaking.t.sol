@@ -6,8 +6,8 @@ import {stdStorage, StdStorage, Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {OpenTermStaking} from "src/protocols/open-term/OpenTermStaking.sol";
-import {OpenTermToken} from "src/protocols/open-term/OpenTermToken.sol";
+import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
+import {OpenTermToken} from "src/protocols/lender/open-term/OpenTermToken.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";

@@ -16,7 +16,7 @@ import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
-import {FixedTermToken} from "src/protocols/fixed-term/FixedTermToken.sol";
+import {FixedTermToken} from "src/protocols/lender/fixed-term/FixedTermToken.sol";
 
 /// @title FixedTermStaking
 /// @author Mr.Silent
