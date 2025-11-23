@@ -6,14 +6,14 @@ import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
-import {Errors} from "../src/common/Errors.sol";
-import {MultisigWallet} from "../src/multisig/MultisigWallet.sol";
-import {BLS} from "../src/multisig/utils/BLS.sol";
-import {BLSTool} from "../src/multisig/utils/BLSTool.sol";
-import {BLSHelper} from "../src/multisig/utils/BLSHelper.sol";
-import {DeployContractSuit} from "../script/DeployContractSuit.s.sol";
+import {Errors} from "src/common/Errors.sol";
+import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
+import {BLS} from "src/multisig/utils/BLS.sol";
+import {BLSTool} from "src/multisig/utils/BLSTool.sol";
+import {BLSHelper} from "src/multisig/utils/BLSHelper.sol";
+import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 
-import {DepositAsset} from "./mock/DepositAsset.sol";
+import {DepositAsset} from "test/mock/DepositAsset.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Bytes} from "@openzeppelin/contracts/utils/Bytes.sol";
