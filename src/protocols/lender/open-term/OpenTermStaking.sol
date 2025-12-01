@@ -266,6 +266,9 @@ contract OpenTermStaking is
         string calldata symbol_,
         AssetInfo[] calldata assetsInfoBasket_
     ) public initializer {
+        if (addrs_.length != 4) {
+            revert Errors.InvalidValue("addresses length mismatch");
+        }
         if (addrs_[0] == address(0)) {
             revert ZeroAddress("owner");
         }

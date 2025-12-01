@@ -11,6 +11,10 @@ import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
 
 contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
+    /// @dev precision in million (1_000_000 = 100%)
+    /// @notice constant, not stored in storage
+    uint64 public constant PRECISION = 1_000_000;
+
     constructor() {
         _disableInitializers();
     }
@@ -23,4 +27,6 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
         _grantRole(Roles.OWNER_ROLE, owner_);
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
+
+    uint256[50] private __gap;
 }
