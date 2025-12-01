@@ -18,8 +18,8 @@ interface IBlacklist {
     /// @dev Emitted when the blacklist is enabled.
     event BlacklistEnabled();
 
-    /// @dev Reverted when addr is not in the blacklist.
-    error NotBlacklisted(address addr);
+    /// @dev Reverted when addr is in the blacklist.
+    error Blacklisted(address addr);
 
     /// @dev Initialize the blacklist contract.
     /// @param owner_ The owner of the blacklist contract.

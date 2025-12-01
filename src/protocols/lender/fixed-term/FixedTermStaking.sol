@@ -279,16 +279,16 @@ contract FixedTermStaking is
     AssetInfo[] private _assetsInfoBasket;
 
     /// @dev whitelist check modifier
-    /// @param _who The address to be checked against the whitelist
-    modifier onlyWhitelist(address _who) {
+    /// @param who_ The address to be checked against the whitelist
+    modifier onlyWhitelisted(address who_) {
         if (_whitelist == address(0)) {
             revert ZeroAddress("whitelist");
         }
-        if (_who == address(0)) {
+        if (who_ == address(0)) {
             revert ZeroAddress("user");
         }
-        if (!IWhitelist(_whitelist).isWhitelisted(_who)) {
-            revert IWhitelist.NotWhitelisted(_who);
+        if (!IWhitelist(_whitelist).isWhitelisted(who_)) {
+            revert IWhitelist.NotWhitelisted(who_);
         }
         _;
     }
@@ -443,7 +443,7 @@ contract FixedTermStaking is
         external
         whenNotPaused
         nonReentrant
-        onlyWhitelist(msg.sender)
+        onlyWhitelisted(msg.sender)
         returns (uint256)
     {
         return _stake(stakeAmount_, msg.sender, msg.sender);
@@ -456,7 +456,7 @@ contract FixedTermStaking is
         external
         whenNotPaused
         nonReentrant
-        onlyWhitelist(msg.sender)
+        onlyWhitelisted(msg.sender)
         returns (uint128)
     {
         return _unstake(tokenId_, msg.sender, msg.sender);
@@ -471,7 +471,7 @@ contract FixedTermStaking is
         onlyRole(Roles.OPERATOR_ROLE)
         whenNotPaused
         nonReentrant
-        onlyWhitelist(who_)
+        onlyWhitelisted(who_)
         returns (uint256)
     {
         return _stake(stakeAmount_, who_, who_);
@@ -486,7 +486,7 @@ contract FixedTermStaking is
         onlyRole(Roles.OPERATOR_ROLE)
         whenNotPaused
         nonReentrant
-        onlyWhitelist(who_)
+        onlyWhitelisted(who_)
         returns (uint128)
     {
         return _unstake(tokenId_, who_, who_);

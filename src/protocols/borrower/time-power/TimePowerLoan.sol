@@ -45,9 +45,9 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
     /// @dev loan information
     struct LoanInfo {
-        /// @dev maximum loan for a borrower without decimals
+        /// @dev maximum loan for a borrower
         uint128 ceilingLimit;
-        /// @dev remaining loan limit for a borrower without decimals
+        /// @dev remaining loan limit for a borrower
         uint128 remainingLimit;
         /// @dev total normalized principal amount for a borrower
         uint128 normalizedPrincipal;
@@ -126,6 +126,57 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev array of trusted vaults
     /// @notice trusted vaults are the vaults that are allowed to lend to borrowers
     TrustedVault[] public _trustedVaults;
+
+    /// @dev whitelist check modifier
+    /// @param who_ The address to be checked against the whitelist
+    modifier onlyWhitelisted(address who_) {
+        if (_whitelist == address(0)) {
+            revert Errors.ZeroAddress("whitelist");
+        }
+        if (who_ == address(0)) {
+            revert Errors.ZeroAddress("user");
+        }
+        if (!IWhitelist(_whitelist).isWhitelisted(who_)) {
+            revert IWhitelist.NotWhitelisted(who_);
+        }
+
+        _;
+    }
+
+    modifier onlyNotBlacklisted(address who_) {
+        if (_blacklist == address(0)) {
+            revert Errors.ZeroAddress("blacklist");
+        }
+        if (who_ == address(0)) {
+            revert Errors.ZeroAddress("user");
+        }
+        if (IBlacklist(_blacklist).isBlacklisted(who_)) {
+            revert IBlacklist.Blacklisted(who_);
+        }
+
+        _;
+    }
+
+    /// @dev initialization check modifier
+    modifier onlyInitialized() {
+        if (_whitelist == address(0)) {
+            revert Errors.Uninitialized("whitelist");
+        }
+        if (_blacklist == address(0)) {
+            revert Errors.Uninitialized("blacklist");
+        }
+        if (_loanToken == address(0)) {
+            revert Errors.Uninitialized("loanToken");
+        }
+        if (_secondInterestRates.length == 0) {
+            revert Errors.Uninitialized("secondInterestRates");
+        }
+        if (_trustedVaults.length == 0) {
+            revert Errors.Uninitialized("trustedVaults");
+        }
+
+        _;
+    }
 
     constructor() {
         _disableInitializers();
@@ -209,12 +260,30 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
+    /// @dev apply for a loan
+    /// @param amount_ the amount of loan
+    /// @param startTime_ the start time of the loan
+    /// @param maturityTime_ the maturity time of the loan
+    /// @return loanNo_ the loan number of the applied loan (bytes.concat(borrower address, loan index))
+    function apply(uint128 amount_, uint64 startTime_, uint64 maturityTime_)
+        external
+        whenNotPaused
+        nonReentrant
+        onlyNotBlacklisted(msg.sender)
+        onlyWhitelisted(msg.sender)
+        onlyInitialized
+        returns (uint256 loanNo_)
+    {
+        // Implementation of the apply function
+        return 1;
+    }
+
     /// @dev calculates power(x,n) and x is in fixed point with given base
     /// @param x the base number in fixed point
     /// @param n the exponent
     /// @param base the fixed point base
     /// @return z the result of x^n in fixed point
-    function rpow(uint256 x, uint256 n, uint256 base) public pure returns (uint256 z) {
+    function _rpow(uint256 x, uint256 n, uint256 base) internal pure returns (uint256 z) {
         assembly {
             switch x
             case 0 {
