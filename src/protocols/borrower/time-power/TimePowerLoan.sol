@@ -265,7 +265,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param startTime_ the start time of the loan
     /// @param maturityTime_ the maturity time of the loan
     /// @return loanNo_ the loan number of the applied loan (bytes.concat(borrower address, loan index))
-    function apply(uint128 amount_, uint64 startTime_, uint64 maturityTime_)
+    function request(uint128 amount_, uint64 startTime_, uint64 maturityTime_)
         external
         whenNotPaused
         nonReentrant
