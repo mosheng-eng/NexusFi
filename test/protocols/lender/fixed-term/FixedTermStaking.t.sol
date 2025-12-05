@@ -1438,7 +1438,7 @@ contract FixedTermStakingTest is Test {
 }
 
 contract BoringFixedTermStaking is FixedTermStaking {
-    function boringTestOnlyWhitelist() public view onlyWhitelist(msg.sender) returns (bool) {
+    function boringTestOnlyWhitelist() public view onlyWhitelisted(msg.sender) returns (bool) {
         return true;
     }
 
