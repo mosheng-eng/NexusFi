@@ -18,6 +18,11 @@ import {Errors} from "src/common/Errors.sol";
 contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
     using Math for uint256;
 
+    /// @dev error thrown when a debt is not defaulted
+    /// @param borrower_ address of the borrower
+    /// @param debtIndex_ index of the debt
+    error NotDefaultedDebt(address borrower_, uint64 debtIndex_);
+
     /// @dev status of a debt
     enum DebtStatus {
         /// @dev default value, not existed debt
@@ -53,19 +58,25 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         /// @dev total normalized principal amount for a borrower
         uint128 normalizedPrincipal;
         /// @dev interest rate index for a borrower
-        uint128 interestRateIndex;
+        uint64 interestRateIndex;
+        /// @dev loan number for a borrower
+        uint64 loanNo;
     }
 
     /// @dev debt information
     struct DebtInfo {
-        /// @dev status of the debt
-        DebtStatus status;
-        /// @dev normalized principal amount of the debt
-        uint128 normalizedPrincipal;
+        /// @dev loan number for the debt
+        uint64 loanNo;
+        /// @dev debt index for the debt
+        uint64 debtIndex;
         /// @dev start time of the debt
         uint64 startTime;
         /// @dev maturity time of the debt
         uint64 maturityTime;
+        /// @dev normalized principal amount of the debt
+        uint128 normalizedPrincipal;
+        /// @dev status of the debt
+        DebtStatus status;
     }
 
     /// @dev fixed point 18 precision
@@ -120,9 +131,13 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @notice loan information stores summarized data of a borrower
     mapping(address => LoanInfo) public _loansInfo;
 
-    /// @dev mapping from borrower address to array of debt information
-    /// @notice debt information stores detailed data of each debt of a borrower
-    mapping(address => DebtInfo[]) public _debtsInfo;
+    /// @dev mapping from loan number to borrower address
+    /// @notice convenient way to lookup borrower by loan number
+    mapping(uint64 => address) public _loanBorrowers;
+
+    /// @dev mapping from loan number to array of debt information
+    /// @notice debt information stores detailed data of each debt of a loan
+    mapping(uint64 => DebtInfo[]) public _debtsInfo;
 
     /// @dev array of trusted vaults
     /// @notice trusted vaults are the vaults that are allowed to lend to borrowers
@@ -144,6 +159,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _;
     }
 
+    /// @dev not blacklisted check modifier
+    /// @param who_ The address to be checked against the blacklist
     modifier onlyNotBlacklisted(address who_) {
         if (_blacklist == address(0)) {
             revert Errors.ZeroAddress("blacklist");
@@ -174,6 +191,20 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         }
         if (_trustedVaults.length == 0) {
             revert Errors.Uninitialized("trustedVaults");
+        }
+
+        _;
+    }
+
+    /// @dev only defaulted debt check modifier
+    /// @param borrower_ The address of the borrower
+    /// @param debtIndex_ The index of the debt
+    modifier onlyDefaultedDebt(address borrower_, uint64 debtIndex_) {
+        if (borrower_ == address(0)) {
+            revert Errors.ZeroAddress("borrower");
+        }
+        if (_debtsInfo[_loansInfo[borrower_].loanNo][debtIndex_].status != DebtStatus.DEFAULTED) {
+            revert NotDefaultedDebt(borrower_, debtIndex_);
         }
 
         _;
@@ -261,23 +292,106 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
-    /// @dev apply for a loan
+    /// @dev request for a loan
     /// @param amount_ the amount of loan
     /// @param startTime_ the start time of the loan
     /// @param maturityTime_ the maturity time of the loan
     /// @return loanNo_ the loan number of the applied loan (bytes.concat(borrower address, loan index))
     function request(uint128 amount_, uint64 startTime_, uint64 maturityTime_)
-        external
+        public
         whenNotPaused
         nonReentrant
         onlyNotBlacklisted(msg.sender)
         onlyWhitelisted(msg.sender)
         onlyInitialized
-        returns (uint256 loanNo_)
+        returns (uint64 loanNo_)
     {
-        // Implementation of the apply function
         return 1;
     }
+
+    /// @dev approve a loan
+    /// @param loanNo_ the loan number to be approved
+    /// @param ceilingLimit_ the ceiling limit for the loan
+    /// @param interestRateIndex_ the interest rate index to be applied
+    function approve(uint64 loanNo_, uint128 ceilingLimit_, uint64 interestRateIndex_)
+        public
+        whenNotPaused
+        nonReentrant
+        onlyInitialized
+        onlyRole(Roles.OPERATOR_ROLE)
+    {}
+
+    /// @dev borrow a loan
+    /// @param loanNo_ the loan number to be borrowed
+    /// @param amount_ the amount to be borrowed
+    /// @return isAllSatisfied_ whether all borrowed amount is satisfied
+    /// @return debtIndex_ the index of the debt
+    function borrow(uint64 loanNo_, uint128 amount_)
+        public
+        whenNotPaused
+        nonReentrant
+        onlyNotBlacklisted(msg.sender)
+        onlyWhitelisted(msg.sender)
+        onlyInitialized
+        returns (bool isAllSatisfied_, uint64 debtIndex_)
+    {}
+
+    /// @dev repay a loan
+    /// @param debtIndex_ the index of the debt to be repaid
+    /// @param amount_ the amount to be repaid
+    /// @return isAllRepaid_ whether all debt is repaid
+    function repay(uint64 debtIndex_, uint128 amount_)
+        public
+        onlyInitialized
+        nonReentrant
+        whenNotPaused
+        onlyNotBlacklisted(msg.sender)
+        onlyWhitelisted(msg.sender)
+        returns (bool isAllRepaid_)
+    {}
+
+    /// @dev mark a debt as defaulted
+    /// @param borrower_ the address of the borrower
+    /// @param debtIndex_ the index of the debt
+    /// @param defaultedInterestRateIndex_ the interest rate index applied for the defaulted debt
+    /// @return totalDebt_ the total debt amount when defaulted
+    function defaulted(address borrower_, uint64 debtIndex_, uint64 defaultedInterestRateIndex_)
+        public
+        onlyInitialized
+        nonReentrant
+        whenNotPaused
+        onlyRole(Roles.OPERATOR_ROLE)
+        returns (uint128 totalDebt_)
+    {}
+
+    /// @dev recover a defaulted debt
+    /// @param borrower_ the address of the borrower
+    /// @param debtIndex_ the index of the debt
+    /// @param amount_ the amount to be recovered
+    /// @return totalDebt_ the total debt amount after recovery
+    function recovery(address borrower_, uint64 debtIndex_, uint128 amount_)
+        public
+        onlyInitialized
+        nonReentrant
+        whenNotPaused
+        onlyRole(Roles.OPERATOR_ROLE)
+        onlyDefaultedDebt(borrower_, debtIndex_)
+        returns (uint128 totalDebt_)
+    {}
+
+    /// @dev close a defaulted debt
+    /// @param borrower_ the address of the borrower
+    /// @param debtIndex_ the index of the debt
+    /// @return totalDebt_ the total debt amount when closed
+    function close(address borrower_, uint64 debtIndex_)
+        public
+        onlyInitialized
+        nonReentrant
+        whenNotPaused
+        onlyRole(Roles.OPERATOR_ROLE)
+        onlyDefaultedDebt(borrower_, debtIndex_)
+        returns (uint128 totalDebt_)
+    {}
 
     /// @dev calculates power(x,n) and x is in fixed point with given base
     /// @param x the base number in fixed point
