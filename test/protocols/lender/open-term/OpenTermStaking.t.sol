@@ -1238,7 +1238,7 @@ contract BoringOpenTermStaking is OpenTermStaking {
         return true;
     }
 
-    function boringTestOnlyWhitelist() public view onlyWhitelist(msg.sender) returns (bool) {
+    function boringTestOnlyWhitelist() public view onlyWhitelisted(msg.sender) returns (bool) {
         return true;
     }
 
