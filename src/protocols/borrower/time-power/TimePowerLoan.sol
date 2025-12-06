@@ -23,6 +23,27 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param debtIndex_ index of the debt
     error NotDefaultedDebt(address borrower_, uint64 debtIndex_);
 
+    /// @dev error thrown when ceiling limit below remaining limit
+    /// @param ceilingLimit_ ceiling limit
+    /// @param remainingLimit_ remaining limit
+    error CeilingLimitBelowRemainingLimit(uint128 ceilingLimit_, uint128 remainingLimit_);
+
+    /// @dev error thrown when ceiling limit below used limit which is caculated by ceiling limit substract remaining limit
+    /// @param ceilingLimit_ ceiling limit
+    /// @param usedLimit_ difference of ceiling limit and remaining limit
+    error CeilingLimitBelowUsedLimit(uint128 ceilingLimit_, uint128 usedLimit_);
+
+    /// @dev event emitted when ceiling limit is updated
+    /// @param oldCeilingLimit_ old ceiling limit
+    /// @param newCeilingLimit_ new ceiling limit
+    event CeilingLimitUpdated(uint128 oldCeilingLimit_, uint128 newCeilingLimit_);
+
+    /// @dev event emitted when interest rate index is updated
+    /// @param who_ address of the borrower
+    /// @param oldInterestRateIndex_ old interest rate index
+    /// @param newInterestRateIndex_ new interest rate index
+    event InterestRateUpdated(address who_, uint64 oldInterestRateIndex_, uint64 newInterestRateIndex_);
+
     /// @dev status of a debt
     enum DebtStatus {
         /// @dev default value, not existed debt
@@ -210,6 +231,15 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _;
     }
 
+    /// @dev valid interest rate index check modifier
+    /// @param interestRateIndex_ The interest rate index to be checked
+    modifier onlyValidInterestRate(uint64 interestRateIndex_) {
+        if (interestRateIndex_ >= _secondInterestRates.length) {
+            revert Errors.InvalidValue("interest rate index over bound");
+        }
+        _;
+    }
+
     constructor() {
         _disableInitializers();
     }
@@ -393,6 +423,97 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         returns (uint128 totalDebt_)
     {}
 
+    /// @dev adds an address to the whitelist
+    /// @param who_ the address to be added to the whitelist
+    function addWhitelist(address who_) public onlyInitialized onlyRole(Roles.OPERATOR_ROLE) {
+        IWhitelist(_whitelist).add(who_);
+    }
+
+    /// @dev removes an address from the whitelist
+    /// @param who_ the address to be removed from the whitelist
+    function removeWhitelist(address who_) public onlyInitialized onlyRole(Roles.OPERATOR_ROLE) {
+        IWhitelist(_whitelist).remove(who_);
+    }
+
+    /// @dev adds an address to the blacklist
+    /// @param who_ the address to be added to the blacklist
+    function addBlacklist(address who_) public onlyInitialized onlyRole(Roles.OPERATOR_ROLE) {
+        IBlacklist(_blacklist).add(who_);
+    }
+
+    /// @dev removes an address from the blacklist
+    /// @param who_ the address to be removed from the blacklist
+    function removeBlacklist(address who_) public onlyInitialized onlyRole(Roles.OPERATOR_ROLE) {
+        IBlacklist(_blacklist).remove(who_);
+    }
+
+    function updateLimit(address who_, uint128 newCeilingLimit_)
+        public
+        onlyInitialized
+        onlyRole(Roles.OPERATOR_ROLE)
+        onlyWhitelisted(who_)
+        onlyNotBlacklisted(who_)
+    {
+        uint128 remainingLimit = _loansInfo[who_].remainingLimit;
+        uint128 ceilingLimit = _loansInfo[who_].ceilingLimit;
+
+        if (ceilingLimit < remainingLimit) {
+            revert CeilingLimitBelowRemainingLimit(ceilingLimit, remainingLimit);
+        }
+
+        uint128 usedLimit = ceilingLimit - remainingLimit;
+
+        if (newCeilingLimit_ < usedLimit) {
+            revert CeilingLimitBelowUsedLimit(newCeilingLimit_, usedLimit);
+        }
+
+        _loansInfo[who_].ceilingLimit = newCeilingLimit_;
+
+        emit CeilingLimitUpdated(newCeilingLimit_, ceilingLimit);
+    }
+
+    /// @dev update interest rate index for a borrower
+    /// @param who_ the address of the borrower
+    /// @param newInterestRateIndex_ the new interest rate index to be applied
+    function updateInterestRates(address who_, uint64 newInterestRateIndex_)
+        public
+        onlyInitialized
+        onlyRole(Roles.OPERATOR_ROLE)
+        onlyWhitelisted(who_)
+        onlyNotBlacklisted(who_)
+        onlyValidInterestRate(newInterestRateIndex_)
+    {
+        LoanInfo memory loanInfo = _loansInfo[who_];
+        if (newInterestRateIndex_ == loanInfo.interestRateIndex) {
+            return;
+        }
+        if (loanInfo.normalizedPrincipal > 0) {
+            _accumulateInterest();
+
+            uint256 oldAccumulatedInterestRate = _accumulatedInterestRates[loanInfo.interestRateIndex];
+            uint256 newAccumulatedInterestRate = _accumulatedInterestRates[newInterestRateIndex_];
+
+            loanInfo.normalizedPrincipal = 0;
+            loanInfo.interestRateIndex = newInterestRateIndex_;
+
+            DebtInfo[] storage debtsInfo = _debtsInfo[loanInfo.loanNo];
+            for (uint256 i = 0; i < debtsInfo.length; i++) {
+                if (debtsInfo[i].status == DebtStatus.ACTIVE || debtsInfo[i].status == DebtStatus.DEFAULTED) {
+                    uint128 newDebtNormalizedPrincipal = uint128(
+                        (uint256(debtsInfo[i].normalizedPrincipal) * oldAccumulatedInterestRate)
+                            / newAccumulatedInterestRate
+                    );
+                    debtsInfo[i].normalizedPrincipal = newDebtNormalizedPrincipal;
+                    loanInfo.normalizedPrincipal += newDebtNormalizedPrincipal;
+                }
+            }
+
+            _loansInfo[who_] = loanInfo;
+
+            emit InterestRateUpdated(who_, loanInfo.interestRateIndex, newInterestRateIndex_);
+        }
+    }
+
     /// @dev calculates power(x,n) and x is in fixed point with given base
     /// @param x the base number in fixed point
     /// @param n the exponent
@@ -428,6 +549,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             }
         }
     }
+
+    function _accumulateInterest() internal {}
 
     uint256[50] private __gap;
 }
