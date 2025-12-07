@@ -7,7 +7,10 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
@@ -17,6 +20,8 @@ import {Errors} from "src/common/Errors.sol";
 
 contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
     using Math for uint256;
+    using SafeCast for uint256;
+    using SafeERC20 for IERC20;
 
     /// @dev error thrown when an address is not a trusted borrower
     /// @param borrower_ address of the borrower
@@ -29,6 +34,16 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev error thrown when a loan is not valid
     /// @param loanIndex_ index of the loan
     error NotValidLoan(uint64 loanIndex_);
+
+    /// @dev error thrown when borrower is not the owner of the loan
+    /// @param loanIndex_ index of the loan
+    /// @param loanOwer_ address of the loan owner
+    /// @param borrower_ address of the borrower
+    error NotLoanOwner(uint64 loanIndex_, address loanOwer_, address borrower_);
+
+    /// @dev error thrown when a loan is not pending
+    /// @param loanIndex_ index of the loan
+    error NotPendingLoan(uint64 loanIndex_);
 
     /// @dev error thrown when a debt is not valid
     /// @param debtIndex_ index of the debt
@@ -73,6 +88,25 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param borrower_ address of the borrower
     /// @param borrowerIndex_ index of the borrower
     error BorrowerAlreadyExists(address borrower_, uint64 borrowerIndex_);
+
+    /// @dev error thrown when agree join request but ceiling limit is zero
+    /// @param borrower_ address of the borrower
+    error AgreeJoinRequestShouldHaveNonZeroCeilingLimit(address borrower_);
+
+    /// @dev error thrown when duplicated agree join request
+    /// @param borrower_ address of the borrower
+    error UpdateCeilingLimitDirectly(address borrower_);
+
+    /// @dev error thrown when borrow amount exceeds loan remaining limit
+    /// @param borrowAmount_ amount of the borrow
+    /// @param loanRemainingLimit_ remaining limit of the loan
+    /// @param loanIndex_ index of the loan
+    error BorrowAmountOverLoanRemainingLimit(uint128 borrowAmount_, uint128 loanRemainingLimit_, uint64 loanIndex_);
+
+    /// @dev error thrown when maturity time is before or at block timestamp
+    /// @param maturityTime_ maturity time
+    /// @param blockTimestamp_ block timestamp
+    error MaturityTimeShouldAfterBlockTimestamp(uint64 maturityTime_, uint64 blockTimestamp_);
 
     /// @dev event emitted when borrower ceiling limit is updated
     /// @param oldCeilingLimit_ old ceiling limit
@@ -122,6 +156,32 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev event emitted when accumulated interest rates are updated
     /// @param timestamp_ the timestamp when accumulated interest rates are updated
     event AccumulatedInterestUpdated(uint64 timestamp_);
+
+    /// @dev event emitted when a borrower join request is agreed
+    /// @param borrower_ address of the borrower
+    /// @param newCeilingLimit_ new ceiling limit of the borrower
+    event AgreeJoinRequest(address borrower_, uint128 newCeilingLimit_);
+
+    /// @dev event emitted when a loan request is received
+    /// @param borrower_ address of the borrower
+    /// @param loanIndex_ index of the loan
+    /// @param amount_ amount of the loan request
+    event ReceiveLoanRequest(address borrower_, uint64 loanIndex_, uint128 amount_);
+
+    /// @dev event emitted when a loan request is approved
+    /// @param borrower_ address of the borrower
+    /// @param loanIndex_ index of the loan
+    /// @param ceilingLimit_ ceiling limit of the approved loan
+    /// @param interestRateIndex_ interest rate index of the approved loan
+    event ApproveLoanRequest(address borrower_, uint64 loanIndex_, uint128 ceilingLimit_, uint64 interestRateIndex_);
+
+    /// @dev event emitted when a new debt is borrowed
+    /// @param borrower_ address of the borrower
+    /// @param loanIndex_ index of the loan
+    /// @param amount_ amount of the borrowed debt
+    /// @param isAllSatisfied_ whether the borrowed debt is fully satisfied
+    /// @param debtIndex_ index of the new debt
+    event Borrowed(address borrower_, uint64 loanIndex_, uint128 amount_, bool isAllSatisfied_, uint64 debtIndex_);
 
     /// @dev status of a debt
     enum DebtStatus {
@@ -370,12 +430,32 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _;
     }
 
+    /// @dev only trusted borrower check modifier
+    /// @param borrower_ The address of the borrower to be checked
+    /// @notice require borrower is in trusted borrowers list, no matter ceiling limit is zero or not
     modifier onlyTrustedBorrower(address borrower_) {
         if (borrower_ == address(0)) {
             revert Errors.ZeroAddress("user");
         }
         if (_trustedBorrowers[_borrowerToIndex[borrower_]].borrower != borrower_) {
             revert NotTrustedBorrower(borrower_);
+        }
+
+        _;
+    }
+
+    /// @dev only valid borrower check modifier
+    /// @param borrowerIndex_ The index of the borrower to be checked
+    /// @notice require borrower is in trusted borrowers list and ceiling limit is not zero
+    modifier onlyValidBorrower(uint64 borrowerIndex_) {
+        if (borrowerIndex_ >= _trustedBorrowers.length) {
+            revert NotValidBorrower(borrowerIndex_);
+        }
+        if (
+            _trustedBorrowers[borrowerIndex_].borrower == address(0)
+                || _trustedBorrowers[borrowerIndex_].ceilingLimit == 0
+        ) {
+            revert NotValidBorrower(borrowerIndex_);
         }
 
         _;
@@ -413,6 +493,18 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         }
         if (_secondInterestRates[interestRateIndex_] == 0) {
             revert NotValidInterestRate(interestRateIndex_);
+        }
+
+        _;
+    }
+
+    modifier onlyLoanOwner(uint64 loanIndex_, address borrower_) {
+        if (loanIndex_ >= _allLoans.length) {
+            revert NotValidLoan(loanIndex_);
+        }
+        address loanOwner = _trustedBorrowers[_allLoans[loanIndex_].borrowerIndex].borrower;
+        if (loanOwner != borrower_) {
+            revert NotLoanOwner(loanIndex_, loanOwner, borrower_);
         }
 
         _;
@@ -459,15 +551,12 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _;
     }
 
-    modifier onlyValidBorrower(uint64 borrowerIndex_) {
-        if (borrowerIndex_ >= _trustedBorrowers.length) {
-            revert NotValidBorrower(borrowerIndex_);
+    modifier onlyPendingLoan(uint64 loanIndex_) {
+        if (loanIndex_ >= _allLoans.length) {
+            revert NotValidLoan(loanIndex_);
         }
-        if (
-            _trustedBorrowers[borrowerIndex_].borrower == address(0)
-                || _trustedBorrowers[borrowerIndex_].ceilingLimit == 0
-        ) {
-            revert NotValidBorrower(borrowerIndex_);
+        if (_allLoans[loanIndex_].status != LoanStatus.PENDING) {
+            revert NotPendingLoan(loanIndex_);
         }
 
         _;
@@ -555,6 +644,9 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
+    /// @dev join as a trusted borrower
+    /// @notice borrower ceiling limit are set to 0 initially
+    /// @notice operator should agree or disagree (don't do anything) the join request later
     function join()
         public
         onlyInitialized
@@ -574,6 +666,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         emit TrustedBorrowerAdded(msg.sender, uint64(_trustedBorrowers.length - 1));
     }
 
+    /// @dev agree a borrower join request
+    /// @param borrower_ the address of the borrower
+    /// @param newCeilingLimit_ the ceiling limit to be applied for the borrower
+    /// @notice if operator agrees, ceiling limit should be set to a value greater than 0
     function agree(address borrower_, uint128 newCeilingLimit_)
         public
         onlyInitialized
@@ -584,7 +680,17 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyNotBlacklisted(borrower_)
         onlyTrustedBorrower(borrower_)
     {
+        if (newCeilingLimit_ == 0) {
+            revert AgreeJoinRequestShouldHaveNonZeroCeilingLimit(borrower_);
+        }
+
+        if (_trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit != 0) {
+            revert UpdateCeilingLimitDirectly(borrower_);
+        }
+
         _updateBorrowerLimit(borrower_, newCeilingLimit_);
+
+        emit AgreeJoinRequest(borrower_, newCeilingLimit_);
     }
 
     /// @dev request for a loan
@@ -624,6 +730,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         loanIndex_ = uint64(_allLoans.length - 1);
 
         _loansInfoGroupedByBorrower[borrowerIndex].push(loanIndex_);
+
+        emit ReceiveLoanRequest(msg.sender, loanIndex_, amount_);
     }
 
     /// @dev approve a loan
@@ -636,22 +744,119 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         nonReentrant
         whenNotPaused
         onlyRole(Roles.OPERATOR_ROLE)
-    {}
+        onlyPendingLoan(loanIndex_)
+        onlyValidInterestRate(interestRateIndex_)
+    {
+        LoanInfo memory loan = _allLoans[loanIndex_];
+
+        uint64 borrowerIndex = loan.borrowerIndex;
+        uint128 requestCeilingLimit = loan.ceilingLimit;
+
+        if (ceilingLimit_ < requestCeilingLimit) {
+            uint128 diffCeilingLimit = requestCeilingLimit - ceilingLimit_;
+
+            _trustedBorrowers[borrowerIndex].remainingLimit += diffCeilingLimit;
+            loan.ceilingLimit = ceilingLimit_;
+        }
+
+        loan.interestRateIndex = interestRateIndex_;
+        loan.status = LoanStatus.APPROVED;
+
+        _allLoans[loanIndex_] = loan;
+
+        emit ApproveLoanRequest(
+            _trustedBorrowers[borrowerIndex].borrower, loanIndex_, ceilingLimit_, interestRateIndex_
+        );
+    }
 
     /// @dev borrow a loan
     /// @param loanIndex_ the loan number to be borrowed
     /// @param amount_ the amount to be borrowed
+    /// @param maturityTime_ the maturity time of the debt
     /// @return isAllSatisfied_ whether all borrowed amount is satisfied
     /// @return debtIndex_ the index of the debt
-    function borrow(uint64 loanIndex_, uint128 amount_, uint64 startTime_, uint64 maturityTime_)
+    function borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
         public
         onlyInitialized
         nonReentrant
         whenNotPaused
         onlyNotBlacklisted(msg.sender)
         onlyWhitelisted(msg.sender)
+        onlyValidLoan(loanIndex_)
+        onlyLoanOwner(loanIndex_, msg.sender)
         returns (bool isAllSatisfied_, uint64 debtIndex_)
-    {}
+    {
+        if (maturityTime_ <= uint64(block.timestamp)) {
+            revert MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
+        }
+
+        _accumulateInterest();
+
+        LoanInfo memory loan = _allLoans[loanIndex_];
+
+        if (amount_ > loan.remainingLimit) {
+            revert BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
+        }
+
+        (uint256[] memory trancheAmounts, uint256 availableAmount) = _prepareFunds(uint256(amount_));
+
+        isAllSatisfied_ = availableAmount == uint256(amount_);
+
+        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
+        uint128 normalizedPrincipal = 0;
+
+        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
+            if (trancheAmounts[i] == 0) {
+                continue;
+            }
+
+            uint256 normalizedPrincipalForTranche = (trancheAmounts[i] * FIXED18) / accumulatedInterestRate;
+
+            normalizedPrincipal += uint128(normalizedPrincipalForTranche);
+
+            _allTranches.push(
+                TrancheInfo({
+                    vaultIndex: uint64(i),
+                    debtIndex: uint64(_allDebts.length),
+                    loanIndex: loanIndex_,
+                    borrowerIndex: loan.borrowerIndex,
+                    normalizedPrincipal: uint128(normalizedPrincipalForTranche)
+                })
+            );
+
+            uint64 trancheIndex = uint64(_allTranches.length - 1);
+
+            _tranchesInfoGroupedByDebt[uint64(_allDebts.length)].push(trancheIndex);
+            _tranchesInfoGroupedByLoan[loanIndex_].push(trancheIndex);
+            _tranchesInfoGroupedByBorrower[loan.borrowerIndex].push(trancheIndex);
+            _tranchesInfoGroupedByVault[uint64(i)].push(trancheIndex);
+        }
+
+        loan.remainingLimit -= uint128(availableAmount);
+
+        loan.normalizedPrincipal += normalizedPrincipal;
+
+        _allLoans[loanIndex_] = loan;
+
+        _allDebts.push(
+            DebtInfo({
+                startTime: uint64(block.timestamp),
+                maturityTime: maturityTime_,
+                normalizedPrincipal: normalizedPrincipal,
+                loanIndex: loanIndex_,
+                status: DebtStatus.ACTIVE
+            })
+        );
+
+        debtIndex_ = uint64(_allDebts.length - 1);
+
+        _debtsInfoGroupedByLoan[loanIndex_].push(debtIndex_);
+        _debtsInfoGroupedByBorrower[loan.borrowerIndex].push(debtIndex_);
+
+        IERC20(_loanToken).safeTransfer(msg.sender, availableAmount);
+
+        emit Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
+    }
 
     /// @dev repay a loan
     /// @param debtIndex_ the index of the debt to be repaid
@@ -988,7 +1193,55 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit = newCeilingLimit_;
         _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit = newCeilingLimit_ - usedLimit;
 
-        emit BorrowerCeilingLimitUpdated(newCeilingLimit_, ceilingLimit);
+        emit BorrowerCeilingLimitUpdated(ceilingLimit, newCeilingLimit_);
+    }
+
+    function _prepareFunds(uint256 amount_)
+        internal
+        returns (uint256[] memory trancheAmounts_, uint256 availableAmount_)
+    {
+        uint256 vaultNumber = _trustedVaults.length;
+
+        /// @dev store tranche amounts for this debt from each vault
+        /// @dev default lend value is zero
+        trancheAmounts_ = new uint256[](vaultNumber);
+
+        for (uint256 i = 0; i < vaultNumber; ++i) {
+            uint256 minimumLendAmount = amount_.mulDiv(uint256(_trustedVaults[i].minimumPercentage), uint256(PRECISION));
+            uint256 maximumLendAmount = amount_.mulDiv(uint256(_trustedVaults[i].maximumPercentage), uint256(PRECISION));
+            uint256 vaultTotalAssets = IERC4626(_trustedVaults[i].vault).totalAssets();
+            uint256 vaultLendAmount;
+
+            /// @dev vault cannot provide minimum lend amount for this debt
+            if (vaultTotalAssets < minimumLendAmount) {
+                vaultLendAmount = 0;
+            }
+            /// @dev vault can provide between minimum and maximum lend amount for this debt
+            /// @dev vault provides all its assets
+            else if (vaultTotalAssets < maximumLendAmount) {
+                vaultLendAmount = vaultTotalAssets;
+            }
+            /// @dev vault can provide maximum lend amount for this debt
+            else {
+                vaultLendAmount = maximumLendAmount;
+            }
+
+            /// @dev not enough funds collected yet, continue to collect from next vault
+            if (availableAmount_ + vaultLendAmount <= amount_) {
+                trancheAmounts_[i] = vaultLendAmount;
+                availableAmount_ += vaultLendAmount;
+                IERC20(_loanToken).safeTransferFrom(_trustedVaults[i].vault, address(this), vaultLendAmount);
+                continue;
+            }
+            /// @dev enough funds collected, finalize tranche amounts and break
+            else {
+                vaultLendAmount = amount_ - availableAmount_;
+                trancheAmounts_[i] = vaultLendAmount;
+                availableAmount_ += vaultLendAmount;
+                IERC20(_loanToken).safeTransferFrom(_trustedVaults[i].vault, address(this), vaultLendAmount);
+                break;
+            }
+        }
     }
 
     uint256[50] private __gap;
