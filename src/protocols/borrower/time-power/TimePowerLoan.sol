@@ -69,6 +69,11 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param borrowerRemainingLimit_ borrower's remaining limit
     error LoanCeilingLimitExceedsBorrowerRemainingLimit(uint128 loanCeilingLimit_, uint128 borrowerRemainingLimit_);
 
+    /// @dev error thrown when borrower already exists
+    /// @param borrower_ address of the borrower
+    /// @param borrowerIndex_ index of the borrower
+    error BorrowerAlreadyExists(address borrower_, uint64 borrowerIndex_);
+
     /// @dev event emitted when borrower ceiling limit is updated
     /// @param oldCeilingLimit_ old ceiling limit
     /// @param newCeilingLimit_ new ceiling limit
@@ -108,6 +113,11 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param minimumPercentage_ minimum percentage
     /// @param maximumPercentage_ maximum percentage
     event TrustedVaultAdded(address vault_, uint48 minimumPercentage_, uint48 maximumPercentage_, uint256 vaultIndex_);
+
+    /// @dev event emitted when trusted borrower is added
+    /// @param borrower_ address of the trusted borrower
+    /// @param borrowerIndex_ index of the trusted borrower
+    event TrustedBorrowerAdded(address borrower_, uint64 borrowerIndex_);
 
     /// @dev event emitted when accumulated interest rates are updated
     /// @param timestamp_ the timestamp when accumulated interest rates are updated
@@ -552,38 +562,75 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         nonReentrant
         onlyNotBlacklisted(msg.sender)
         onlyWhitelisted(msg.sender)
-    {}
+    {
+        for (uint256 i = 0; i < _trustedBorrowers.length; i++) {
+            if (_trustedBorrowers[i].borrower == msg.sender) {
+                revert BorrowerAlreadyExists(msg.sender, uint64(i));
+            }
+        }
 
-    function agree(address borrower_, uint128 ceilingLimit_)
+        _trustedBorrowers.push(TrustedBorrower({borrower: msg.sender, ceilingLimit: 0, remainingLimit: 0}));
+
+        emit TrustedBorrowerAdded(msg.sender, uint64(_trustedBorrowers.length - 1));
+    }
+
+    function agree(address borrower_, uint128 newCeilingLimit_)
         public
         onlyInitialized
         nonReentrant
         whenNotPaused
         onlyRole(Roles.OPERATOR_ROLE)
-    {}
+        onlyWhitelisted(borrower_)
+        onlyNotBlacklisted(borrower_)
+        onlyTrustedBorrower(borrower_)
+    {
+        _updateBorrowerLimit(borrower_, newCeilingLimit_);
+    }
 
     /// @dev request for a loan
     /// @param amount_ the amount of loan
-    /// @param startTime_ the start time of the loan
-    /// @param maturityTime_ the maturity time of the loan
-    /// @return loanNo_ the loan number of the applied loan (bytes.concat(borrower address, loan index))
-    function request(uint128 amount_, uint64 startTime_, uint64 maturityTime_)
+    /// @return loanIndex_ the loan number of the applied loan (bytes.concat(borrower address, loan index))
+    function request(uint128 amount_)
         public
         onlyInitialized
         nonReentrant
         whenNotPaused
         onlyNotBlacklisted(msg.sender)
         onlyWhitelisted(msg.sender)
-        returns (uint64 loanNo_)
+        onlyTrustedBorrower(msg.sender)
+        onlyValidBorrower(_borrowerToIndex[msg.sender])
+        returns (uint64 loanIndex_)
     {
-        return 1;
+        uint64 borrowerIndex = _borrowerToIndex[msg.sender];
+        uint128 borrowerRemainingLimit = _trustedBorrowers[borrowerIndex].remainingLimit;
+
+        if (amount_ > borrowerRemainingLimit) {
+            revert LoanCeilingLimitExceedsBorrowerRemainingLimit(amount_, borrowerRemainingLimit);
+        }
+
+        _trustedBorrowers[borrowerIndex].remainingLimit = borrowerRemainingLimit - amount_;
+
+        _allLoans.push(
+            LoanInfo({
+                ceilingLimit: amount_,
+                remainingLimit: amount_,
+                normalizedPrincipal: 0,
+                interestRateIndex: 0,
+                borrowerIndex: borrowerIndex,
+                status: LoanStatus.PENDING
+            })
+        );
+
+        loanIndex_ = uint64(_allLoans.length - 1);
+
+        _loansInfoGroupedByBorrower[borrowerIndex].push(loanIndex_);
     }
 
     /// @dev approve a loan
-    /// @param loanNo_ the loan number to be approved
+    /// @param loanIndex_ the loan number to be approved
     /// @param ceilingLimit_ the ceiling limit for the loan
     /// @param interestRateIndex_ the interest rate index to be applied
-    function approve(uint64 loanNo_, uint128 ceilingLimit_, uint64 interestRateIndex_)
+    function approve(uint64 loanIndex_, uint128 ceilingLimit_, uint64 interestRateIndex_)
         public
         onlyInitialized
         nonReentrant
@@ -592,11 +639,11 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     {}
 
     /// @dev borrow a loan
-    /// @param loanNo_ the loan number to be borrowed
+    /// @param loanIndex_ the loan number to be borrowed
     /// @param amount_ the amount to be borrowed
     /// @return isAllSatisfied_ whether all borrowed amount is satisfied
     /// @return debtIndex_ the index of the debt
-    function borrow(uint64 loanNo_, uint128 amount_)
+    function borrow(uint64 loanIndex_, uint128 amount_, uint64 startTime_, uint64 maturityTime_)
         public
         onlyInitialized
         nonReentrant
@@ -724,23 +771,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyNotBlacklisted(borrower_)
         onlyTrustedBorrower(borrower_)
     {
-        uint128 remainingLimit = _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit;
-        uint128 ceilingLimit = _trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit;
-
-        if (ceilingLimit < remainingLimit) {
-            revert CeilingLimitBelowRemainingLimit(ceilingLimit, remainingLimit);
-        }
-
-        uint128 usedLimit = ceilingLimit - remainingLimit;
-
-        if (newCeilingLimit_ < usedLimit) {
-            revert CeilingLimitBelowUsedLimit(newCeilingLimit_, usedLimit);
-        }
-
-        _trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit = newCeilingLimit_;
-        _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit = newCeilingLimit_ - usedLimit;
-
-        emit BorrowerCeilingLimitUpdated(newCeilingLimit_, ceilingLimit);
+        _updateBorrowerLimit(borrower_, newCeilingLimit_);
     }
 
     function updateLoanLimit(uint64 loanIndex_, uint128 newCeilingLimit)
@@ -938,6 +969,26 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
             emit AccumulatedInterestUpdated(currentTime);
         }
+    }
+
+    function _updateBorrowerLimit(address borrower_, uint128 newCeilingLimit_) internal {
+        uint128 remainingLimit = _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit;
+        uint128 ceilingLimit = _trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit;
+
+        if (ceilingLimit < remainingLimit) {
+            revert CeilingLimitBelowRemainingLimit(ceilingLimit, remainingLimit);
+        }
+
+        uint128 usedLimit = ceilingLimit - remainingLimit;
+
+        if (newCeilingLimit_ < usedLimit) {
+            revert CeilingLimitBelowUsedLimit(newCeilingLimit_, usedLimit);
+        }
+
+        _trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit = newCeilingLimit_;
+        _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit = newCeilingLimit_ - usedLimit;
+
+        emit BorrowerCeilingLimitUpdated(newCeilingLimit_, ceilingLimit);
     }
 
     uint256[50] private __gap;
