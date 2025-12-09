@@ -183,6 +183,13 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param debtIndex_ index of the new debt
     event Borrowed(address borrower_, uint64 loanIndex_, uint128 amount_, bool isAllSatisfied_, uint64 debtIndex_);
 
+    /// @dev event emitted when a debt is repaid
+    /// @param borrower_ address of the borrower
+    /// @param debtIndex_ index of the debt
+    /// @param amount_ amount of the repaid debt
+    /// @param isAllRepaid_ whether the debt is fully repaid
+    event Repaid(address borrower_, uint64 debtIndex_, uint128 amount_, bool isAllRepaid_);
+
     /// @dev status of a debt
     enum DebtStatus {
         /// @dev default value, not existed debt
@@ -251,6 +258,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         uint64 startTime;
         /// @dev maturity time of the debt
         uint64 maturityTime;
+        /// @dev principal amount of the debt
+        uint128 principal;
         /// @dev normalized principal amount of the debt
         uint128 normalizedPrincipal;
         /// @dev loan index for the debt
@@ -842,6 +851,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             DebtInfo({
                 startTime: uint64(block.timestamp),
                 maturityTime: maturityTime_,
+                principal: uint128(availableAmount),
                 normalizedPrincipal: normalizedPrincipal,
                 loanIndex: loanIndex_,
                 status: DebtStatus.ACTIVE
@@ -869,8 +879,44 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         whenNotPaused
         onlyNotBlacklisted(msg.sender)
         onlyWhitelisted(msg.sender)
+        onlyValidDebt(debtIndex_)
+        onlyLoanOwner(_allDebts[debtIndex_].loanIndex, msg.sender)
         returns (bool isAllRepaid_)
-    {}
+    {
+        _accumulateInterest();
+
+        DebtInfo memory debt = _allDebts[debtIndex_];
+        LoanInfo memory loan = _allLoans[debt.loanIndex];
+
+        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
+        uint128 debtNormalizedPrincipal = debt.normalizedPrincipal;
+        uint256 totalDebt = (uint256(debtNormalizedPrincipal) * accumulatedInterestRate) / FIXED18;
+
+        if (amount_ >= totalDebt) {
+            amount_ = uint128(totalDebt);
+            isAllRepaid_ = true;
+            debt.status = DebtStatus.REPAID;
+        } else {
+            isAllRepaid_ = false;
+        }
+
+        uint128 remainingNormalizedPrincipal =
+            uint128(((totalDebt - uint256(amount_)) * FIXED18) / accumulatedInterestRate);
+
+        loan.normalizedPrincipal = loan.normalizedPrincipal - debtNormalizedPrincipal + remainingNormalizedPrincipal;
+        loan.remainingLimit += (amount_ + debt.principal - uint128(totalDebt));
+
+        debt.normalizedPrincipal = remainingNormalizedPrincipal;
+
+        _allDebts[debtIndex_] = debt;
+        _allLoans[debt.loanIndex] = loan;
+
+        IERC20(_loanToken).safeTransferFrom(msg.sender, address(this), uint256(amount_));
+
+        _distributeFunds(debtIndex_, debtNormalizedPrincipal, uint256(amount_));
+
+        emit Repaid(msg.sender, debtIndex_, amount_, isAllRepaid_);
+    }
 
     /// @dev mark a debt as defaulted
     /// @param borrower_ the address of the borrower
@@ -1194,6 +1240,27 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit = newCeilingLimit_ - usedLimit;
 
         emit BorrowerCeilingLimitUpdated(ceilingLimit, newCeilingLimit_);
+    }
+
+    function _distributeFunds(uint64 debtIndex_, uint128 debtNormalizedPrincipal_, uint256 amount_) internal {
+        uint64[] memory tranchesIndex = _tranchesInfoGroupedByDebt[debtIndex_];
+        uint256 payoutAmount = 0;
+        uint256 tranchNumber = tranchesIndex.length;
+        for (uint256 i = 0; i < tranchNumber; ++i) {
+            TrancheInfo memory tranche = _allTranches[tranchesIndex[i]];
+
+            if (i == tranchNumber - 1) {
+                /// @dev last tranche takes the remaining amount to avoid rounding issues
+                uint256 lastTrancheRepayAmount = amount_ - payoutAmount;
+                IERC20(_loanToken).safeTransfer(_trustedVaults[tranche.vaultIndex].vault, lastTrancheRepayAmount);
+            } else {
+                /// @dev calculate repay amount for each tranche based on their normalized principal
+                uint256 trancheRepayAmount = (tranche.normalizedPrincipal * amount_) / debtNormalizedPrincipal_;
+                payoutAmount += trancheRepayAmount;
+
+                IERC20(_loanToken).safeTransfer(_trustedVaults[tranche.vaultIndex].vault, trancheRepayAmount);
+            }
+        }
     }
 
     function _prepareFunds(uint256 amount_)
