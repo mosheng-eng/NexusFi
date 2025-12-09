@@ -1231,47 +1231,63 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         }
     }
 
-    function _updateLoanInterestRates(uint64 loanIndex_, uint64 newInterestRateIndex_) internal {
+    function _updateLoanInterestRates(uint64 loanIndex_, uint64 newInterestRateIndex_)
+        internal
+        returns (uint128 newLoanNormalizedPrincipal_)
+    {
         LoanInfo memory loanInfo = _allLoans[loanIndex_];
+
         if (newInterestRateIndex_ == loanInfo.interestRateIndex) {
-            return;
+            return loanInfo.normalizedPrincipal;
         }
+
         if (loanInfo.normalizedPrincipal > 0) {
             _accumulateInterest();
 
             uint256 oldAccumulatedInterestRate = _accumulatedInterestRates[loanInfo.interestRateIndex];
             uint256 newAccumulatedInterestRate = _accumulatedInterestRates[newInterestRateIndex_];
 
-            loanInfo.normalizedPrincipal = 0;
-            loanInfo.interestRateIndex = newInterestRateIndex_;
-
             uint64[] memory debtsIndex = _debtsInfoGroupedByLoan[loanIndex_];
             for (uint256 i = 0; i < debtsIndex.length; i++) {
-                DebtInfo memory debtInfo = _allDebts[debtsIndex[i]];
-                if (debtInfo.status == DebtStatus.ACTIVE || debtInfo.status == DebtStatus.DEFAULTED) {
-                    debtInfo.normalizedPrincipal = 0;
-                    uint64[] memory tranchesIndex = _tranchesInfoGroupedByDebt[debtsIndex[i]];
-                    for (uint256 j = 0; j < tranchesIndex.length; j++) {
-                        uint128 newTrancheNormalizedPrincipal = uint128(
-                            (uint256(_allTranches[tranchesIndex[j]].normalizedPrincipal) * oldAccumulatedInterestRate)
-                                / newAccumulatedInterestRate
-                        );
-                        _allTranches[tranchesIndex[j]].normalizedPrincipal = newTrancheNormalizedPrincipal;
-                        debtInfo.normalizedPrincipal += newTrancheNormalizedPrincipal;
-                    }
-                    _allDebts[debtsIndex[i]] = debtInfo;
-                    loanInfo.normalizedPrincipal += debtInfo.normalizedPrincipal;
-                }
+                newLoanNormalizedPrincipal_ +=
+                    _updateDebtInterestRate(debtsIndex[i], oldAccumulatedInterestRate, newAccumulatedInterestRate);
             }
 
-            _allLoans[loanIndex_] = loanInfo;
-
-            emit LoanInterestRateUpdated(loanIndex_, loanInfo.interestRateIndex, newInterestRateIndex_);
-        } else {
-            _allLoans[loanIndex_].interestRateIndex = newInterestRateIndex_;
-
-            emit LoanInterestRateUpdated(loanIndex_, loanInfo.interestRateIndex, newInterestRateIndex_);
+            _allLoans[loanIndex_].normalizedPrincipal = newLoanNormalizedPrincipal_;
         }
+
+        _allLoans[loanIndex_].interestRateIndex = newInterestRateIndex_;
+
+        emit LoanInterestRateUpdated(loanIndex_, loanInfo.interestRateIndex, newInterestRateIndex_);
+    }
+
+    function _updateDebtInterestRate(
+        uint64 debtIndex_,
+        uint256 oldAccumulatedInterestRate_,
+        uint256 newAccumulatedInterestRate_
+    ) internal returns (uint128 newDebtNormalizedPrincipal_) {
+        DebtInfo memory debtInfo = _allDebts[debtIndex_];
+        if (debtInfo.status == DebtStatus.ACTIVE || debtInfo.status == DebtStatus.DEFAULTED) {
+            uint64[] memory tranchesIndex = _tranchesInfoGroupedByDebt[debtIndex_];
+            for (uint256 j = 0; j < tranchesIndex.length; j++) {
+                newDebtNormalizedPrincipal_ += _updateTrancheInterestRate(
+                    tranchesIndex[j], oldAccumulatedInterestRate_, newAccumulatedInterestRate_
+                );
+            }
+            _allDebts[debtIndex_].normalizedPrincipal = newDebtNormalizedPrincipal_;
+        }
+    }
+
+    function _updateTrancheInterestRate(
+        uint64 trancheIndex_,
+        uint256 oldAccumulatedInterestRate_,
+        uint256 newAccumulatedInterestRate_
+    ) internal returns (uint128 newTrancheNormalizedPrincipal_) {
+        newTrancheNormalizedPrincipal_ = uint128(
+            (uint256(_allTranches[trancheIndex_].normalizedPrincipal) * oldAccumulatedInterestRate_)
+                / newAccumulatedInterestRate_
+        );
+        _allTranches[trancheIndex_].normalizedPrincipal = newTrancheNormalizedPrincipal_;
     }
 
     function _updateBorrowerLimit(address borrower_, uint128 newCeilingLimit_) internal {
