@@ -947,7 +947,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyLoanOwner(_allDebts[debtIndex_].loanIndex, borrower_)
         returns (uint128 totalDebt_)
     {
-        _updateLoanInterestRates(_allDebts[debtIndex_].loanIndex, defaultedInterestRateIndex_);
+        _updateLoanInterestRate(_allDebts[debtIndex_].loanIndex, defaultedInterestRateIndex_);
         _allDebts[debtIndex_].status = DebtStatus.DEFAULTED;
         totalDebt_ = uint128(
             (
@@ -1118,7 +1118,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev update interest rate index for a borrower
     /// @param loanIndex_ the index of the loan
     /// @param newInterestRateIndex_ the new interest rate index to be applied
-    function updateLoanInterestRates(uint64 loanIndex_, uint64 newInterestRateIndex_)
+    function updateLoanInterestRate(uint64 loanIndex_, uint64 newInterestRateIndex_)
         public
         onlyInitialized
         nonReentrant
@@ -1128,7 +1128,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyValidInterestRate(newInterestRateIndex_)
         onlyTrustedBorrower(_trustedBorrowers[_allLoans[loanIndex_].borrowerIndex].borrower)
     {
-        _updateLoanInterestRates(loanIndex_, newInterestRateIndex_);
+        _updateLoanInterestRate(loanIndex_, newInterestRateIndex_);
     }
 
     /// @dev update trusted vault information
@@ -1349,7 +1349,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         emit Repaid(borrower_, debtIndex_, amount_, isAllRepaid_);
     }
 
-    function _updateLoanInterestRates(uint64 loanIndex_, uint64 newInterestRateIndex_)
+    function _updateLoanInterestRate(uint64 loanIndex_, uint64 newInterestRateIndex_)
         internal
         returns (uint128 newLoanNormalizedPrincipal_)
     {

@@ -203,5 +203,115 @@ contract TimePowerLoanTest is Test {
         vm.label(_owner, "owner");
     }
 
-    function testNull() public {}
+    function testNull() public pure {
+        assertTrue(true);
+    }
+
+    function testJoin() public {}
+    function testDuplicateBorrowerJoin() public {}
+    function testNotWhitelistedBorrowerJoin() public {}
+    function testBlacklistedBorrowerJoin() public {}
+
+    function testAgree() public {}
+    function testNotOperatorAgree() public {}
+    function testDuplicateAgree() public {}
+    function testAgreeNotWhitelistedBorrower() public {}
+    function testAgreeBlacklistedBorrower() public {}
+    function testAgreeNotTrustedBorrower() public {}
+    function testAgreeZeroCeilingLimit() public {}
+
+    function testRequest() public {}
+    function testBlacklistedBorrowerRequest() public {}
+    function testNotWhitelistedBorrowerRequest() public {}
+    function testNotTrustedBorrowerRequest() public {}
+    function testNotValidBorroweerRequest() public {}
+    function testRequestOverAvailableLimit() public {}
+
+    function testApprove() public {}
+    function testNotOperatorApprove() public {}
+    function testApproveNotPendingLoan() public {}
+    function testApproveWithNotValidInterestRate() public {}
+    function testApproveCeilingLimitOverRequest() public {}
+    function testApproveCeilingLimitBelowRequest() public {}
+
+    function testBorrow() public {}
+    function testBlacklistedBorrowerBorrow() public {}
+    function testNotWhitelistedBorrowerBorrow() public {}
+    function testBorrowFromNotValidLoan() public {}
+    function testNotLoanOwnerBorrow() public {}
+    function testBorrowWithNotValidMaturityDate() public {}
+    function testBorrowAmountOverLoanRemainingLimit() public {}
+    function testBorrowAmountNotFullSatisfied() public {}
+    function testBorrowAmountFullSatisfied() public {}
+
+    function testRepay() public {}
+    function testBlacklistedBorrowerRepay() public {}
+    function testNotWhitelistedBorrowerRepay() public {}
+    function testRepayNotValidDebt() public {}
+    function testNotLoanOwnerRepay() public {}
+    function testRepayAmountOverTotalDebt() public {}
+    function testRepayAmountBelowTotalDebtButOverInterest() public {}
+    function testRepayAmountBelowInterest() public {}
+    function testRepayAmountTooLittleButInterestTooMuchEvenOverLoanRemainingLimit() public {}
+
+    function testDefault() public {}
+    function testNotOperatorDefault() public {}
+    function testDefaultNotMaturedDebt() public {}
+    function testDefaultWithNotValidInterestRate() public {}
+    function testDefaultDebtForNotLoanOwner() public {}
+    function testDefaultDebtWithUnchangedInterestRate() public {}
+
+    function testRecovery() public {}
+    function testNotOperatorRecovery() public {}
+    function testRecoveryNotDefaultedDebt() public {}
+    function testRecoveryDebtForNotLoanOwner() public {}
+
+    function testClose() public {}
+    function testNotOperatorClose() public {}
+    function testCloseNotDefaultedDebt() public {}
+    function testCloseDebtForNotLoanOwner() public {}
+
+    function testAddWhitelist() public {}
+    function testNotOperatorAddWhitelist() public {}
+
+    function testRemoveWhitelist() public {}
+    function testNotOperatorRemoveWhitelist() public {}
+
+    function testAddBlacklist() public {}
+    function testNotOperatorAddBlacklist() public {}
+
+    function testRemoveBlacklist() public {}
+    function testNotOperatorRemoveBlacklist() public {}
+
+    function testUpdateBorrowerLimit() public {}
+    function testNotOperatorUpdateBorrowerLimit() public {}
+    function testUpdateNotWhitelistedBorrowerLimit() public {}
+    function testUpdateBlacklistedBorrowerLimit() public {}
+    function testUpdateNotTrustedBorrowerLimit() public {}
+    function testUpdateBorrowerLimitBelowRemainingLimit() public {}
+    function testUpdateBorrowerLimitBelowUsedLimit() public {}
+
+    function testUpdateLoanLimit() public {}
+    function testNotOperatorUpdateLoanLimit() public {}
+    function testUpdateNotValidLoanLimit() public {}
+    function testUpdateNotTrustedBorrowerLoanLimit() public {}
+    function testUpdateLoanLimitBelowRemainingLimit() public {}
+    function testUpdateLoanLimitBelowUsedLimit() public {}
+    function testUpdateLoanLimitExceedBorrowerRemainingLimit() public {}
+
+    function testUpdateLoanInterestRate() public {}
+    function testNotOperatorUpdateLoanInterestRate() public {}
+    function testUpdateNotValidLoanInterestRate() public {}
+    function testUpdateLoanNotValidInterestRate() public {}
+    function testUpdateLoanInterestRateForNotTrustedBorrower() public {}
+
+    function testUpdateTrustedVaults() public {}
+    function testNotOperatorUpdateTrustedVaults() public {}
+    function testUpdateTrustedVaultsWhenVaultsNotExist() public {}
+
+    function testPile() public {}
+    function testTotalDebtOfBorrower() public {}
+    function testTotalDebtOfNotTrustedBorrower() public {}
+    function testTotalDebtOfVault() public {}
+    function testTotalDebtOfNotTrustedVault() public {}
 }
