@@ -1248,32 +1248,43 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         DebtInfo memory debt = _allDebts[debtIndex_];
         LoanInfo memory loan = _allLoans[debt.loanIndex];
 
-        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
-        uint128 debtNormalizedPrincipal = debt.normalizedPrincipal;
-        uint256 totalDebt = (uint256(debtNormalizedPrincipal) * accumulatedInterestRate) / FIXED18;
+        /// @dev layoff temporary variables
+        /// @dev params[0]: accumulatedInterestRate
+        /// @dev params[1]: debtNormalizedPrincipal
+        /// @dev params[2]: totalDebt
+        /// @dev params[3]: remainingNormalizedPrincipal
+        uint256[] memory params = new uint256[](4);
+        /* uint256 accumulatedInterestRate */
+        params[0] = _accumulatedInterestRates[loan.interestRateIndex];
+        /* uint128 debtNormalizedPrincipal */
+        params[1] = debt.normalizedPrincipal;
+        /* uint256 totalDebt */
+        params[2] = (uint256(params[1]) * params[0]) / FIXED18;
 
-        if (amount_ >= totalDebt) {
-            amount_ = uint128(totalDebt);
+        if (amount_ >= params[2]) {
+            amount_ = uint128(params[2]);
             isAllRepaid_ = true;
             debt.status = DebtStatus.REPAID;
         } else {
             isAllRepaid_ = false;
         }
 
-        remainingDebt_ = uint128(totalDebt - uint256(amount_));
+        remainingDebt_ = uint128(params[2] - uint256(amount_));
 
-        uint128 remainingNormalizedPrincipal = uint128((uint256(remainingDebt_) * FIXED18) / accumulatedInterestRate);
+        /// @dev ramining normalized principal maybe over than debt normalized principal if repay amount is below debt interest
+        /* uint128 remainingNormalizedPrincipal */
+        params[3] = (uint256(remainingDebt_) * FIXED18 / params[0]);
 
         /// @dev loan normalized principal should decrease if repay amount is over debt interest
         /// @dev loan normalized principal should increase if repay amount is below debt interest
-        loan.normalizedPrincipal = loan.normalizedPrincipal - debtNormalizedPrincipal + remainingNormalizedPrincipal;
+        loan.normalizedPrincipal = loan.normalizedPrincipal + uint128(params[3]) - uint128(params[1]);
 
         /// @dev repay amount is greater than or equal to debt total interest
         /// @dev loan remaining limit is impossible to decrease in this case
-        if (amount_ + debt.principal >= totalDebt) {
-            loan.remainingLimit += (amount_ + debt.principal - uint128(totalDebt));
+        if (amount_ + debt.principal >= params[2]) {
+            loan.remainingLimit += (amount_ + debt.principal - uint128(params[2]));
         } else {
-            uint128 decreasedLimit = uint128(totalDebt) - (amount_ + debt.principal);
+            uint128 decreasedLimit = uint128(params[2]) - (amount_ + debt.principal);
             /// @dev repay amount is not enough to cover debt interest
             /// @dev loan limit will decrease in this case
             /// @dev meaning that unrepaid interest become new debt principal and reduce loan limit
@@ -1284,14 +1295,14 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             /// @dev borrower should repay more to cover the decreased limit
             else {
                 revert RepayTooLittle(
-                    borrower_, debtIndex_, uint128(totalDebt) - debt.principal - loan.remainingLimit, amount_
+                    borrower_, debtIndex_, uint128(params[2]) - debt.principal - loan.remainingLimit, amount_
                 );
             }
         }
 
         /// @dev debt normalized principal should decrease if repay amount is over debt interest
         /// @dev debt normalized principal should increase if repay amount is below debt interest
-        debt.normalizedPrincipal = remainingNormalizedPrincipal;
+        debt.normalizedPrincipal = uint128(params[3]);
         /// @dev debt principal should decrease if repay amount is over debt interest
         /// @dev debt principal should remain the same if repay amount is below debt interest
         debt.principal = remainingDebt_;
@@ -1301,7 +1312,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
         IERC20(_loanToken).safeTransferFrom(borrower_, address(this), uint256(amount_));
 
-        _distributeFunds(debtIndex_, debtNormalizedPrincipal, uint256(amount_));
+        _distributeFunds(debtIndex_, uint128(params[1]), uint256(amount_));
 
         emit Repaid(borrower_, debtIndex_, amount_, isAllRepaid_);
     }
