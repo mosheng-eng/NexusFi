@@ -431,7 +431,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             revert Errors.ZeroAddress("whitelist");
         }
         if (borrower_ == address(0)) {
-            revert Errors.ZeroAddress("user");
+            revert Errors.ZeroAddress("borrower");
         }
         if (!IWhitelist(_whitelist).isWhitelisted(borrower_)) {
             revert IWhitelist.NotWhitelisted(borrower_);
@@ -447,7 +447,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             revert Errors.ZeroAddress("blacklist");
         }
         if (borrower_ == address(0)) {
-            revert Errors.ZeroAddress("user");
+            revert Errors.ZeroAddress("borrower");
         }
         if (IBlacklist(_blacklist).isBlacklisted(borrower_)) {
             revert IBlacklist.Blacklisted(borrower_);

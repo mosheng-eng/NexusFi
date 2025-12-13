@@ -8,6 +8,9 @@ import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {Roles} from "src/common/Roles.sol";
+import {Errors} from "src/common/Errors.sol";
+import {IWhitelist} from "src/whitelist/IWhitelist.sol";
+import {IBlacklist} from "src/blacklist/IBlacklist.sol";
 
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 
@@ -207,10 +210,57 @@ contract TimePowerLoanTest is Test {
         assertTrue(true);
     }
 
-    function testJoin() public {}
-    function testDuplicateBorrowerJoin() public {}
-    function testNotWhitelistedBorrowerJoin() public {}
-    function testBlacklistedBorrowerJoin() public {}
+    function testJoin() public {
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.TrustedBorrowerAdded(_whitelistedUser1, 0);
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.TrustedBorrowerAdded(_whitelistedUser2, 1);
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        (address borrower1,,) = _timePowerLoan._trustedBorrowers(0);
+        (address borrower2,,) = _timePowerLoan._trustedBorrowers(1);
+
+        assertEq(borrower1, _whitelistedUser1);
+        assertEq(borrower2, _whitelistedUser2);
+    }
+
+    function testDuplicateBorrowerJoin() public {
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.TrustedBorrowerAdded(_whitelistedUser1, 0);
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.BorrowerAlreadyExists.selector, _whitelistedUser1, 0));
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+    }
+
+    function testNotWhitelistedBorrowerJoin() public {
+        address someone = makeAddr("someone");
+        vm.expectRevert(abi.encodeWithSelector(IWhitelist.NotWhitelisted.selector, someone));
+        vm.prank(someone);
+        _timePowerLoan.join();
+
+        address zeroAddr = address(0x00);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        vm.prank(zeroAddr);
+        _timePowerLoan.join();
+    }
+
+    function testBlacklistedBorrowerJoin() public {
+        vm.expectRevert(abi.encodeWithSelector(IBlacklist.Blacklisted.selector, _blacklistedUser1));
+        vm.prank(_blacklistedUser1);
+        _timePowerLoan.join();
+
+        address zeroAddr = address(0x00);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        vm.prank(zeroAddr);
+        _timePowerLoan.join();
+    }
 
     function testAgree() public {}
     function testNotOperatorAgree() public {}
