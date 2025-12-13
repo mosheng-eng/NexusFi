@@ -191,7 +191,15 @@ contract TimePowerLoanTest is Test {
         _;
     }
 
-    function setUp() public {
+    function setUp()
+        public
+        timeBegin
+        deployWhitelist
+        deployBlacklist
+        deployDepositToken
+        deployTimePowerLoan
+        oneDayPassed
+    {
         vm.label(_owner, "owner");
     }
 
