@@ -112,6 +112,13 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param blockTimestamp_ block timestamp
     error MaturityTimeShouldAfterBlockTimestamp(uint64 maturityTime_, uint64 blockTimestamp_);
 
+    /// @dev error thrown when a repay amount is too little
+    /// @param borrower_ address of the borrower
+    /// @param debtIndex_ index of the debt
+    /// @param minimumRequiredAmount_ minimum required amount to repay
+    /// @param paidAmount_ amount paid by the borrower
+    error RepayTooLittle(address borrower_, uint64 debtIndex_, uint128 minimumRequiredAmount_, uint128 paidAmount_);
+
     /// @dev event emitted when borrower ceiling limit is updated
     /// @param oldCeilingLimit_ old ceiling limit
     /// @param newCeilingLimit_ new ceiling limit
@@ -193,6 +200,12 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param amount_ amount of the repaid debt
     /// @param isAllRepaid_ whether the debt is fully repaid
     event Repaid(address borrower_, uint64 debtIndex_, uint128 amount_, bool isAllRepaid_);
+
+    /// @dev event emitted when a defaulted debt is closed
+    /// @param borrower_ address of the borrower
+    /// @param debtIndex_ index of the debt
+    /// @param lossDebt_ amount of the loss debt
+    event Closed(address borrower_, uint64 debtIndex_, uint128 lossDebt_);
 
     /// @dev status of a debt
     enum DebtStatus {
@@ -913,41 +926,9 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyWhitelisted(msg.sender)
         onlyValidDebt(debtIndex_)
         onlyLoanOwner(_allDebts[debtIndex_].loanIndex, msg.sender)
-        returns (bool isAllRepaid_)
+        returns (bool isAllRepaid_, uint128 remainingDebt_)
     {
-        _accumulateInterest();
-
-        DebtInfo memory debt = _allDebts[debtIndex_];
-        LoanInfo memory loan = _allLoans[debt.loanIndex];
-
-        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
-        uint128 debtNormalizedPrincipal = debt.normalizedPrincipal;
-        uint256 totalDebt = (uint256(debtNormalizedPrincipal) * accumulatedInterestRate) / FIXED18;
-
-        if (amount_ >= totalDebt) {
-            amount_ = uint128(totalDebt);
-            isAllRepaid_ = true;
-            debt.status = DebtStatus.REPAID;
-        } else {
-            isAllRepaid_ = false;
-        }
-
-        uint128 remainingNormalizedPrincipal =
-            uint128(((totalDebt - uint256(amount_)) * FIXED18) / accumulatedInterestRate);
-
-        loan.normalizedPrincipal = loan.normalizedPrincipal - debtNormalizedPrincipal + remainingNormalizedPrincipal;
-        loan.remainingLimit += (amount_ + debt.principal - uint128(totalDebt));
-
-        debt.normalizedPrincipal = remainingNormalizedPrincipal;
-
-        _allDebts[debtIndex_] = debt;
-        _allLoans[debt.loanIndex] = loan;
-
-        IERC20(_loanToken).safeTransferFrom(msg.sender, address(this), uint256(amount_));
-
-        _distributeFunds(debtIndex_, debtNormalizedPrincipal, uint256(amount_));
-
-        emit Repaid(msg.sender, debtIndex_, amount_, isAllRepaid_);
+        (isAllRepaid_, remainingDebt_) = _repay(msg.sender, debtIndex_, amount_);
     }
 
     /// @dev mark a debt as defaulted
@@ -980,7 +961,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param borrower_ the address of the borrower
     /// @param debtIndex_ the index of the debt
     /// @param amount_ the amount to be recovered
-    /// @return totalDebt_ the total debt amount after recovery
+    /// @return isAllRepaid_ whether all debt is repaid
+    /// @return remainingDebt_ the remaining debt amount after recovery
     function recovery(address borrower_, uint64 debtIndex_, uint128 amount_)
         public
         onlyInitialized
@@ -988,13 +970,16 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         whenNotPaused
         onlyRole(Roles.OPERATOR_ROLE)
         onlyDefaultedDebt(debtIndex_)
-        returns (uint128 totalDebt_)
-    {}
+        onlyLoanOwner(_allDebts[debtIndex_].loanIndex, borrower_)
+        returns (bool isAllRepaid_, uint128 remainingDebt_)
+    {
+        (isAllRepaid_, remainingDebt_) = _repay(borrower_, debtIndex_, amount_);
+    }
 
     /// @dev close a defaulted debt
     /// @param borrower_ the address of the borrower
     /// @param debtIndex_ the index of the debt
-    /// @return totalDebt_ the total debt amount when closed
+    /// @return lossDebt_ the loss debt amount
     function close(address borrower_, uint64 debtIndex_)
         public
         onlyInitialized
@@ -1002,8 +987,31 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         whenNotPaused
         onlyRole(Roles.OPERATOR_ROLE)
         onlyDefaultedDebt(debtIndex_)
-        returns (uint128 totalDebt_)
-    {}
+        onlyLoanOwner(_allDebts[debtIndex_].loanIndex, borrower_)
+        returns (uint128 lossDebt_)
+    {
+        _accumulateInterest();
+
+        DebtInfo memory debt = _allDebts[debtIndex_];
+        LoanInfo memory loan = _allLoans[debt.loanIndex];
+
+        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
+
+        lossDebt_ = uint128((uint256(debt.normalizedPrincipal) * accumulatedInterestRate) / FIXED18);
+
+        debt.status = DebtStatus.CLOSED;
+
+        loan.normalizedPrincipal = loan.normalizedPrincipal - debt.normalizedPrincipal;
+        loan.remainingLimit += debt.principal;
+
+        debt.normalizedPrincipal = 0;
+        debt.principal = 0;
+
+        _allDebts[debtIndex_] = debt;
+        _allLoans[debt.loanIndex] = loan;
+
+        emit Closed(borrower_, debtIndex_, lossDebt_);
+    }
 
     /// @dev adds an address to the whitelist
     /// @param borrower_ the address to be added to the whitelist
@@ -1229,6 +1237,73 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
             emit AccumulatedInterestUpdated(currentTime);
         }
+    }
+
+    function _repay(address borrower_, uint64 debtIndex_, uint128 amount_)
+        internal
+        returns (bool isAllRepaid_, uint128 remainingDebt_)
+    {
+        _accumulateInterest();
+
+        DebtInfo memory debt = _allDebts[debtIndex_];
+        LoanInfo memory loan = _allLoans[debt.loanIndex];
+
+        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
+        uint128 debtNormalizedPrincipal = debt.normalizedPrincipal;
+        uint256 totalDebt = (uint256(debtNormalizedPrincipal) * accumulatedInterestRate) / FIXED18;
+
+        if (amount_ >= totalDebt) {
+            amount_ = uint128(totalDebt);
+            isAllRepaid_ = true;
+            debt.status = DebtStatus.REPAID;
+        } else {
+            isAllRepaid_ = false;
+        }
+
+        remainingDebt_ = uint128(totalDebt - uint256(amount_));
+
+        uint128 remainingNormalizedPrincipal = uint128((uint256(remainingDebt_) * FIXED18) / accumulatedInterestRate);
+
+        /// @dev loan normalized principal should decrease if repay amount is over debt interest
+        /// @dev loan normalized principal should increase if repay amount is below debt interest
+        loan.normalizedPrincipal = loan.normalizedPrincipal - debtNormalizedPrincipal + remainingNormalizedPrincipal;
+
+        /// @dev repay amount is greater than or equal to debt total interest
+        /// @dev loan remaining limit is impossible to decrease in this case
+        if (amount_ + debt.principal >= totalDebt) {
+            loan.remainingLimit += (amount_ + debt.principal - uint128(totalDebt));
+        } else {
+            uint128 decreasedLimit = uint128(totalDebt) - (amount_ + debt.principal);
+            /// @dev repay amount is not enough to cover debt interest
+            /// @dev loan limit will decrease in this case
+            /// @dev meaning that unrepaid interest become new debt principal and reduce loan limit
+            if (loan.remainingLimit > decreasedLimit) {
+                loan.remainingLimit -= decreasedLimit;
+            }
+            /// @dev if loan remaining limit is not enough to cover the decreased limit, revert the transaction
+            /// @dev borrower should repay more to cover the decreased limit
+            else {
+                revert RepayTooLittle(
+                    borrower_, debtIndex_, uint128(totalDebt) - debt.principal - loan.remainingLimit, amount_
+                );
+            }
+        }
+
+        /// @dev debt normalized principal should decrease if repay amount is over debt interest
+        /// @dev debt normalized principal should increase if repay amount is below debt interest
+        debt.normalizedPrincipal = remainingNormalizedPrincipal;
+        /// @dev debt principal should decrease if repay amount is over debt interest
+        /// @dev debt principal should remain the same if repay amount is below debt interest
+        debt.principal = remainingDebt_;
+
+        _allDebts[debtIndex_] = debt;
+        _allLoans[debt.loanIndex] = loan;
+
+        IERC20(_loanToken).safeTransferFrom(borrower_, address(this), uint256(amount_));
+
+        _distributeFunds(debtIndex_, debtNormalizedPrincipal, uint256(amount_));
+
+        emit Repaid(borrower_, debtIndex_, amount_, isAllRepaid_);
     }
 
     function _updateLoanInterestRates(uint64 loanIndex_, uint64 newInterestRateIndex_)
