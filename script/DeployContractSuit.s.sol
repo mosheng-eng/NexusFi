@@ -8,8 +8,10 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
+import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
+import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
 import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";
@@ -46,6 +48,16 @@ contract DeployContractSuit is Script {
                 address(new Whitelist()),
                 owner_,
                 abi.encodeWithSelector(Whitelist.initialize.selector, owner_, whitelistEnabled_)
+            )
+        );
+    }
+
+    function deployBlacklist(address owner_, bool blacklistEnabled_) external returns (address) {
+        return address(
+            new TransparentUpgradeableProxy(
+                address(new Blacklist()),
+                owner_,
+                abi.encodeWithSelector(Blacklist.initialize.selector, owner_, blacklistEnabled_)
             )
         );
     }
@@ -186,5 +198,31 @@ contract DeployContractSuit is Script {
         returns (address)
     {
         return address(new AssetVault(IERC20(underlyingToken_), name_, symbol_));
+    }
+
+    function deployTimePowerLoan(
+        /**
+         * 0: address owner_,
+         * 1: address whitelist_,
+         * 2: address blacklist_,
+         * 3: address loanToken_,
+         */
+        address[] memory addrs_,
+        /**
+         * annual interest rates sorted in ascending order
+         */
+        uint64[] memory secondInterestRates_,
+        /**
+         * vaults that are allowed to lend to borrowers
+         */
+        TimePowerLoan.TrustedVault[] memory trustedVaults_
+    ) external returns (address) {
+        return address(
+            new TransparentUpgradeableProxy(
+                address(new TimePowerLoan()),
+                addrs_[0],
+                abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs_, secondInterestRates_, trustedVaults_)
+            )
+        );
     }
 }
