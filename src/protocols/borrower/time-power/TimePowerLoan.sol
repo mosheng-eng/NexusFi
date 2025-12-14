@@ -1225,6 +1225,26 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         return _secondInterestRates[interestRateIndex_];
     }
 
+    function getAccumulatedInterestRateAtIndex(uint64 interestRateIndex_) public view returns (uint256) {
+        return _accumulatedInterestRates[interestRateIndex_];
+    }
+
+    function getDebtInfoAtIndex(uint64 debtIndex_) public view returns (DebtInfo memory) {
+        return _allDebts[debtIndex_];
+    }
+
+    function getLoanInfoAtIndex(uint64 loanIndex_) public view returns (LoanInfo memory) {
+        return _allLoans[loanIndex_];
+    }
+
+    function getBorrowerInfoAtIndex(uint64 borrowerIndex_) public view returns (TrustedBorrower memory) {
+        return _trustedBorrowers[borrowerIndex_];
+    }
+
+    function getVaultInfoAtIndex(uint64 vaultIndex_) public view returns (TrustedVault memory) {
+        return _trustedVaults[vaultIndex_];
+    }
+
     /// @dev calculates power(x,n) and x is in fixed point with given base
     /// @param x the base number in fixed point
     /// @param n the exponent
