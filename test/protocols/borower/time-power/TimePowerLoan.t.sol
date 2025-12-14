@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console, stdStorage, StdStorage} from "forge-std/Test.sol";
 
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
@@ -21,6 +21,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract TimePowerLoanTest is Test {
+    using stdStorage for StdStorage;
+
     DeployContractSuit internal _deployer = new DeployContractSuit();
     Whitelist internal _whitelist;
     Blacklist internal _blacklist;
@@ -439,16 +441,278 @@ contract TimePowerLoanTest is Test {
         _timePowerLoan.request(500_000 * 10 ** 6);
     }
 
-    function testNotTrustedBorrowerRequest() public {}
-    function testNotValidBorroweerRequest() public {}
-    function testRequestOverAvailableLimit() public {}
+    function testNotTrustedBorrowerRequest() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
 
-    function testApprove() public {}
-    function testNotOperatorApprove() public {}
-    function testApproveNotPendingLoan() public {}
-    function testApproveWithNotValidInterestRate() public {}
-    function testApproveCeilingLimitOverRequest() public {}
-    function testApproveCeilingLimitBelowRequest() public {}
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        address someone = makeAddr("someone");
+        vm.prank(_owner);
+        _whitelist.add(someone);
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotTrustedBorrower.selector, someone));
+        vm.prank(someone);
+        _timePowerLoan.request(300_000 * 10 ** 6);
+    }
+
+    function testNotValidBorroweerRequest() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        uint64 borrwoerIndex = _timePowerLoan._borrowerToIndex(_whitelistedUser2);
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidBorrower.selector, borrwoerIndex));
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+    }
+
+    function testRequestOverAvailableLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TimePowerLoan.LoanCeilingLimitExceedsBorrowerRemainingLimit.selector,
+                2_500_000 * 10 ** 6,
+                2_000_000 * 10 ** 6
+            )
+        );
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(2_500_000 * 10 ** 6);
+    }
+
+    function testApprove() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.startPrank(_owner);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser1, 0, 500_000 * 10 ** 6, 1);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser2, 1, 1_500_000 * 10 ** 6, 3);
+        _timePowerLoan.approve(1, 1_500_000 * 10 ** 6, 3);
+
+        vm.stopPrank();
+    }
+
+    function testNotOperatorApprove() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+    }
+
+    function testApproveNotPendingLoan() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.startPrank(_owner);
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidLoan.selector, 2));
+        _timePowerLoan.approve(2, 500_000 * 10 ** 6, 1);
+
+        _timePowerLoan.approve(1, 1_500_000 * 10 ** 6, 3);
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotPendingLoan.selector, 1));
+        _timePowerLoan.approve(1, 1_500_000 * 10 ** 6, 3);
+
+        vm.stopPrank();
+    }
+
+    function testApproveWithNotValidInterestRate() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.startPrank(_owner);
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidInterestRate.selector, 100));
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 100);
+
+        stdstore.target(address(_timePowerLoan)).sig(TimePowerLoan.getSecondInterestRateAtIndex.selector).with_key(
+            uint256(3)
+        ).checked_write(uint256(0));
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidInterestRate.selector, 3));
+        _timePowerLoan.approve(1, 1_500_000 * 10 ** 6, 3);
+
+        vm.stopPrank();
+    }
+
+    function testApproveCeilingLimitOverRequest() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.startPrank(_owner);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser1, 0, 1_000_000 * 10 ** 6, 1);
+        _timePowerLoan.approve(0, 1_000_000 * 10 ** 6, 1);
+        (uint128 ceilingLimit1,,,,,) = _timePowerLoan._allLoans(0);
+        assertEq(ceilingLimit1, 500_000 * 10 ** 6);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser2, 1, 2_000_000 * 10 ** 6, 3);
+        _timePowerLoan.approve(1, 2_000_000 * 10 ** 6, 3);
+        (uint128 ceilingLimit2,,,,,) = _timePowerLoan._allLoans(1);
+        assertEq(ceilingLimit2, 1_500_000 * 10 ** 6);
+
+        vm.stopPrank();
+    }
+
+    function testApproveCeilingLimitBelowRequest() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.startPrank(_owner);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser1, 0, 400_000 * 10 ** 6, 1);
+        _timePowerLoan.approve(0, 400_000 * 10 ** 6, 1);
+        (uint128 ceilingLimit1,,,,,) = _timePowerLoan._allLoans(0);
+        assertEq(ceilingLimit1, 400_000 * 10 ** 6);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, 3);
+        _timePowerLoan.approve(1, 1_000_000 * 10 ** 6, 3);
+        (uint128 ceilingLimit2,,,,,) = _timePowerLoan._allLoans(1);
+        assertEq(ceilingLimit2, 1_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+    }
 
     function testBorrow() public {}
     function testBlacklistedBorrowerBorrow() public {}
