@@ -716,6 +716,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         }
 
         _trustedBorrowers.push(TrustedBorrower({borrower: msg.sender, ceilingLimit: 0, remainingLimit: 0}));
+        _borrowerToIndex[msg.sender] = uint64(_trustedBorrowers.length - 1);
 
         emit TrustedBorrowerAdded(msg.sender, uint64(_trustedBorrowers.length - 1));
     }
