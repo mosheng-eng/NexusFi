@@ -201,6 +201,20 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param isAllRepaid_ whether the debt is fully repaid
     event Repaid(address borrower_, uint64 debtIndex_, uint128 amount_, bool isAllRepaid_);
 
+    /// @dev event emitted when a debt is defaulted
+    /// @param borrower_ address of the borrower
+    /// @param debtIndex_ index of the debt
+    /// @param remainingDebt_ amount of the remaining debt
+    /// @param defaultedInterestRateIndex_ interest rate index at the time of default
+    event Defaulted(address borrower_, uint64 debtIndex_, uint128 remainingDebt_, uint64 defaultedInterestRateIndex_);
+
+    /// @dev event emitted when a defaulted debt is recovered
+    /// @param borrower_ address of the borrower
+    /// @param debtIndex_ index of the debt
+    /// @param recoveredAmount_ amount of the recovered debt
+    /// @param remainingDebt_ amount of the remaining debt after recovery
+    event Recovery(address borrower_, uint64 debtIndex_, uint128 recoveredAmount_, uint128 remainingDebt_);
+
     /// @dev event emitted when a defaulted debt is closed
     /// @param borrower_ address of the borrower
     /// @param debtIndex_ index of the debt
@@ -936,7 +950,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param borrower_ the address of the borrower
     /// @param debtIndex_ the index of the debt
     /// @param defaultedInterestRateIndex_ the interest rate index applied for the defaulted debt
-    /// @return totalDebt_ the total debt amount when defaulted
+    /// @return remainingDebt_ the remaining debt amount after default
     function defaulted(address borrower_, uint64 debtIndex_, uint64 defaultedInterestRateIndex_)
         public
         onlyInitialized
@@ -946,16 +960,17 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyMaturedDebt(debtIndex_)
         onlyValidInterestRate(defaultedInterestRateIndex_)
         onlyLoanOwner(_allDebts[debtIndex_].loanIndex, borrower_)
-        returns (uint128 totalDebt_)
+        returns (uint128 remainingDebt_)
     {
         _updateLoanInterestRate(_allDebts[debtIndex_].loanIndex, defaultedInterestRateIndex_);
         _allDebts[debtIndex_].status = DebtStatus.DEFAULTED;
-        totalDebt_ = uint128(
+        remainingDebt_ = uint128(
             (
                 uint256(_allDebts[debtIndex_].normalizedPrincipal)
                     * _accumulatedInterestRates[defaultedInterestRateIndex_]
             ) / FIXED18
         );
+        emit Defaulted(borrower_, debtIndex_, remainingDebt_, defaultedInterestRateIndex_);
     }
 
     /// @dev recover a defaulted debt
@@ -975,6 +990,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         returns (bool isAllRepaid_, uint128 remainingDebt_)
     {
         (isAllRepaid_, remainingDebt_) = _repay(borrower_, debtIndex_, amount_);
+        emit Recovery(borrower_, debtIndex_, uint128(amount_), remainingDebt_);
     }
 
     /// @dev close a defaulted debt
@@ -1230,6 +1246,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         return _accumulatedInterestRates[interestRateIndex_];
     }
 
+    function getTrancheInfoAtIndex(uint64 trancheIndex_) public view returns (TrancheInfo memory) {
+        return _allTranches[trancheIndex_];
+    }
+
     function getDebtInfoAtIndex(uint64 debtIndex_) public view returns (DebtInfo memory) {
         return _allDebts[debtIndex_];
     }
@@ -1244,6 +1264,34 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
     function getVaultInfoAtIndex(uint64 vaultIndex_) public view returns (TrustedVault memory) {
         return _trustedVaults[vaultIndex_];
+    }
+
+    function getTranchesOfDebt(uint64 debtIndex_) public view returns (uint64[] memory) {
+        return _tranchesInfoGroupedByDebt[debtIndex_];
+    }
+
+    function getTranchesOfLoan(uint64 loanIndex_) public view returns (uint64[] memory) {
+        return _tranchesInfoGroupedByLoan[loanIndex_];
+    }
+
+    function getTranchesOfBorrower(uint64 borrowerIndex_) public view returns (uint64[] memory) {
+        return _tranchesInfoGroupedByBorrower[borrowerIndex_];
+    }
+
+    function getTranchesOfVault(uint64 vaultIndex_) public view returns (uint64[] memory) {
+        return _tranchesInfoGroupedByVault[vaultIndex_];
+    }
+
+    function getDebtsOfLoan(uint64 loanIndex_) public view returns (uint64[] memory) {
+        return _debtsInfoGroupedByLoan[loanIndex_];
+    }
+
+    function getDebtsOfBorrower(uint64 borrowerIndex_) public view returns (uint64[] memory) {
+        return _debtsInfoGroupedByBorrower[borrowerIndex_];
+    }
+
+    function getLoansOfBorrower(uint64 borrowerIndex_) public view returns (uint64[] memory) {
+        return _loansInfoGroupedByBorrower[borrowerIndex_];
     }
 
     /// @dev calculates power(x,n) and x is in fixed point with given base
@@ -1370,7 +1418,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
         IERC20(_loanToken).safeTransferFrom(borrower_, address(this), uint256(amount_));
 
-        _distributeFunds(debtIndex_, uint128(params[1]), uint256(amount_));
+        _distributeFunds(debtIndex_, uint128(params[1]), uint128(params[3]), uint256(amount_));
 
         emit Repaid(borrower_, debtIndex_, amount_, isAllRepaid_);
     }
@@ -1454,23 +1502,42 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         emit BorrowerCeilingLimitUpdated(ceilingLimit, newCeilingLimit_);
     }
 
-    function _distributeFunds(uint64 debtIndex_, uint128 debtNormalizedPrincipal_, uint256 amount_) internal {
+    function _distributeFunds(
+        uint64 debtIndex_,
+        uint128 oldDebtNormalizedPrincipal_,
+        uint128 newDebtNormalizedPrincipal_,
+        uint256 amount_
+    ) internal {
         uint64[] memory tranchesIndex = _tranchesInfoGroupedByDebt[debtIndex_];
-        uint256 payoutAmount = 0;
+        uint256 totalRepaidAmount = 0;
+        uint128 totalNormalizedPrincipal = 0;
         uint256 tranchNumber = tranchesIndex.length;
         for (uint256 i = 0; i < tranchNumber; ++i) {
             TrancheInfo memory tranche = _allTranches[tranchesIndex[i]];
+            uint256 accumulatedInterestRate = _accumulatedInterestRates[_allLoans[tranche.loanIndex].interestRateIndex];
 
             if (i == tranchNumber - 1) {
                 /// @dev last tranche takes the remaining amount to avoid rounding issues
-                uint256 lastTrancheRepayAmount = amount_ - payoutAmount;
+                uint256 lastTrancheRepayAmount = amount_ - totalRepaidAmount;
+
                 IERC20(_loanToken).safeTransfer(_trustedVaults[tranche.vaultIndex].vault, lastTrancheRepayAmount);
+
+                _allTranches[tranchesIndex[i]].normalizedPrincipal =
+                    newDebtNormalizedPrincipal_ - totalNormalizedPrincipal;
             } else {
                 /// @dev calculate repay amount for each tranche based on their normalized principal
-                uint256 trancheRepayAmount = (tranche.normalizedPrincipal * amount_) / debtNormalizedPrincipal_;
-                payoutAmount += trancheRepayAmount;
+                uint256 trancheRepayAmount = (tranche.normalizedPrincipal * amount_) / oldDebtNormalizedPrincipal_;
+                totalRepaidAmount += trancheRepayAmount;
 
                 IERC20(_loanToken).safeTransfer(_trustedVaults[tranche.vaultIndex].vault, trancheRepayAmount);
+
+                uint128 newTrancheNormalizedPrincipal = uint128(
+                    ((tranche.normalizedPrincipal * accumulatedInterestRate) / FIXED18 - trancheRepayAmount) * FIXED18
+                        / accumulatedInterestRate
+                );
+
+                _allTranches[tranchesIndex[i]].normalizedPrincipal = newTrancheNormalizedPrincipal;
+                totalNormalizedPrincipal += newTrancheNormalizedPrincipal;
             }
         }
     }

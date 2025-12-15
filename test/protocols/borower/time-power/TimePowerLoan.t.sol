@@ -1191,7 +1191,6 @@ contract TimePowerLoanTest is Test {
         uint256 totalDebt = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
         TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
         uint256 repayAmount = (totalDebt - uint256(debtInfo.principal)) / 1000;
-        uint128 originalPrincipal = debtInfo.principal;
 
         vm.startPrank(_whitelistedUser1);
         IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
@@ -1204,11 +1203,54 @@ contract TimePowerLoanTest is Test {
                 uint128(repayAmount)
             )
         );
-        (bool isAllRepaid, uint128 remainingDebt) = _timePowerLoan.repay(0, uint128(repayAmount));
+        _timePowerLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
     }
 
-    function testDefault() public {}
+    function testDefault() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days + 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+        uint256 totalDebtAfterRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+
+        /// @dev Verify that after repayment, the total debt is reduced by the repay amount (with 1 unit tolerance)
+        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations wiht dividing
+        assertEq(totalDebtAfterRepay + 1, totalDebtBeforeRepay - repayAmount);
+
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
+        uint256 totalDebtAfterDefaulted = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+
+        /// @dev Verify that after defaulting, the total debt increases due to penalty interest (with 1 unit tolerance)
+        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations wiht dividing
+        assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted + 1);
+    }
+
     function testNotOperatorDefault() public {}
     function testDefaultNotMaturedDebt() public {}
     function testDefaultWithNotValidInterestRate() public {}
