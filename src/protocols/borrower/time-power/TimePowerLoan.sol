@@ -1194,10 +1194,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return totalDebt_ the total debt amount of the borrower
     function totalDebtOfBorrower(address borrower_)
         public
-        view
         onlyTrustedBorrower(borrower_)
         returns (uint256 totalDebt_)
     {
+        _accumulateInterest();
         uint64[] memory borrowerLoans = _loansInfoGroupedByBorrower[_borrowerToIndex[borrower_]];
         for (uint256 i = 0; i < borrowerLoans.length; i++) {
             LoanInfo memory borrowerLoan = _allLoans[borrowerLoans[i]];
@@ -1210,7 +1210,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev get total debt of a vault
     /// @param vault_ the address of the vault
     /// @return totalDebt_ the total debt amount of the vault
-    function totalDebtOfVault(address vault_) public view onlyTrustedVault(vault_) returns (uint256 totalDebt_) {
+    function totalDebtOfVault(address vault_) public onlyTrustedVault(vault_) returns (uint256 totalDebt_) {
+        _accumulateInterest();
         uint64[] memory vaultTranches = _tranchesInfoGroupedByVault[_vaultToIndex[vault_]];
         for (uint256 i = 0; i < vaultTranches.length; i++) {
             TrancheInfo memory vaultTranche = _allTranches[vaultTranches[i]];

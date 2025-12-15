@@ -1094,10 +1094,119 @@ contract TimePowerLoanTest is Test {
         _timePowerLoan.repay(0, 2 * 300_000 * 10 ** 6);
     }
 
-    function testRepayAmountOverTotalDebt() public {}
-    function testRepayAmountBelowTotalDebtButOverInterest() public {}
-    function testRepayAmountBelowInterest() public {}
-    function testRepayAmountTooLittleButInterestTooMuchEvenOverLoanRemainingLimit() public {}
+    function testRepayAmountBelowTotalDebtButOverInterest() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days);
+
+        uint256 totalDebt = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount = ((totalDebt - uint256(debtInfo.principal)) + totalDebt) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        (bool isAllRepaid, uint128 remainingDebt) = _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        assertFalse(isAllRepaid);
+        assertEq(uint256(remainingDebt), totalDebt - repayAmount);
+
+        debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
+        assertEq(uint256(remainingDebt), uint256(debtInfo.principal));
+    }
+
+    function testRepayAmountBelowInterest() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days);
+
+        uint256 totalDebt = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount = (totalDebt - uint256(debtInfo.principal)) / 2;
+        uint128 originalPrincipal = debtInfo.principal;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        (bool isAllRepaid, uint128 remainingDebt) = _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        assertFalse(isAllRepaid);
+        assertEq(uint256(remainingDebt), totalDebt - repayAmount);
+
+        debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
+        assertEq(uint256(remainingDebt), uint256(debtInfo.principal));
+        assertLt(uint256(originalPrincipal), uint256(debtInfo.principal));
+    }
+
+    function testRepayAmountTooLittleButInterestTooMuchEvenOverLoanRemainingLimit() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(950_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 950_000 * 10 ** 6, 17);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 900_000 * 10 ** 6, _currentTime + 90 days);
+
+        vm.warp(_currentTime + 90 days);
+
+        uint256 totalDebt = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount = (totalDebt - uint256(debtInfo.principal)) / 1000;
+        uint128 originalPrincipal = debtInfo.principal;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TimePowerLoan.RepayTooLittle.selector,
+                _whitelistedUser1,
+                0,
+                totalDebt - debtInfo.principal - 50_000 * 10 ** 6,
+                uint128(repayAmount)
+            )
+        );
+        (bool isAllRepaid, uint128 remainingDebt) = _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+    }
 
     function testDefault() public {}
     function testNotOperatorDefault() public {}
