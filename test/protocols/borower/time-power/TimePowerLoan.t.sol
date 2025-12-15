@@ -1207,7 +1207,7 @@ contract TimePowerLoanTest is Test {
         vm.stopPrank();
     }
 
-    function testDefault() public {
+    function testDefault1() public {
         _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
 
         vm.prank(_whitelistedUser1);
@@ -1242,6 +1242,8 @@ contract TimePowerLoanTest is Test {
         /// @dev The 1 unit tolerance accounts for precision loss in interest calculations wiht dividing
         assertEq(totalDebtAfterRepay + 1, totalDebtBeforeRepay - repayAmount);
 
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay) - 1, 17);
         vm.prank(_owner);
         _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
         uint256 totalDebtAfterDefaulted = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
@@ -1251,11 +1253,209 @@ contract TimePowerLoanTest is Test {
         assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted + 1);
     }
 
-    function testNotOperatorDefault() public {}
-    function testDefaultNotMaturedDebt() public {}
-    function testDefaultWithNotValidInterestRate() public {}
-    function testDefaultDebtForNotLoanOwner() public {}
-    function testDefaultDebtWithUnchangedInterestRate() public {}
+    function testNotOperatorDefault() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days + 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
+    }
+
+    function testDefaultNotMaturedDebt() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days - 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidDebt.selector, 100));
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 100, 17);
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotMaturedDebt.selector, 0));
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
+    }
+
+    function testDefaultWithNotValidInterestRate() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days + 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidInterestRate.selector, 100));
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 100);
+
+        stdstore.target(address(_timePowerLoan)).sig(TimePowerLoan.getSecondInterestRateAtIndex.selector).with_key(17)
+            .checked_write(uint256(0));
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidInterestRate.selector, 17));
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
+    }
+
+    function testDefaultDebtForNotLoanOwner() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days + 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(TimePowerLoan.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
+        );
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser2, 0, 17);
+
+        vm.store(
+            address(_timePowerLoan),
+            bytes32(0xd7b6990105719101dabeb77144f2a3385c8033acd3af97e9423a695e81ad1eb6),
+            bytes32(0x00000000000000010000000000000064000000000000000000000045d7f20637)
+        );
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidLoan.selector, 100));
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
+    }
+
+    function testDefaultDebtWithUnchangedInterestRate() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days + 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        uint256 totalDebtAfterRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 1);
+        vm.prank(_owner);
+        _timePowerLoan.defaulted(_whitelistedUser1, 0, 1);
+    }
 
     function testRecovery() public {}
     function testNotOperatorRecovery() public {}
