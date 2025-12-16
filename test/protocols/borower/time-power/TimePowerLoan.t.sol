@@ -1921,6 +1921,229 @@ contract TimePowerLoanTest is Test {
     function testTotalDebtOfVault() public {}
     function testTotalDebtOfNotTrustedVault() public {}
 
+    function testGetSecondInterestRateAtIndex() public view {
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(0), 1000000000315520000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(1), 1000000000937300000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(2), 1000000001547130000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(3), 1000000002145440000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(4), 1000000002732680000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(5), 1000000003309230000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(6), 1000000003875500000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(7), 1000000004431820000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(8), 1000000004978560000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(9), 1000000005516020000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(10), 1000000006044530000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(11), 1000000006564380000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(12), 1000000007075840000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(13), 1000000007579180000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(14), 1000000008074650000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(15), 1000000008562500000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(16), 1000000009042960000);
+        assertEq(_timePowerLoan.getSecondInterestRateAtIndex(17), 1000000009516250000);
+    }
+
+    function testGetAccumulatedInterestRateAtIndex() public {
+        vm.warp(_currentTime + 30 days);
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+        uint256 accumulatedInterestRate1At30 = _timePowerLoan.getAccumulatedInterestRateAtIndex(1);
+        uint256 accumulatedInterestRate2At30 = _timePowerLoan.getAccumulatedInterestRateAtIndex(2);
+        assertLt(accumulatedInterestRate1At30, accumulatedInterestRate2At30);
+
+        vm.warp(_currentTime + 60 days);
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+        uint256 accumulatedInterestRate1At60 = _timePowerLoan.getAccumulatedInterestRateAtIndex(1);
+        uint256 accumulatedInterestRate2At60 = _timePowerLoan.getAccumulatedInterestRateAtIndex(2);
+        assertLt(accumulatedInterestRate1At60, accumulatedInterestRate2At60);
+        assertLt(accumulatedInterestRate1At30, accumulatedInterestRate1At60);
+        assertLt(accumulatedInterestRate2At30, accumulatedInterestRate2At60);
+    }
+
+    function testGetTrancheInfoAtIndex() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        TimePowerLoan.TrancheInfo memory trancheInfo = _timePowerLoan.getTrancheInfoAtIndex(0);
+        assertEq(trancheInfo.debtIndex, 0);
+        assertEq(trancheInfo.loanIndex, 0);
+        assertEq(trancheInfo.borrowerIndex, 0);
+        assertGt(trancheInfo.normalizedPrincipal, 0);
+    }
+
+    function testGetDebtInfoAtIndex() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(0);
+        assertEq(debtInfo.loanIndex, 0);
+        assertGt(debtInfo.normalizedPrincipal, 0);
+        assertEq(uint8(debtInfo.status), uint8(TimePowerLoan.DebtStatus.ACTIVE));
+    }
+
+    function testGetLoanInfoAtIndex() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(0);
+        assertEq(loanInfo.borrowerIndex, 0);
+        assertGt(loanInfo.normalizedPrincipal, 0);
+        assertEq(uint8(loanInfo.status), uint8(TimePowerLoan.LoanStatus.APPROVED));
+    }
+
+    function testGetBorrowerInfoAtIndex() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        TimePowerLoan.TrustedBorrower memory borrowerInfo = _timePowerLoan.getBorrowerInfoAtIndex(0);
+        assertEq(borrowerInfo.borrower, _whitelistedUser1);
+        assertGt(borrowerInfo.ceilingLimit, 0);
+        assertGt(borrowerInfo.remainingLimit, 0);
+    }
+
+    function testGetVaultInfoAtIndex() public view {
+        TimePowerLoan.TrustedVault memory vaultInfo = _timePowerLoan.getVaultInfoAtIndex(0);
+        assertEq(vaultInfo.vault, _trustedVaults[0].vault);
+    }
+
+    function testGetTranchesOfDebt() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory tranchesIndexOfDebt = _timePowerLoan.getTranchesOfDebt(0);
+        assertGt(tranchesIndexOfDebt.length, 0);
+        for (uint256 i = 0; i < tranchesIndexOfDebt.length; ++i) {
+            assertGt(_timePowerLoan.getTrancheInfoAtIndex(tranchesIndexOfDebt[i]).normalizedPrincipal, 0);
+        }
+    }
+
+    function testGetTranchesOfLoan() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory tranchesIndexOfLoan = _timePowerLoan.getTranchesOfLoan(0);
+        assertGt(tranchesIndexOfLoan.length, 0);
+        for (uint256 i = 0; i < tranchesIndexOfLoan.length; ++i) {
+            assertGt(_timePowerLoan.getTrancheInfoAtIndex(tranchesIndexOfLoan[i]).normalizedPrincipal, 0);
+        }
+    }
+
+    function testGetTranchesOfBorrower() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory tranchesIndexOfBorrower = _timePowerLoan.getTranchesOfBorrower(0);
+        assertGt(tranchesIndexOfBorrower.length, 0);
+        for (uint256 i = 0; i < tranchesIndexOfBorrower.length; ++i) {
+            assertGt(_timePowerLoan.getTrancheInfoAtIndex(tranchesIndexOfBorrower[i]).normalizedPrincipal, 0);
+        }
+    }
+
+    function testGetTranchesOfVault() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory tranchesIndexOfVault = _timePowerLoan.getTranchesOfVault(0);
+        assertGt(tranchesIndexOfVault.length, 0);
+        for (uint256 i = 0; i < tranchesIndexOfVault.length; ++i) {
+            assertGt(_timePowerLoan.getTrancheInfoAtIndex(tranchesIndexOfVault[i]).normalizedPrincipal, 0);
+        }
+    }
+
+    function testGetDebtsOfLoan() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory debtsIndexOfLoan = _timePowerLoan.getDebtsOfLoan(0);
+        assertGt(debtsIndexOfLoan.length, 0);
+        for (uint256 i = 0; i < debtsIndexOfLoan.length; ++i) {
+            TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(debtsIndexOfLoan[i]);
+            assertGt(debtInfo.normalizedPrincipal, 0);
+            assertEq(uint8(debtInfo.status), uint8(TimePowerLoan.DebtStatus.ACTIVE));
+        }
+    }
+
+    function testGetDebtsOfBorrower() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory debtsIndexOfBorrower = _timePowerLoan.getDebtsOfBorrower(0);
+        assertGt(debtsIndexOfBorrower.length, 0);
+        for (uint256 i = 0; i < debtsIndexOfBorrower.length; ++i) {
+            TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(debtsIndexOfBorrower[i]);
+            assertGt(debtInfo.normalizedPrincipal, 0);
+            assertEq(uint8(debtInfo.status), uint8(TimePowerLoan.DebtStatus.ACTIVE));
+        }
+    }
+
+    function testGetLoansOfBorrower() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint64[] memory loansIndexOfBorrower = _timePowerLoan.getLoansOfBorrower(0);
+        assertGt(loansIndexOfBorrower.length, 0);
+        for (uint256 i = 0; i < loansIndexOfBorrower.length; ++i) {
+            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(loansIndexOfBorrower[i]);
+            assertGt(loanInfo.normalizedPrincipal, 0);
+            assertEq(uint8(loanInfo.status), uint8(TimePowerLoan.LoanStatus.APPROVED));
+        }
+    }
+
     function _prepareFund(uint256 fundForEachVault_) internal {
         for (uint256 i = 0; i < _trustedVaults.length; ++i) {
             vm.startPrank(_owner);
@@ -1936,5 +2159,35 @@ contract TimePowerLoanTest is Test {
 
             vm.stopPrank();
         }
+    }
+
+    function _prepareDebt() internal {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.startPrank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+        _timePowerLoan.approve(1, 1_500_000 * 10 ** 6, 3);
+        vm.stopPrank();
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.borrow(1, 1_000_000 * 10 ** 6, _currentTime + 60 days);
     }
 }
