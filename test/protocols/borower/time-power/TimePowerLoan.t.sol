@@ -197,6 +197,17 @@ contract TimePowerLoanTest is Test {
         _;
     }
 
+    modifier setDependencies() {
+        vm.startPrank(_owner);
+
+        _whitelist.grantRole(Roles.OPERATOR_ROLE, address(_timePowerLoan));
+        _blacklist.grantRole(Roles.OPERATOR_ROLE, address(_timePowerLoan));
+
+        vm.stopPrank();
+
+        _;
+    }
+
     function setUp()
         public
         timeBegin
@@ -204,6 +215,7 @@ contract TimePowerLoanTest is Test {
         deployBlacklist
         deployDepositToken
         deployTimePowerLoan
+        setDependencies
         oneDayPassed
     {
         vm.label(_owner, "owner");
@@ -1877,25 +1889,222 @@ contract TimePowerLoanTest is Test {
         _timePowerLoan.close(_whitelistedUser1, 0);
     }
 
-    function testAddWhitelist() public {}
-    function testNotOperatorAddWhitelist() public {}
+    function testAddWhitelist() public {
+        address someone = makeAddr("someone");
+        vm.prank(_owner);
+        _timePowerLoan.addWhitelist(someone);
+        assertTrue(_whitelist.isWhitelisted(someone));
+    }
 
-    function testRemoveWhitelist() public {}
-    function testNotOperatorRemoveWhitelist() public {}
+    function testNotOperatorAddWhitelist() public {
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.addWhitelist(someone);
+    }
 
-    function testAddBlacklist() public {}
-    function testNotOperatorAddBlacklist() public {}
+    function testRemoveWhitelist() public {
+        vm.prank(_owner);
+        _timePowerLoan.removeWhitelist(_whitelistedUser1);
+        assertFalse(_whitelist.isWhitelisted(_whitelistedUser1));
+    }
 
-    function testRemoveBlacklist() public {}
-    function testNotOperatorRemoveBlacklist() public {}
+    function testNotOperatorRemoveWhitelist() public {
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.removeWhitelist(someone);
+    }
 
-    function testUpdateBorrowerLimit() public {}
-    function testNotOperatorUpdateBorrowerLimit() public {}
-    function testUpdateNotWhitelistedBorrowerLimit() public {}
-    function testUpdateBlacklistedBorrowerLimit() public {}
-    function testUpdateNotTrustedBorrowerLimit() public {}
-    function testUpdateBorrowerLimitBelowRemainingLimit() public {}
-    function testUpdateBorrowerLimitBelowUsedLimit() public {}
+    function testAddBlacklist() public {
+        address someone = makeAddr("someone");
+        vm.prank(_owner);
+        _timePowerLoan.addBlacklist(someone);
+        assertTrue(_blacklist.isBlacklisted(someone));
+    }
+
+    function testNotOperatorAddBlacklist() public {
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.addBlacklist(someone);
+    }
+
+    function testRemoveBlacklist() public {
+        vm.prank(_owner);
+        _timePowerLoan.removeBlacklist(_blacklistedUser1);
+        assertFalse(_blacklist.isBlacklisted(_blacklistedUser1));
+    }
+
+    function testNotOperatorRemoveBlacklist() public {
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.removeBlacklist(someone);
+    }
+
+    function testUpdateBorrowerLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.BorrowerCeilingLimitUpdated(1_000_000 * 10 ** 6, 1_500_000 * 10 ** 6);
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser1, 1_500_000 * 10 ** 6);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.BorrowerCeilingLimitUpdated(2_000_000 * 10 ** 6, 2_500_000 * 10 ** 6);
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser2, 2_500_000 * 10 ** 6);
+
+        vm.stopPrank();
+    }
+
+    function testNotOperatorUpdateBorrowerLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        address someone = makeAddr("someone");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
+            )
+        );
+        vm.prank(someone);
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser1, 1_500_000 * 10 ** 6);
+    }
+
+    function testUpdateNotWhitelistedBorrowerLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _whitelist.remove(_whitelistedUser1);
+
+        vm.prank(_owner);
+        vm.expectRevert(abi.encodeWithSelector(IWhitelist.NotWhitelisted.selector, _whitelistedUser1));
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser1, 1_500_000 * 10 ** 6);
+    }
+
+    function testUpdateBlacklistedBorrowerLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _blacklist.add(_whitelistedUser1);
+
+        vm.prank(_owner);
+        vm.expectRevert(abi.encodeWithSelector(IBlacklist.Blacklisted.selector, _whitelistedUser1));
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser1, 1_500_000 * 10 ** 6);
+    }
+
+    function testUpdateNotTrustedBorrowerLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        vm.startPrank(_owner);
+
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        _timePowerLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+
+        address someone = makeAddr("someone");
+        _whitelist.add(someone);
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotTrustedBorrower.selector, someone));
+        _timePowerLoan.updateBorrowerLimit(someone, 3_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+    }
+
+    function testUpdateBorrowerLimitBelowRemainingLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 500_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.store(
+            address(_timePowerLoan),
+            bytes32(0x1b6847dc741a1b0cd08d278845f9d819d87b734759afb55fe2de5cb82a9ae673),
+            bytes32(0x0000000000000000000000746a5288000000000000000000000000746a5287ff)
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TimePowerLoan.CeilingLimitBelowRemainingLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
+            )
+        );
+        vm.prank(_owner);
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser1, 1_500_000 * 10 ** 6);
+    }
+
+    function testUpdateBorrowerLimitBelowUsedLimit() public {
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 500_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TimePowerLoan.CeilingLimitBelowUsedLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
+            )
+        );
+        vm.prank(_owner);
+        _timePowerLoan.updateBorrowerLimit(_whitelistedUser1, 500_000 * 10 ** 6 - 1);
+    }
 
     function testUpdateLoanLimit() public {}
     function testNotOperatorUpdateLoanLimit() public {}

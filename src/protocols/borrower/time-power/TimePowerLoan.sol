@@ -1483,8 +1483,9 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     }
 
     function _updateBorrowerLimit(address borrower_, uint128 newCeilingLimit_) internal {
-        uint128 remainingLimit = _trustedBorrowers[_borrowerToIndex[borrower_]].remainingLimit;
-        uint128 ceilingLimit = _trustedBorrowers[_borrowerToIndex[borrower_]].ceilingLimit;
+        TrustedBorrower memory trustedBorrower = _trustedBorrowers[_borrowerToIndex[borrower_]];
+        uint128 remainingLimit = trustedBorrower.remainingLimit;
+        uint128 ceilingLimit = trustedBorrower.ceilingLimit;
 
         if (ceilingLimit < remainingLimit) {
             revert CeilingLimitBelowRemainingLimit(ceilingLimit, remainingLimit);
