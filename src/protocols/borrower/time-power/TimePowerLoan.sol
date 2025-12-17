@@ -696,6 +696,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
                 revert Errors.InvalidValue("trusted vault maximum percentage exceeds 100%");
             }
             _trustedVaults.push(trustedVaults_[i]);
+            _vaultToIndex[trustedVaults_[i].vault] = uint64(_trustedVaults.length - 1);
         }
 
         __AccessControl_init();
