@@ -2957,6 +2957,64 @@ contract TimePowerLoanTest is Test {
         }
     }
 
+    function testFuzzBorrowAndRepay(
+        uint128 borrowAmount_,
+        uint128 repayAmount_,
+        uint8 interestRateIndex_,
+        uint16 borrowDays_
+    ) public {
+        uint128 maxBorrowFund = uint128(IERC20(address(_depositToken)).balanceOf(_owner));
+        _prepareFund(uint256(maxBorrowFund / _trustedVaults.length));
+
+        borrowAmount_ = uint128(bound(borrowAmount_, 1_000 * 10 ** 6, maxBorrowFund / 2));
+        repayAmount_ = uint128(bound(repayAmount_, borrowAmount_ / 2, borrowAmount_ * 2));
+        interestRateIndex_ = uint8(bound(interestRateIndex_, 0, 17));
+        borrowDays_ = uint16(bound(borrowDays_, 1, 365));
+
+        _depositToken.mint(_whitelistedUser1, 1_000_000_000_000_000 * 10 ** 6);
+        _depositToken.mint(_whitelistedUser2, 1_000_000_000_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, maxBorrowFund);
+
+        vm.prank(_whitelistedUser1);
+        uint64 loanIndex = _timePowerLoan.request(maxBorrowFund);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(loanIndex, maxBorrowFund, interestRateIndex_);
+
+        vm.prank(_whitelistedUser1);
+        (, uint64 debtIndex) =
+            _timePowerLoan.borrow(loanIndex, borrowAmount_, uint64(_currentTime + uint256(borrowDays_) * 1 days));
+
+        vm.warp(_currentTime + uint256(borrowDays_) * 1 days / 2);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        assertGt(totalDebtBeforeRepay, borrowAmount_);
+
+        vm.prank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount_);
+
+        vm.prank(_whitelistedUser1);
+        (bool isAllRepaid, uint128 remainingDebt) = _timePowerLoan.repay(debtIndex, repayAmount_);
+
+        if (isAllRepaid) {
+            assertEq(remainingDebt, 0);
+        } else {
+            assertLt(_abs(uint256(remainingDebt), totalDebtBeforeRepay - uint256(repayAmount_)), 10);
+        }
+    }
+
+    function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
+        return a_ >= b_ ? a_ - b_ : b_ - a_;
+    }
+
     function _prepareFund(uint256 fundForEachVault_) internal {
         for (uint256 i = 0; i < _trustedVaults.length; ++i) {
             vm.startPrank(_owner);

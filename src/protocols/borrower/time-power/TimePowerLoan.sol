@@ -18,6 +18,8 @@ import {IBlacklist} from "src/blacklist/IBlacklist.sol";
 import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
 
+import {console} from "forge-std/Test.sol";
+
 contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
     using Math for uint256;
     using SafeCast for uint256;
@@ -880,7 +882,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
                 continue;
             }
 
-            uint256 normalizedPrincipalForTranche = (trancheAmounts[i] * FIXED18) / accumulatedInterestRate;
+            uint256 normalizedPrincipalForTranche =
+                trancheAmounts[i].mulDiv(FIXED18, accumulatedInterestRate, Math.Rounding.Ceil);
 
             normalizedPrincipal += uint128(normalizedPrincipalForTranche);
 
@@ -1366,7 +1369,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         /* uint128 debtNormalizedPrincipal */
         params[1] = debt.normalizedPrincipal;
         /* uint256 totalDebt */
-        params[2] = (uint256(params[1]) * params[0]) / FIXED18;
+        params[2] = uint256(params[1]).mulDiv(params[0], FIXED18, Math.Rounding.Ceil);
 
         if (amount_ >= params[2]) {
             amount_ = uint128(params[2]);
@@ -1380,7 +1383,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
         /// @dev ramining normalized principal maybe over than debt normalized principal if repay amount is below debt interest
         /* uint128 remainingNormalizedPrincipal */
-        params[3] = (uint256(remainingDebt_) * FIXED18 / params[0]);
+        params[3] = uint256(remainingDebt_).mulDiv(FIXED18, params[0], Math.Rounding.Ceil);
 
         /// @dev loan normalized principal should decrease if repay amount is over debt interest
         /// @dev loan normalized principal should increase if repay amount is below debt interest
@@ -1513,12 +1516,12 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         uint64[] memory tranchesIndex = _tranchesInfoGroupedByDebt[debtIndex_];
         uint256 totalRepaidAmount = 0;
         uint128 totalNormalizedPrincipal = 0;
-        uint256 tranchNumber = tranchesIndex.length;
-        for (uint256 i = 0; i < tranchNumber; ++i) {
+        uint256 trancheNumber = tranchesIndex.length;
+        for (uint256 i = 0; i < trancheNumber; ++i) {
             TrancheInfo memory tranche = _allTranches[tranchesIndex[i]];
             uint256 accumulatedInterestRate = _accumulatedInterestRates[_allLoans[tranche.loanIndex].interestRateIndex];
 
-            if (i == tranchNumber - 1) {
+            if (i == trancheNumber - 1) {
                 /// @dev last tranche takes the remaining amount to avoid rounding issues
                 uint256 lastTrancheRepayAmount = amount_ - totalRepaidAmount;
 
@@ -1528,14 +1531,19 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
                     newDebtNormalizedPrincipal_ - totalNormalizedPrincipal;
             } else {
                 /// @dev calculate repay amount for each tranche based on their normalized principal
-                uint256 trancheRepayAmount = (tranche.normalizedPrincipal * amount_) / oldDebtNormalizedPrincipal_;
+                uint256 trancheRepayAmount = uint256(tranche.normalizedPrincipal).mulDiv(
+                    amount_, oldDebtNormalizedPrincipal_, Math.Rounding.Floor
+                );
                 totalRepaidAmount += trancheRepayAmount;
 
                 IERC20(_loanToken).safeTransfer(_trustedVaults[tranche.vaultIndex].vault, trancheRepayAmount);
 
                 uint128 newTrancheNormalizedPrincipal = uint128(
-                    ((tranche.normalizedPrincipal * accumulatedInterestRate) / FIXED18 - trancheRepayAmount) * FIXED18
-                        / accumulatedInterestRate
+                    (
+                        uint256(tranche.normalizedPrincipal).mulDiv(
+                            accumulatedInterestRate, FIXED18, Math.Rounding.Ceil
+                        ) - trancheRepayAmount
+                    ).mulDiv(FIXED18, accumulatedInterestRate, Math.Rounding.Floor)
                 );
 
                 _allTranches[tranchesIndex[i]].normalizedPrincipal = newTrancheNormalizedPrincipal;
@@ -1555,8 +1563,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         trancheAmounts_ = new uint256[](vaultNumber);
 
         for (uint256 i = 0; i < vaultNumber; ++i) {
-            uint256 minimumLendAmount = amount_.mulDiv(uint256(_trustedVaults[i].minimumPercentage), uint256(PRECISION));
-            uint256 maximumLendAmount = amount_.mulDiv(uint256(_trustedVaults[i].maximumPercentage), uint256(PRECISION));
+            uint256 minimumLendAmount =
+                amount_.mulDiv(uint256(_trustedVaults[i].minimumPercentage), uint256(PRECISION), Math.Rounding.Floor);
+            uint256 maximumLendAmount =
+                amount_.mulDiv(uint256(_trustedVaults[i].maximumPercentage), uint256(PRECISION), Math.Rounding.Ceil);
             uint256 vaultTotalAssets = IERC4626(_trustedVaults[i].vault).totalAssets();
             uint256 vaultLendAmount;
 
