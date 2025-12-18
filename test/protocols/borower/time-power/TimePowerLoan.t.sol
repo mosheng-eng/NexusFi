@@ -1252,7 +1252,7 @@ contract TimePowerLoanTest is Test {
 
         /// @dev Verify that after repayment, the total debt is reduced by the repay amount (with 1 unit tolerance)
         /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
-        assertEq(totalDebtAfterRepay + 1, totalDebtBeforeRepay - repayAmount);
+        assertEq(totalDebtAfterRepay - 1, totalDebtBeforeRepay - repayAmount);
 
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
         emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay) - 1, 17);
@@ -1737,7 +1737,7 @@ contract TimePowerLoanTest is Test {
 
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
         /// @dev precision loss in interest calculations with dividing
-        emit TimePowerLoan.Closed(_whitelistedUser1, 0, remainingDebtAtRecovery - 1);
+        emit TimePowerLoan.Closed(_whitelistedUser1, 0, remainingDebtAtRecovery);
         vm.prank(_owner);
         _timePowerLoan.close(_whitelistedUser1, 0);
     }
@@ -2716,8 +2716,7 @@ contract TimePowerLoanTest is Test {
         totalDebtOfBorrower += _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
         totalDebtOfBorrower += _timePowerLoan.totalDebtOfBorrower(_whitelistedUser2);
 
-        /// @dev not perfect check because of precison loss in interest calculation
-        assertEq(totalDebtOfVault, totalDebtOfBorrower - 2);
+        assertEq(totalDebtOfVault, totalDebtOfBorrower);
     }
 
     function testTotalDebtOfNotTrustedVault() public {

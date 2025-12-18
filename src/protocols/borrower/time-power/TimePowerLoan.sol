@@ -970,9 +970,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _allDebts[debtIndex_].status = DebtStatus.DEFAULTED;
         remainingDebt_ = uint128(
             (
-                uint256(_allDebts[debtIndex_].normalizedPrincipal)
-                    * _accumulatedInterestRates[defaultedInterestRateIndex_]
-            ) / FIXED18
+                uint256(_allDebts[debtIndex_].normalizedPrincipal).mulDiv(
+                    _accumulatedInterestRates[defaultedInterestRateIndex_], FIXED18, Math.Rounding.Ceil
+                )
+            )
         );
         emit Defaulted(borrower_, debtIndex_, remainingDebt_, defaultedInterestRateIndex_);
     }
@@ -1221,10 +1222,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         uint64[] memory borrowerLoans = _loansInfoGroupedByBorrower[_borrowerToIndex[borrower_]];
         for (uint256 i = 0; i < borrowerLoans.length; i++) {
             LoanInfo memory borrowerLoan = _allLoans[borrowerLoans[i]];
-            totalDebt_ += (
-                uint256(borrowerLoan.normalizedPrincipal) * _accumulatedInterestRates[borrowerLoan.interestRateIndex]
-            ) / FIXED18;
+            totalDebt_ +=
+                (uint256(borrowerLoan.normalizedPrincipal) * _accumulatedInterestRates[borrowerLoan.interestRateIndex]);
         }
+        totalDebt_ = totalDebt_.mulDiv(FIXED18, FIXED18 * FIXED18, Math.Rounding.Ceil);
     }
 
     /// @dev get total debt of a vault
@@ -1236,10 +1237,10 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         for (uint256 i = 0; i < vaultTranches.length; i++) {
             TrancheInfo memory vaultTranche = _allTranches[vaultTranches[i]];
             LoanInfo memory trancheLoan = _allLoans[vaultTranche.loanIndex];
-            totalDebt_ += (
-                uint256(vaultTranche.normalizedPrincipal) * _accumulatedInterestRates[trancheLoan.interestRateIndex]
-            ) / FIXED18;
+            totalDebt_ +=
+                (uint256(vaultTranche.normalizedPrincipal) * _accumulatedInterestRates[trancheLoan.interestRateIndex]);
         }
+        totalDebt_ = totalDebt_.mulDiv(FIXED18, FIXED18 * FIXED18, Math.Rounding.Ceil);
     }
 
     function getSecondInterestRateAtIndex(uint64 interestRateIndex_) public view returns (uint256) {
