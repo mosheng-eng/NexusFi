@@ -1246,23 +1246,21 @@ contract TimePowerLoanTest is Test {
 
         vm.startPrank(_whitelistedUser1);
         IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
-        _timePowerLoan.repay(0, uint128(repayAmount));
+        (, uint128 totalDebtAfterRepay) = _timePowerLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
-        uint256 totalDebtAfterRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
 
         /// @dev Verify that after repayment, the total debt is reduced by the repay amount (with 1 unit tolerance)
         /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
-        assertEq(totalDebtAfterRepay - 1, totalDebtBeforeRepay - repayAmount);
+        assertEq(totalDebtAfterRepay, totalDebtBeforeRepay - repayAmount);
 
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
-        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay) - 1, 17);
+        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 17);
         vm.prank(_owner);
-        _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
-        uint256 totalDebtAfterDefaulted = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        uint128 totalDebtAfterDefaulted = _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
 
         /// @dev Verify that after defaulting, the total debt increases due to penalty interest (with 1 unit tolerance)
         /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
-        assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted + 1);
+        assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted);
     }
 
     function testNotOperatorDefault() public {

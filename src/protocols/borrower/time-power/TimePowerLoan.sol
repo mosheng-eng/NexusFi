@@ -1019,7 +1019,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
         uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
 
-        lossDebt_ = uint128((uint256(debt.normalizedPrincipal) * accumulatedInterestRate) / FIXED18);
+        lossDebt_ =
+            uint128(uint256(debt.normalizedPrincipal).mulDiv(accumulatedInterestRate, FIXED18, Math.Rounding.Floor));
 
         debt.status = DebtStatus.CLOSED;
 
@@ -1341,8 +1342,9 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         if (currentTime > _lastAccumulateInterestTime) {
             uint64 timePeriod = currentTime - _lastAccumulateInterestTime;
             for (uint256 i = 0; i < _secondInterestRates.length; i++) {
-                _accumulatedInterestRates[i] =
-                    (_accumulatedInterestRates[i] * _rpow(_secondInterestRates[i], timePeriod, FIXED18)) / FIXED18;
+                _accumulatedInterestRates[i] = _accumulatedInterestRates[i].mulDiv(
+                    _rpow(_secondInterestRates[i], timePeriod, FIXED18), FIXED18, Math.Rounding.Ceil
+                );
             }
             _lastAccumulateInterestTime = currentTime;
 
@@ -1481,8 +1483,9 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         uint256 newAccumulatedInterestRate_
     ) internal returns (uint128 newTrancheNormalizedPrincipal_) {
         newTrancheNormalizedPrincipal_ = uint128(
-            (uint256(_allTranches[trancheIndex_].normalizedPrincipal) * oldAccumulatedInterestRate_)
-                / newAccumulatedInterestRate_
+            uint256(_allTranches[trancheIndex_].normalizedPrincipal).mulDiv(
+                oldAccumulatedInterestRate_, newAccumulatedInterestRate_, Math.Rounding.Floor
+            )
         );
         _allTranches[trancheIndex_].normalizedPrincipal = newTrancheNormalizedPrincipal_;
     }
