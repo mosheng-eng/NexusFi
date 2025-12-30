@@ -725,6 +725,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         nonReentrant
         onlyNotBlacklisted(msg.sender)
         onlyWhitelisted(msg.sender)
+        returns (uint64 borrowerIndex_)
     {
         for (uint256 i = 0; i < _trustedBorrowers.length; i++) {
             if (_trustedBorrowers[i].borrower == msg.sender) {
@@ -733,7 +734,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         }
 
         _trustedBorrowers.push(TrustedBorrower({borrower: msg.sender, ceilingLimit: 0, remainingLimit: 0}));
-        _borrowerToIndex[msg.sender] = uint64(_trustedBorrowers.length - 1);
+        borrowerIndex_ = uint64(_trustedBorrowers.length - 1);
+        _borrowerToIndex[msg.sender] = borrowerIndex_;
 
         emit TrustedBorrowerAdded(msg.sender, uint64(_trustedBorrowers.length - 1));
     }
@@ -1298,6 +1300,30 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
     function getLoansOfBorrower(uint64 borrowerIndex_) public view returns (uint64[] memory) {
         return _loansInfoGroupedByBorrower[borrowerIndex_];
+    }
+
+    function getTotalTrustedBorrowers() public view returns (uint256) {
+        return _trustedBorrowers.length;
+    }
+
+    function getTotalTrustedVaults() public view returns (uint256) {
+        return _trustedVaults.length;
+    }
+
+    function getTotalLoans() public view returns (uint256) {
+        return _allLoans.length;
+    }
+
+    function getTotalDebts() public view returns (uint256) {
+        return _allDebts.length;
+    }
+
+    function getTotalTranches() public view returns (uint256) {
+        return _allTranches.length;
+    }
+
+    function getTotalInterestRates() public view returns (uint256) {
+        return _secondInterestRates.length;
     }
 
     /// @dev calculates power(x,n) and x is in fixed point with given base
