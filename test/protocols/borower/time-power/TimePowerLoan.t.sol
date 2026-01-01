@@ -19,6 +19,7 @@ import {AssetVault} from "test/mock/AssetVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract TimePowerLoanTest is Test {
     using stdStorage for StdStorage;
@@ -30,7 +31,6 @@ contract TimePowerLoanTest is Test {
 
     TimePowerLoan.TrustedVault[] internal _trustedVaults;
     uint64[] internal _secondInterestRates;
-    address internal _loanToken;
 
     address internal _owner = makeAddr("owner");
     address internal _whitelistedUser1 = makeAddr("whitelistedUser1");
@@ -2831,9 +2831,25 @@ contract TimePowerLoanTest is Test {
         assertGt(borrowerInfo.remainingLimit, 0);
     }
 
+    function testGetBorrowerAtIndex() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        assertEq(_timePowerLoan.getBorrowerAtIndex(0), _whitelistedUser1);
+    }
+
     function testGetVaultInfoAtIndex() public view {
         TimePowerLoan.TrustedVault memory vaultInfo = _timePowerLoan.getVaultInfoAtIndex(0);
         assertEq(vaultInfo.vault, _trustedVaults[0].vault);
+    }
+
+    function testGetVaultAtIndex() public view {
+        assertEq(_timePowerLoan.getVaultAtIndex(0), _trustedVaults[0].vault);
     }
 
     function testGetTranchesOfDebt() public {
@@ -2954,6 +2970,63 @@ contract TimePowerLoanTest is Test {
         }
     }
 
+    function testGetTotalTrustedBorrowers() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint256 totalTrustedBorrowers = _timePowerLoan.getTotalTrustedBorrowers();
+        assertEq(totalTrustedBorrowers, 2);
+    }
+
+    function testGetTotalLoans() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint256 totalLoans = _timePowerLoan.getTotalLoans();
+        assertEq(totalLoans, 2);
+    }
+
+    function testGetTotalDebts() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint256 totalDebts = _timePowerLoan.getTotalDebts();
+        assertEq(totalDebts, 2);
+    }
+
+    function testGetTotalTranches() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        uint256 totalTranches = _timePowerLoan.getTotalTranches();
+        assertGt(totalTranches, 2);
+    }
+
+    function testGetTotalInterestRates() public view {
+        uint256 totalInterestRates = _timePowerLoan.getTotalInterestRates();
+        assertEq(totalInterestRates, 18);
+    }
+
     function testFuzzBorrowAndRepay(
         uint128 borrowAmount_,
         uint128 repayAmount_,
@@ -3008,6 +3081,267 @@ contract TimePowerLoanTest is Test {
         }
     }
 
+    function testOnlyInitialized() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "whitelist"));
+        mockTimePowerLoan.mockOnlyInitialized();
+
+        stdstore.target(address(mockTimePowerLoan)).sig("_whitelist()").checked_write(address(_whitelist));
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "blacklist"));
+        mockTimePowerLoan.mockOnlyInitialized();
+
+        stdstore.target(address(mockTimePowerLoan)).sig("_blacklist()").checked_write(address(_blacklist));
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "loanToken"));
+        mockTimePowerLoan.mockOnlyInitialized();
+
+        stdstore.target(address(mockTimePowerLoan)).sig("_loanToken()").checked_write(address(_depositToken));
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "secondInterestRates"));
+        mockTimePowerLoan.mockOnlyInitialized();
+
+        vm.store(
+            address(mockTimePowerLoan),
+            0x0000000000000000000000000000000000000000000000000000000000000011,
+            0x0000000000000000000000000000000000000000000000000de0b6b3ba327400
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "trustedVaults"));
+        mockTimePowerLoan.mockOnlyInitialized();
+    }
+
+    function testOnlyWhitelisted() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "whitelist"));
+        vm.prank(address(0x01));
+        mockTimePowerLoan.mockOnlyWhitelisted();
+
+        stdstore.target(address(mockTimePowerLoan)).sig("_whitelist()").checked_write(address(_whitelist));
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        vm.prank(address(0x00));
+        mockTimePowerLoan.mockOnlyWhitelisted();
+    }
+
+    function testOnlyNotBlacklisted() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "blacklist"));
+        vm.prank(address(0x01));
+        mockTimePowerLoan.mockOnlyNotBlacklisted();
+
+        stdstore.target(address(mockTimePowerLoan)).sig("_blacklist()").checked_write(address(_blacklist));
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        vm.prank(address(0x00));
+        mockTimePowerLoan.mockOnlyNotBlacklisted();
+    }
+
+    function testOnlyTrustedBorrower() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        vm.prank(address(0x00));
+        mockTimePowerLoan.mockOnlyTrustedBorrower();
+    }
+
+    function testOnlyTrustedVault() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "vault"));
+        vm.prank(address(0x00));
+        mockTimePowerLoan.mockOnlyTrustedVault();
+    }
+
+    function testOnlyValidTranche() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidTranche.selector, 0));
+        mockTimePowerLoan.mockOnlyValidTranche(0);
+    }
+
+    function testOnlyValidVault() public {
+        address[] memory addrs = new address[](4);
+        addrs[0] = _owner;
+        addrs[1] = address(_whitelist);
+        addrs[2] = address(_blacklist);
+        addrs[3] = address(_depositToken);
+
+        MockTimePowerLoan mockTimePowerLoan = MockTimePowerLoan(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(new MockTimePowerLoan()),
+                    _owner,
+                    abi.encodeWithSelector(
+                        TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults
+                    )
+                )
+            )
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidVault.selector, 4));
+        mockTimePowerLoan.mockOnlyValidVault(4);
+
+        stdstore.enable_packed_slots().target(address(mockTimePowerLoan)).sig(TimePowerLoan.getVaultAtIndex.selector)
+            .with_key(uint64(0)).checked_write(address(0x00));
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidVault.selector, 0));
+        mockTimePowerLoan.mockOnlyValidVault(0);
+
+        vm.store(
+            address(mockTimePowerLoan),
+            0x8d1108e10bcb7c27dddfc02ed9d693a074039d026cf4ea4240b40f7d581ac802,
+            0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(TimePowerLoan.NotValidVault.selector, 0));
+        mockTimePowerLoan.mockOnlyValidVault(0);
+    }
+
+    function testRevertWhenInitialize() public {
+        address logic = address(new MockTimePowerLoan());
+        address[] memory addrs = new address[](4);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "addresses length mismatch"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(
+                TimePowerLoan.initialize.selector, new address[](5), _secondInterestRates, _trustedVaults
+            )
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+        addrs[0] = _owner;
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "whitelist"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+        addrs[1] = address(_whitelist);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "blacklist"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+        addrs[2] = address(_blacklist);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "loanToken"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+        addrs[3] = address(_depositToken);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "second interest rates length is zero"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, new uint64[](0), _trustedVaults)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "second interest rates value invalid"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, new uint64[](18), _trustedVaults)
+        );
+
+        _secondInterestRates[17] = 10000000097502800000 + 1;
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "second interest rates value invalid"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+
+        _secondInterestRates[16] = 1000000009516250000;
+        _secondInterestRates[17] = 1000000009042960000;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.InvalidValue.selector, "second interest rates not sorted or duplicated")
+        );
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+
+        _secondInterestRates[16] = 1000000009042960000;
+        _secondInterestRates[17] = 1000000009516250000;
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "trusted vaults length is zero"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(
+                TimePowerLoan.initialize.selector, addrs, _secondInterestRates, new TimePowerLoan.TrustedVault[](0)
+            )
+        );
+
+        _trustedVaults.push(
+            TimePowerLoan.TrustedVault({
+                vault: address(0x00),
+                minimumPercentage: 40 * 10 ** 4, // 40%
+                maximumPercentage: 10 * 10 ** 4 // 10%
+            })
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "trusted vault address"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+
+        _trustedVaults[4].vault = address(new AssetVault(IERC20(address(0x01)), "NULL@OpenTerm", "NULL@OpenTerm"));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.InvalidValue.selector, "trusted vault asset and loan token mismatch")
+        );
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+
+        _trustedVaults[4].vault =
+            address(new AssetVault(IERC20(address(_depositToken)), "NULL@OpenTerm", "NULL@OpenTerm"));
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "trusted vault percentage"));
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+
+        _trustedVaults[4].minimumPercentage = 10 * 10 ** 4; // 10%
+        _trustedVaults[4].maximumPercentage = 1_000_000 + 1; // 101%
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.InvalidValue.selector, "trusted vault maximum percentage exceeds 100%")
+        );
+        new TransparentUpgradeableProxy(
+            logic,
+            _owner,
+            abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults)
+        );
+    }
+
     function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ >= b_ ? a_ - b_ : b_ - a_;
     }
@@ -3058,4 +3392,14 @@ contract TimePowerLoanTest is Test {
         vm.prank(_whitelistedUser2);
         _timePowerLoan.borrow(1, 1_000_000 * 10 ** 6, _currentTime + 60 days);
     }
+}
+
+contract MockTimePowerLoan is TimePowerLoan {
+    function mockOnlyInitialized() public view onlyInitialized {}
+    function mockOnlyWhitelisted() public view onlyWhitelisted(msg.sender) {}
+    function mockOnlyNotBlacklisted() public view onlyNotBlacklisted(msg.sender) {}
+    function mockOnlyTrustedBorrower() public view onlyTrustedBorrower(msg.sender) {}
+    function mockOnlyTrustedVault() public view onlyTrustedVault(msg.sender) {}
+    function mockOnlyValidTranche(uint64 trancheIndex_) public view onlyValidTranche(trancheIndex_) {}
+    function mockOnlyValidVault(uint64 vaultIndex_) public view onlyValidVault(vaultIndex_) {}
 }

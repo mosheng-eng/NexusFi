@@ -477,7 +477,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @notice require borrower is in trusted borrowers list, no matter ceiling limit is zero or not
     modifier onlyTrustedBorrower(address borrower_) {
         if (borrower_ == address(0)) {
-            revert Errors.ZeroAddress("user");
+            revert Errors.ZeroAddress("borrower");
         }
         if (_trustedBorrowers[_borrowerToIndex[borrower_]].borrower != borrower_) {
             revert NotTrustedBorrower(borrower_);
@@ -1270,8 +1270,16 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         return _trustedBorrowers[borrowerIndex_];
     }
 
+    function getBorrowerAtIndex(uint64 borrowerIndex_) public view returns (address) {
+        return _trustedBorrowers[borrowerIndex_].borrower;
+    }
+
     function getVaultInfoAtIndex(uint64 vaultIndex_) public view returns (TrustedVault memory) {
         return _trustedVaults[vaultIndex_];
+    }
+
+    function getVaultAtIndex(uint64 vaultIndex_) public view returns (address) {
+        return _trustedVaults[vaultIndex_].vault;
     }
 
     function getTranchesOfDebt(uint64 debtIndex_) public view returns (uint64[] memory) {
