@@ -18,8 +18,6 @@ import {IBlacklist} from "src/blacklist/IBlacklist.sol";
 import {Roles} from "src/common/Roles.sol";
 import {Errors} from "src/common/Errors.sol";
 
-import {console} from "forge-std/Test.sol";
-
 contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
     using Math for uint256;
     using SafeCast for uint256;
