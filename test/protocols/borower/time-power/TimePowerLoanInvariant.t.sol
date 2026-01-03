@@ -40,7 +40,22 @@ contract TimePowerLoanInvariant is Test {
         );
     }
 
-    function invariantTotalDebtAlwayEqualBetweenBorrowersAndVaults() public pure {}
+    function invariantTotalDebtAlwayEqualBetweenBorrowersAndVaults() public {
+        uint256 totalBorrowers = _timePowerLoan.getTotalTrustedBorrowers();
+        uint256 totalVaults = _timePowerLoan.getTotalTrustedVaults();
+        uint256 totalDebtOfBorrowers = 0;
+        uint256 totalDebtOfVaults = 0;
+        for (uint64 i = 0; i < totalBorrowers; i++) {
+            totalDebtOfBorrowers += _timePowerLoan.totalDebtOfBorrower(_timePowerLoan.getBorrowerAtIndex(i));
+        }
+        for (uint64 j = 0; j < totalVaults; j++) {
+            totalDebtOfVaults += _timePowerLoan.totalDebtOfVault(_timePowerLoan.getVaultAtIndex(j));
+        }
+        console.log("Total Debt of Borrowers: ", totalDebtOfBorrowers);
+        console.log("Total Debt of Vaults   : ", totalDebtOfVaults);
+        /// @dev Assert that the total debt difference between borrowers and vaults is less than 256 (to account for any minor precision loss)
+        assertLt(_abs(totalDebtOfBorrowers, totalDebtOfVaults), 256);
+    }
 
     function afterInvariant() public view {
         console.log("----- TimePowerLoan Handler Counts -----");
@@ -168,5 +183,9 @@ contract TimePowerLoanInvariant is Test {
             "Time     exits(over):    ",
             _timePowerLoanHandler.getHandlerExitCount(TimePowerLoanHandler.HandlerType.TIME_OVER)
         );
+    }
+
+    function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
+        return a_ >= b_ ? a_ - b_ : b_ - a_;
     }
 }

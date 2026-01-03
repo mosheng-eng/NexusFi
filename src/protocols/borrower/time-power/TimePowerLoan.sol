@@ -1033,6 +1033,11 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _allDebts[debtIndex_] = debt;
         _allLoans[debt.loanIndex] = loan;
 
+        uint64[] memory trancheIndexes = _tranchesInfoGroupedByDebt[debtIndex_];
+        for (uint256 i = 0; i < trancheIndexes.length; ++i) {
+            _allTranches[trancheIndexes[i]].normalizedPrincipal = 0;
+        }
+
         emit Closed(borrower_, debtIndex_, lossDebt_);
     }
 

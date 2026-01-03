@@ -2551,6 +2551,56 @@ contract TimePowerLoanTest is Test {
         _timePowerLoan.updateLoanInterestRate(0, 17);
     }
 
+    function testUpdateLoanInterestRateAfterDefault() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.prank(_owner);
+        _timePowerLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(500_000 * 10 ** 6);
+
+        vm.prank(_owner);
+        _timePowerLoan.approve(0, 500_000 * 10 ** 6, 1);
+
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.warp(_currentTime + 30 days + 1 seconds);
+
+        uint256 totalDebtBeforeRepay = _timePowerLoan.totalDebtOfBorrower(_whitelistedUser1);
+        TimePowerLoan.DebtInfo memory debtInfoBeforeRepay = _timePowerLoan.getDebtInfoAtIndex(0);
+        uint256 repayAmount =
+            ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), repayAmount);
+        (, uint128 totalDebtAfterRepay) = _timePowerLoan.repay(0, uint128(repayAmount));
+        vm.stopPrank();
+
+        /// @dev Verify that after repayment, the total debt is reduced by the repay amount (with 1 unit tolerance)
+        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
+        assertEq(totalDebtAfterRepay, totalDebtBeforeRepay - repayAmount);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 10);
+        vm.prank(_owner);
+        uint128 totalDebtAfterDefaulted = _timePowerLoan.defaulted(_whitelistedUser1, 0, 10);
+
+        /// @dev Verify that after defaulting, the total debt increases due to penalty interest (with 1 unit tolerance)
+        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
+        assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted);
+
+        vm.warp(_currentTime + 50 days);
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.LoanInterestRateUpdated(0, 10, 17);
+        vm.prank(_owner);
+        _timePowerLoan.updateLoanInterestRate(0, 17);
+    }
+
     function testUpdateTrustedVaults() public {
         TimePowerLoan.TrustedVault memory newTrustedVault = TimePowerLoan.TrustedVault({
             vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@OpenTerm", "MMF@OpenTerm")),
@@ -2979,8 +3029,19 @@ contract TimePowerLoanTest is Test {
         vm.prank(_owner);
         _timePowerLoan.pile();
 
-        uint256 totalTrustedBorrowers = _timePowerLoan.getTotalTrustedBorrowers();
-        assertEq(totalTrustedBorrowers, 2);
+        assertEq(_timePowerLoan.getTotalTrustedBorrowers(), 2);
+    }
+
+    function testGetTotalTrustedVaults() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+        _prepareDebt();
+
+        vm.warp(_currentTime + 30 days);
+
+        vm.prank(_owner);
+        _timePowerLoan.pile();
+
+        assertEq(_timePowerLoan.getTotalTrustedVaults(), 4);
     }
 
     function testGetTotalLoans() public {
@@ -3342,6 +3403,21 @@ contract TimePowerLoanTest is Test {
         );
     }
 
+    function testPower() public {
+        MockTimePowerLoan mockTimePowerLoan = new MockTimePowerLoan();
+
+        assertEq(mockTimePowerLoan.mockPower(0, 0, 1e18), 1e18);
+        assertEq(mockTimePowerLoan.mockPower(0, 1, 1e18), 0);
+        assertEq(mockTimePowerLoan.mockPower(1e18, 2, 1e18), 1e18);
+        assertEq(mockTimePowerLoan.mockPower(1e18, 3, 1e18), 1e18);
+
+        vm.expectRevert(bytes(""));
+        mockTimePowerLoan.mockPower(1 << 128, 2, 1e18);
+
+        vm.expectRevert(bytes(""));
+        mockTimePowerLoan.mockPower((1 << 128) - 1, 2, (1 << 130) - 2);
+    }
+
     function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ >= b_ ? a_ - b_ : b_ - a_;
     }
@@ -3402,4 +3478,8 @@ contract MockTimePowerLoan is TimePowerLoan {
     function mockOnlyTrustedVault() public view onlyTrustedVault(msg.sender) {}
     function mockOnlyValidTranche(uint64 trancheIndex_) public view onlyValidTranche(trancheIndex_) {}
     function mockOnlyValidVault(uint64 vaultIndex_) public view onlyValidVault(vaultIndex_) {}
+
+    function mockPower(uint256 x_, uint256 n_, uint256 base_) public pure returns (uint256) {
+        return _rpow(x_, n_, base_);
+    }
 }
