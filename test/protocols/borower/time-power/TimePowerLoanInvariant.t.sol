@@ -8,7 +8,11 @@ import {StdInvariant} from "forge-std/StdInvariant.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
 import {TimePowerLoanHandler} from "test/protocols/borower/time-power/handler/TimePowerLoanHandler.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 contract TimePowerLoanInvariant is Test {
+    using Math for uint256;
+
     TimePowerLoanHandler internal _timePowerLoanHandler;
     TimePowerLoan internal _timePowerLoan;
 
@@ -55,6 +59,40 @@ contract TimePowerLoanInvariant is Test {
         console.log("Total Debt of Vaults   : ", totalDebtOfVaults);
         /// @dev Assert that the total debt difference between borrowers and vaults is less than 256 (to account for any minor precision loss)
         assertLt(_abs(totalDebtOfBorrowers, totalDebtOfVaults), 256);
+    }
+
+    function invariantDebtAlwaysEqualInLoansDebtsTranches() public {
+        _timePowerLoan.pile();
+
+        uint256[] memory loans_debts_tranches_number = new uint256[](3);
+        loans_debts_tranches_number[0] = _timePowerLoan.getTotalLoans();
+        loans_debts_tranches_number[1] = _timePowerLoan.getTotalDebts();
+        loans_debts_tranches_number[2] = _timePowerLoan.getTotalTranches();
+        uint256[] memory loans_debts_tranches_amount = new uint256[](3);
+        uint64 index;
+        for (index = 0; index < loans_debts_tranches_number[0]; index++) {
+            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(index);
+            loans_debts_tranches_amount[0] += uint256(loanInfo.normalizedPrincipal).mulDiv(
+                _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
+            );
+        }
+        for (index = 0; index < loans_debts_tranches_number[1]; index++) {
+            TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(index);
+            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(debtInfo.loanIndex);
+            loans_debts_tranches_amount[1] += uint256(debtInfo.normalizedPrincipal).mulDiv(
+                _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
+            );
+        }
+        for (index = 0; index < loans_debts_tranches_number[2]; index++) {
+            TimePowerLoan.TrancheInfo memory trancheInfo = _timePowerLoan.getTrancheInfoAtIndex(index);
+            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(trancheInfo.loanIndex);
+            loans_debts_tranches_amount[2] += uint256(trancheInfo.normalizedPrincipal).mulDiv(
+                _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
+            );
+        }
+        assertLt(_abs(loans_debts_tranches_amount[0], loans_debts_tranches_amount[1]), 256);
+        assertLt(_abs(loans_debts_tranches_amount[1], loans_debts_tranches_amount[2]), 256);
+        assertLt(_abs(loans_debts_tranches_amount[2], loans_debts_tranches_amount[0]), 256);
     }
 
     function afterInvariant() public view {
