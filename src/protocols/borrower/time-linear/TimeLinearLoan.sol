@@ -112,13 +112,6 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
     /// @param blockTimestamp_ block timestamp
     error MaturityTimeShouldAfterBlockTimestamp(uint64 maturityTime_, uint64 blockTimestamp_);
 
-    /// @dev error thrown when a repay amount is too little
-    /// @param borrower_ address of the borrower
-    /// @param debtIndex_ index of the debt
-    /// @param minimumRequiredAmount_ minimum required amount to repay
-    /// @param paidAmount_ amount paid by the borrower
-    error RepayTooLittle(address borrower_, uint64 debtIndex_, uint128 minimumRequiredAmount_, uint128 paidAmount_);
-
     /// @dev event emitted when borrower ceiling limit is updated
     /// @param oldCeilingLimit_ old ceiling limit
     /// @param newCeilingLimit_ new ceiling limit
@@ -1180,6 +1173,18 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
             );
 
             isUpdated_ = true;
+        }
+    }
+
+    /// @dev accumulate interest for specific debt
+    function pile(uint64 debtIndex_) public {
+        _updateDebt(debtIndex_, false);
+    }
+
+    /// @dev accumulate interest for all debt
+    function pile() public {
+        for (uint64 i = 0; i < _allDebts.length; i++) {
+            _updateDebt(i, false);
         }
     }
 

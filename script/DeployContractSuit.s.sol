@@ -12,6 +12,7 @@ import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
+import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
 import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";
@@ -222,6 +223,32 @@ contract DeployContractSuit is Script {
                 address(new TimePowerLoan()),
                 addrs_[0],
                 abi.encodeWithSelector(TimePowerLoan.initialize.selector, addrs_, secondInterestRates_, trustedVaults_)
+            )
+        );
+    }
+
+    function deployTimeLinearLoan(
+        /**
+         * 0: address owner_,
+         * 1: address whitelist_,
+         * 2: address blacklist_,
+         * 3: address loanToken_,
+         */
+        address[] memory addrs_,
+        /**
+         * annual interest rates sorted in ascending order
+         */
+        uint64[] memory secondInterestRates_,
+        /**
+         * vaults that are allowed to lend to borrowers
+         */
+        TimeLinearLoan.TrustedVault[] memory trustedVaults_
+    ) external returns (address) {
+        return address(
+            new TransparentUpgradeableProxy(
+                address(new TimeLinearLoan()),
+                addrs_[0],
+                abi.encodeWithSelector(TimeLinearLoan.initialize.selector, addrs_, secondInterestRates_, trustedVaults_)
             )
         );
     }
