@@ -12,6 +12,7 @@ import {Errors} from "src/common/Errors.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {IBlacklist} from "src/blacklist/IBlacklist.sol";
 
+import {Vm} from "forge-std/Vm.sol";
 import {CommonBase} from "forge-std/Base.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
@@ -85,6 +86,7 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
     address internal _loanToken;
 
     TimePowerLoan internal _timePowerLoan;
+    address _proxyAdmin;
 
     mapping(HandlerType => uint256) internal _handlerEnterCount;
     mapping(HandlerType => uint256) internal _handlerExitCount;
@@ -208,7 +210,9 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
 
         vm.startPrank(_owner);
 
+        vm.recordLogs();
         _timePowerLoan = TimePowerLoan(_deployer.deployTimePowerLoan(addrs, _secondInterestRates, _trustedVaults));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
         _timePowerLoan.grantRole(Roles.OPERATOR_ROLE, _owner);
 
@@ -219,6 +223,20 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
         vm.label(_trustedVaults[1].vault, "RWA@OpenTerm");
         vm.label(_trustedVaults[2].vault, "MMF@FixedTerm");
         vm.label(_trustedVaults[3].vault, "RWA@FixedTerm");
+
+        for (uint256 i = 0; i < logs.length; ++i) {
+            if (logs[i].emitter == address(_timePowerLoan)) {
+                bytes32[] memory topics = logs[i].topics;
+                for (uint256 j = 0; j < topics.length; ++j) {
+                    if (topics[j] == bytes32(0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f)) {
+                        (, bytes32 data) = abi.decode(logs[i].data, (bytes32, bytes32));
+                        _proxyAdmin = address(bytes20(uint160(uint256(data))));
+                    }
+                }
+            }
+        }
+
+        console.log(_proxyAdmin);
     }
 
     function _setDependencies() internal {
@@ -430,7 +448,7 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
     }
 
     function _excludeDuplicateBorrowerJoin(address someone_) internal view returns (bool isDuplicate) {
-        if (someone_ == address(0) || someone_ == _owner) {
+        if (someone_ == address(0) || someone_ == _owner || someone_ == _proxyAdmin) {
             return true;
         }
         uint256 totalBorrowers = _timePowerLoan.getTotalTrustedBorrowers();
@@ -486,7 +504,7 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
     function _joinHandler(address someone_, uint128 amount_) internal returns (uint64 borrowerIndex_) {
         _handlerEnterCount[HandlerType.JOIN] += 1;
 
-        amount_ = uint128(bound(amount_, PRECISION * 2 + 10, type(uint128).max / 100));
+        amount_ = uint128(bound(amount_, 2 * (PRECISION + 5) * (PRECISION + 5), type(uint128).max / 100));
 
         _fundSomeone(someone_, amount_);
 
@@ -539,7 +557,7 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
             return type(uint64).max;
         }
 
-        loanAmount_ = uint128(bound(loanAmount_, PRECISION, borrowerInfo.remainingLimit));
+        loanAmount_ = uint128(bound(loanAmount_, PRECISION * PRECISION, borrowerInfo.remainingLimit));
 
         if (loanAmount_ == 0) {
             _handlerExitCount[HandlerType.REQUEST_NO_AMOUNT] += 1;

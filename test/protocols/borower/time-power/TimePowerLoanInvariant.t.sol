@@ -38,11 +38,7 @@ contract TimePowerLoanInvariant is Test {
         targetContract(address(_timePowerLoanHandler));
     }
 
-    function testDebug() public {
-        _timePowerLoanHandler.unionHandler5(
-            address(0xae0ec28d16b76a2dF98AC70100453A6066Bf6900), 18762, 4067, 14327, 2276, 17252, 3478257374079577870
-        );
-    }
+    function testDebug() public {}
 
     function invariantTotalDebtAlwayEqualBetweenBorrowersAndVaults() public {
         uint256 totalBorrowers = _timePowerLoan.getTotalTrustedBorrowers();
@@ -90,6 +86,10 @@ contract TimePowerLoanInvariant is Test {
                 _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
             );
         }
+        console.log("Total Amount of Loans   : ", loans_debts_tranches_amount[0]);
+        console.log("Total Amount of Debts   : ", loans_debts_tranches_amount[1]);
+        console.log("Total Amount of Tranches: ", loans_debts_tranches_amount[2]);
+        /// @dev Assert that the total amount difference between loans, debts and tranches is less than 256 (to account for any minor precision loss)
         assertLt(_abs(loans_debts_tranches_amount[0], loans_debts_tranches_amount[1]), 256);
         assertLt(_abs(loans_debts_tranches_amount[1], loans_debts_tranches_amount[2]), 256);
         assertLt(_abs(loans_debts_tranches_amount[2], loans_debts_tranches_amount[0]), 256);

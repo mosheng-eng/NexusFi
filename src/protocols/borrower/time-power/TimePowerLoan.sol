@@ -829,6 +829,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
             _trustedBorrowers[borrowerIndex].remainingLimit += diffCeilingLimit;
             loan.ceilingLimit = ceilingLimit_;
+            loan.remainingLimit -= diffCeilingLimit;
         }
 
         loan.interestRateIndex = interestRateIndex_;
@@ -969,10 +970,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _updateLoanInterestRate(_allDebts[debtIndex_].loanIndex, defaultedInterestRateIndex_);
         _allDebts[debtIndex_].status = DebtStatus.DEFAULTED;
         remainingDebt_ = uint128(
-            (
-                uint256(_allDebts[debtIndex_].normalizedPrincipal).mulDiv(
-                    _accumulatedInterestRates[defaultedInterestRateIndex_], FIXED18, Math.Rounding.Ceil
-                )
+            uint256(_allDebts[debtIndex_].normalizedPrincipal).mulDiv(
+                _accumulatedInterestRates[defaultedInterestRateIndex_], FIXED18, Math.Rounding.Ceil
             )
         );
         emit Defaulted(borrower_, debtIndex_, remainingDebt_, defaultedInterestRateIndex_);
@@ -1020,7 +1019,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
 
         lossDebt_ =
-            uint128(uint256(debt.normalizedPrincipal).mulDiv(accumulatedInterestRate, FIXED18, Math.Rounding.Floor));
+            uint128(uint256(debt.normalizedPrincipal).mulDiv(accumulatedInterestRate, FIXED18, Math.Rounding.Ceil));
 
         debt.status = DebtStatus.CLOSED;
 
@@ -1521,7 +1520,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     ) internal returns (uint128 newTrancheNormalizedPrincipal_) {
         newTrancheNormalizedPrincipal_ = uint128(
             uint256(_allTranches[trancheIndex_].normalizedPrincipal).mulDiv(
-                oldAccumulatedInterestRate_, newAccumulatedInterestRate_, Math.Rounding.Floor
+                oldAccumulatedInterestRate_, newAccumulatedInterestRate_, Math.Rounding.Ceil
             )
         );
         _allTranches[trancheIndex_].normalizedPrincipal = newTrancheNormalizedPrincipal_;

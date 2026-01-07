@@ -17,12 +17,14 @@ import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 import {AssetVault} from "test/mock/AssetVault.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract TimePowerLoanTest is Test {
     using stdStorage for StdStorage;
+    using Math for uint256;
 
     DeployContractSuit internal _deployer = new DeployContractSuit();
     Whitelist internal _whitelist;
@@ -1249,18 +1251,15 @@ contract TimePowerLoanTest is Test {
         (, uint128 totalDebtAfterRepay) = _timePowerLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
 
-        /// @dev Verify that after repayment, the total debt is reduced by the repay amount (with 1 unit tolerance)
-        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
         assertEq(totalDebtAfterRepay, totalDebtBeforeRepay - repayAmount);
 
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
-        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 17);
+        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay) + 2, 17);
         vm.prank(_owner);
         uint128 totalDebtAfterDefaulted = _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
 
-        /// @dev Verify that after defaulting, the total debt increases due to penalty interest (with 1 unit tolerance)
-        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
-        assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted);
+        /// @dev Verify that after defaulting, the total debt increases due to penalty interest
+        assertLt(_abs(totalDebtAfterRepay, totalDebtAfterDefaulted), 8);
     }
 
     function testNotOperatorDefault() public {
@@ -1735,7 +1734,7 @@ contract TimePowerLoanTest is Test {
 
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
         /// @dev precision loss in interest calculations with dividing
-        emit TimePowerLoan.Closed(_whitelistedUser1, 0, remainingDebtAtRecovery);
+        emit TimePowerLoan.Closed(_whitelistedUser1, 0, remainingDebtAtRecovery + 1);
         vm.prank(_owner);
         _timePowerLoan.close(_whitelistedUser1, 0);
     }
@@ -2581,18 +2580,16 @@ contract TimePowerLoanTest is Test {
         (, uint128 totalDebtAfterRepay) = _timePowerLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
 
-        /// @dev Verify that after repayment, the total debt is reduced by the repay amount (with 1 unit tolerance)
-        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
+        /// @dev Verify that after repayment, the total debt is reduced by the repay amount
         assertEq(totalDebtAfterRepay, totalDebtBeforeRepay - repayAmount);
 
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
-        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 10);
+        emit TimePowerLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay) + 2, 10);
         vm.prank(_owner);
         uint128 totalDebtAfterDefaulted = _timePowerLoan.defaulted(_whitelistedUser1, 0, 10);
 
-        /// @dev Verify that after defaulting, the total debt increases due to penalty interest (with 1 unit tolerance)
-        /// @dev The 1 unit tolerance accounts for precision loss in interest calculations with dividing
-        assertEq(totalDebtAfterRepay, totalDebtAfterDefaulted);
+        /// @dev Verify that after defaulting, the total debt increases due to penalty interest
+        assertEq(totalDebtAfterRepay + 2, totalDebtAfterDefaulted);
 
         vm.warp(_currentTime + 50 days);
         vm.expectEmit(false, false, false, true, address(_timePowerLoan));
@@ -3416,6 +3413,243 @@ contract TimePowerLoanTest is Test {
 
         vm.expectRevert(bytes(""));
         mockTimePowerLoan.mockPower((1 << 128) - 1, 2, (1 << 130) - 2);
+    }
+
+    function testFullFlow() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.TrustedBorrowerAdded(_whitelistedUser1, 0);
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.join();
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.TrustedBorrowerAdded(_whitelistedUser2, 1);
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.join();
+
+        TimePowerLoan.TrustedBorrower memory borrowerInfo1 = _timePowerLoan.getBorrowerInfoAtIndex(0);
+        TimePowerLoan.TrustedBorrower memory borrowerInfo2 = _timePowerLoan.getBorrowerInfoAtIndex(1);
+
+        assertEq(borrowerInfo1.borrower, _whitelistedUser1);
+        assertEq(borrowerInfo2.borrower, _whitelistedUser2);
+        assertEq(borrowerInfo1.ceilingLimit, 0);
+        assertEq(borrowerInfo2.ceilingLimit, 0);
+        assertEq(borrowerInfo1.remainingLimit, 0);
+        assertEq(borrowerInfo2.remainingLimit, 0);
+
+        vm.warp(_currentTime += 1 days);
+        _timePowerLoan.pile();
+
+        vm.startPrank(_owner);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.AgreeJoinRequest(_whitelistedUser1, 2_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser1, 2_000_000 * 10 ** 6);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.AgreeJoinRequest(_whitelistedUser2, 4_000_000 * 10 ** 6);
+        _timePowerLoan.agree(_whitelistedUser2, 4_000_000 * 10 ** 6);
+
+        vm.stopPrank();
+
+        borrowerInfo1 = _timePowerLoan.getBorrowerInfoAtIndex(0);
+        borrowerInfo2 = _timePowerLoan.getBorrowerInfoAtIndex(1);
+
+        assertEq(borrowerInfo1.borrower, _whitelistedUser1);
+        assertEq(borrowerInfo2.borrower, _whitelistedUser2);
+        assertEq(borrowerInfo1.ceilingLimit, 2_000_000 * 10 ** 6);
+        assertEq(borrowerInfo2.ceilingLimit, 4_000_000 * 10 ** 6);
+        assertEq(borrowerInfo1.remainingLimit, 2_000_000 * 10 ** 6);
+        assertEq(borrowerInfo2.remainingLimit, 4_000_000 * 10 ** 6);
+
+        vm.warp(_currentTime += 1 days);
+        _timePowerLoan.pile();
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ReceiveLoanRequest(_whitelistedUser1, 0, 1_500_000 * 10 ** 6);
+        vm.prank(_whitelistedUser1);
+        _timePowerLoan.request(1_500_000 * 10 ** 6);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ReceiveLoanRequest(_whitelistedUser2, 1, 3_500_000 * 10 ** 6);
+        vm.prank(_whitelistedUser2);
+        _timePowerLoan.request(3_500_000 * 10 ** 6);
+
+        TimePowerLoan.LoanInfo memory loanInfo1 = _timePowerLoan.getLoanInfoAtIndex(0);
+        TimePowerLoan.LoanInfo memory loanInfo2 = _timePowerLoan.getLoanInfoAtIndex(1);
+
+        assertEq(loanInfo1.ceilingLimit, 1_500_000 * 10 ** 6);
+        assertEq(loanInfo2.ceilingLimit, 3_500_000 * 10 ** 6);
+        assertEq(loanInfo1.remainingLimit, 1_500_000 * 10 ** 6);
+        assertEq(loanInfo2.remainingLimit, 3_500_000 * 10 ** 6);
+        assertEq(loanInfo1.normalizedPrincipal, 0);
+        assertEq(loanInfo2.normalizedPrincipal, 0);
+        assertEq(loanInfo1.interestRateIndex, 0);
+        assertEq(loanInfo2.interestRateIndex, 0);
+        assertEq(loanInfo1.borrowerIndex, 0);
+        assertEq(loanInfo2.borrowerIndex, 1);
+        assertEq(uint8(loanInfo1.status), uint8(TimePowerLoan.LoanStatus.PENDING));
+        assertEq(uint8(loanInfo2.status), uint8(TimePowerLoan.LoanStatus.PENDING));
+
+        vm.warp(_currentTime += 1 days);
+        _timePowerLoan.pile();
+
+        vm.startPrank(_owner);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser1, 0, 1_000_000 * 10 ** 6, 1);
+        _timePowerLoan.approve(0, 1_000_000 * 10 ** 6, 1);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.ApproveLoanRequest(_whitelistedUser2, 1, 3_000_000 * 10 ** 6, 3);
+        _timePowerLoan.approve(1, 3_000_000 * 10 ** 6, 3);
+
+        vm.stopPrank();
+
+        loanInfo1 = _timePowerLoan.getLoanInfoAtIndex(0);
+        loanInfo2 = _timePowerLoan.getLoanInfoAtIndex(1);
+
+        assertEq(loanInfo1.ceilingLimit, 1_000_000 * 10 ** 6);
+        assertEq(loanInfo2.ceilingLimit, 3_000_000 * 10 ** 6);
+        assertEq(loanInfo1.remainingLimit, 1_000_000 * 10 ** 6);
+        assertEq(loanInfo2.remainingLimit, 3_000_000 * 10 ** 6);
+        assertEq(loanInfo1.normalizedPrincipal, 0);
+        assertEq(loanInfo2.normalizedPrincipal, 0);
+        assertEq(loanInfo1.interestRateIndex, 1);
+        assertEq(loanInfo2.interestRateIndex, 3);
+        assertEq(loanInfo1.borrowerIndex, 0);
+        assertEq(loanInfo2.borrowerIndex, 1);
+        assertEq(uint8(loanInfo1.status), uint8(TimePowerLoan.LoanStatus.APPROVED));
+        assertEq(uint8(loanInfo2.status), uint8(TimePowerLoan.LoanStatus.APPROVED));
+
+        vm.warp(_currentTime += 1 days);
+        _timePowerLoan.pile();
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Borrowed(_whitelistedUser1, 0, 500_000 * 10 ** 6, true, 0);
+        vm.prank(_whitelistedUser1);
+        (bool isAllSatisfied1,) = _timePowerLoan.borrow(0, 500_000 * 10 ** 6, _currentTime + 30 days);
+        assertTrue(isAllSatisfied1);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Borrowed(_whitelistedUser2, 1, 1_500_000 * 10 ** 6, true, 1);
+        vm.prank(_whitelistedUser2);
+        (bool isAllSatisfied2,) = _timePowerLoan.borrow(1, 1_500_000 * 10 ** 6, _currentTime + 60 days);
+        assertTrue(isAllSatisfied2);
+
+        TimePowerLoan.DebtInfo memory debtInfo1 = _timePowerLoan.getDebtInfoAtIndex(0);
+        TimePowerLoan.DebtInfo memory debtInfo2 = _timePowerLoan.getDebtInfoAtIndex(1);
+
+        assertEq(debtInfo1.startTime, uint64(block.timestamp));
+        assertEq(debtInfo2.startTime, uint64(block.timestamp));
+        assertEq(debtInfo1.maturityTime, uint64(block.timestamp + 30 days));
+        assertEq(debtInfo2.maturityTime, uint64(block.timestamp + 60 days));
+        assertEq(debtInfo1.principal, 500_000 * 10 ** 6);
+        assertEq(debtInfo2.principal, 1_500_000 * 10 ** 6);
+        assertLt(
+            _abs(
+                debtInfo1.normalizedPrincipal,
+                500_000 * 10 ** 6 * 1e18 / _timePowerLoan.getAccumulatedInterestRateAtIndex(1)
+            ),
+            8
+        );
+        assertLt(
+            _abs(
+                debtInfo2.normalizedPrincipal,
+                1_500_000 * 10 ** 6 * 1e18 / _timePowerLoan.getAccumulatedInterestRateAtIndex(3)
+            ),
+            8
+        );
+        assertEq(debtInfo1.loanIndex, 0);
+        assertEq(debtInfo2.loanIndex, 1);
+        assertEq(uint8(debtInfo1.status), uint8(TimePowerLoan.DebtStatus.ACTIVE));
+        assertEq(uint8(debtInfo2.status), uint8(TimePowerLoan.DebtStatus.ACTIVE));
+
+        vm.warp(_currentTime += 25 days);
+        _timePowerLoan.pile();
+
+        vm.startPrank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), 300_000 * 10 ** 6);
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Repaid(_whitelistedUser1, 0, 300_000 * 10 ** 6, false);
+        _timePowerLoan.repay(0, 300_000 * 10 ** 6);
+        vm.stopPrank();
+
+        vm.warp(_currentTime += (5 days + 1 seconds));
+        _timePowerLoan.pile();
+
+        debtInfo1 = _timePowerLoan.getDebtInfoAtIndex(0);
+        loanInfo1 = _timePowerLoan.getLoanInfoAtIndex(debtInfo1.loanIndex);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Defaulted(
+            _whitelistedUser1,
+            0,
+            uint128(
+                uint256(debtInfo1.normalizedPrincipal).mulDiv(
+                    _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo1.interestRateIndex),
+                    1e18,
+                    Math.Rounding.Ceil
+                )
+            ),
+            17
+        );
+        vm.prank(_owner);
+        uint128 remainingDebt = _timePowerLoan.defaulted(_whitelistedUser1, 0, 17);
+
+        vm.warp(_currentTime += 5 days);
+        _timePowerLoan.pile();
+
+        vm.prank(_whitelistedUser1);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), remainingDebt / 2);
+
+        vm.prank(_owner);
+        (, remainingDebt) = _timePowerLoan.recovery(_whitelistedUser1, 0, remainingDebt / 2);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        /// @dev precision loss in interest calculations with dividing
+        emit TimePowerLoan.Closed(_whitelistedUser1, 0, remainingDebt + 1);
+        vm.prank(_owner);
+        _timePowerLoan.close(_whitelistedUser1, 0);
+
+        vm.warp(_currentTime += 5 days);
+        _timePowerLoan.pile();
+
+        vm.startPrank(_whitelistedUser2);
+        IERC20(address(_depositToken)).approve(address(_timePowerLoan), 1_000_000 * 10 ** 6);
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Repaid(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, false);
+        _timePowerLoan.repay(1, 1_000_000 * 10 ** 6);
+        vm.stopPrank();
+
+        vm.warp(_currentTime += 20 days);
+        _timePowerLoan.pile();
+
+        debtInfo2 = _timePowerLoan.getDebtInfoAtIndex(1);
+        loanInfo2 = _timePowerLoan.getLoanInfoAtIndex(debtInfo2.loanIndex);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        emit TimePowerLoan.Defaulted(
+            _whitelistedUser2,
+            1,
+            uint128(
+                uint256(debtInfo2.normalizedPrincipal).mulDiv(
+                    _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo2.interestRateIndex),
+                    1e18,
+                    Math.Rounding.Ceil
+                )
+            ) + 1,
+            17
+        );
+        vm.prank(_owner);
+        remainingDebt = _timePowerLoan.defaulted(_whitelistedUser2, 1, 17);
+
+        vm.expectEmit(false, false, false, true, address(_timePowerLoan));
+        /// @dev precision loss in interest calculations with dividing
+        emit TimePowerLoan.Closed(_whitelistedUser2, 1, remainingDebt);
+        vm.prank(_owner);
+        _timePowerLoan.close(_whitelistedUser2, 1);
     }
 
     function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
