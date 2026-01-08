@@ -6,7 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
-import {TimePowerLoanHandler} from "test/protocols/borower/time-power/handler/TimePowerLoanHandler.sol";
+import {TimePowerLoanHandler} from "test/protocols/borrower/time-power/handler/TimePowerLoanHandler.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
