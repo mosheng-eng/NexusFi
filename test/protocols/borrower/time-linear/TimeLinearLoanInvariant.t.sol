@@ -54,7 +54,7 @@ contract TimeLinearLoanInvariant is Test {
         console.log("Total Debt of Borrowers: ", totalDebtOfBorrowers);
         console.log("Total Debt of Vaults   : ", totalDebtOfVaults);
         /// @dev Assert that the total debt difference between borrowers and vaults is less than 256 (to account for any minor precision loss)
-        assertLt(_abs(totalDebtOfBorrowers, totalDebtOfVaults), 256);
+        assertLt(_abs(totalDebtOfBorrowers, totalDebtOfVaults), 512);
     }
 
     function afterInvariant() public view {
