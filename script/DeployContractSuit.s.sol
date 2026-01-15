@@ -6,16 +6,17 @@ import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
-import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
-import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
-import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
-import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
 import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";
+import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
+import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
+import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
+import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
+import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
+import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
+import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
 
 import {AssetVault} from "test/mock/AssetVault.sol";
 
@@ -249,6 +250,50 @@ contract DeployContractSuit is Script {
                 address(new TimeLinearLoan()),
                 addrs_[0],
                 abi.encodeWithSelector(TimeLinearLoan.initialize.selector, addrs_, secondInterestRates_, trustedVaults_)
+            )
+        );
+    }
+
+    function deployValueInflationVault(
+        /**
+         * vault token name
+         */
+        string memory name_,
+        /**
+         * vault token symbol
+         */
+        string memory symbol_,
+        /**
+         * 0: address owner_,
+         * 1: address asset_,
+         */
+        address[] memory addr_,
+        /**
+         * trusted borrowers addresses
+         */
+        address[] memory trustedBorrowers_,
+        /**
+         * trusted borrowers allowances
+         */
+        uint256[] memory trustedBorrowersAllowance_,
+        /**
+         * trusted lenders addresses
+         */
+        address[] memory trustedLenders
+    ) external returns (address) {
+        return address(
+            new TransparentUpgradeableProxy(
+                address(new ValueInflationVault()),
+                addr_[0],
+                abi.encodeWithSelector(
+                    ValueInflationVault.initialize.selector,
+                    name_,
+                    symbol_,
+                    addr_,
+                    trustedBorrowers_,
+                    trustedBorrowersAllowance_,
+                    trustedLenders
+                )
             )
         );
     }
