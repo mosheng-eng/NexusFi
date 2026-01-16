@@ -288,6 +288,14 @@ contract ValueInflationVaultTest is Test {
         );
         vm.prank(_owner);
         _valueInflationVault.addTrustedBorrower(invalidDebtBorrower);
+
+        stdstore.target(address(_valueInflationVault)).sig("_trustedBorrowers(address)").with_key(newTrustedBorrower)
+            .checked_write(false);
+        vm.expectEmit(true, false, false, false);
+        emit ValueInflationVault.TrustedBorrowerAdded(newTrustedBorrower);
+
+        vm.prank(_owner);
+        _valueInflationVault.addTrustedBorrower(newTrustedBorrower);
     }
 
     function testRemoveTrustedBorrower() public {
@@ -331,6 +339,11 @@ contract ValueInflationVaultTest is Test {
         vm.prank(_owner);
         _valueInflationVault.approveTrustedBorrower(_trustedBorrower1, newAllowance);
 
+        address notTrustedBorrower = makeAddr("notTrustedBorrower");
+        vm.expectRevert(abi.encodeWithSelector(ValueInflationVault.NotTrustedBorrower.selector, notTrustedBorrower));
+        vm.prank(_owner);
+        _valueInflationVault.approveTrustedBorrower(notTrustedBorrower, newAllowance);
+
         stdstore.target(address(_valueInflationVault)).sig("_trustedBorrowers(address)").with_key(address(0))
             .checked_write(true);
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
@@ -358,6 +371,14 @@ contract ValueInflationVaultTest is Test {
         vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "lender is already trusted"));
         vm.prank(_owner);
         _valueInflationVault.addTrustedLender(newTrustedLender);
+
+        stdstore.target(address(_valueInflationVault)).sig("_trustedLenders(address)").with_key(newTrustedLender)
+            .checked_write(false);
+        vm.expectEmit(true, false, false, false);
+        emit ValueInflationVault.TrustedLenderAdded(newTrustedLender);
+
+        vm.prank(_owner);
+        _valueInflationVault.addTrustedLender(newTrustedLender);
     }
 
     function testRemoveTrustedLender() public {
@@ -374,6 +395,73 @@ contract ValueInflationVaultTest is Test {
         vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "lender is already removed"));
         vm.prank(_owner);
         _valueInflationVault.removeTrustedLender(_trustedLender1);
+    }
+
+    function testInvalidInitialize() public {
+        address[] memory addrs = new address[](2);
+        addrs[0] = _owner;
+        addrs[1] = address(_depositToken);
+
+        address[] memory trustedBorrowers = new address[](2);
+        trustedBorrowers[0] = _trustedBorrower1;
+        trustedBorrowers[1] = _trustedBorrower2;
+
+        uint256[] memory trustedBorrowersAllowance = new uint256[](2);
+        trustedBorrowersAllowance[0] = _trustedBorrower1Allowance;
+        trustedBorrowersAllowance[1] = _trustedBorrower2Allowance;
+
+        address[] memory trustedLenders = new address[](2);
+        trustedLenders[0] = _trustedLender1;
+        trustedLenders[1] = _trustedLender2;
+
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "name is empty"));
+        _deployer.deployValueInflationVault(
+            "", VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "symbol is empty"));
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME, "", addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "addresses length mismatch"));
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME,
+            VAULT_TOKEN_SYMBOL,
+            new address[](3),
+            trustedBorrowers,
+            trustedBorrowersAllowance,
+            trustedLenders
+        );
+
+        addrs[0] = address(0x00);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+        );
+        addrs[0] = _owner;
+
+        addrs[1] = address(0x00);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "asset"));
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+        );
+        addrs[1] = address(_depositToken);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.InvalidValue.selector, "trusted borrowers and allowance length mismatch")
+        );
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, new uint256[](3), trustedLenders
+        );
+    }
+
+    function testDecimals() public view {
+        assertEq(_valueInflationVault.decimals(), 6);
     }
 }
 

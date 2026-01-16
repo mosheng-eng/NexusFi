@@ -22,7 +22,7 @@ contract Blacklist is Initializable, AccessControlUpgradeable, IBlacklist {
     mapping(address => bool) internal blacklist;
 
     modifier onlyNotBlacklisted(address addr) {
-        if (blacklist[BLACK_LIST_ENABLED_FLAG] && !blacklist[addr]) {
+        if (blacklist[BLACK_LIST_ENABLED_FLAG] && blacklist[addr]) {
             revert Blacklisted(addr);
         }
         _;
