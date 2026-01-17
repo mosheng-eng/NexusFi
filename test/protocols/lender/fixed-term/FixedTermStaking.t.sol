@@ -51,7 +51,7 @@ contract FixedTermStakingTest is Test {
 
     uint64 internal _lockPeriod = 365 days;
     uint64 internal _stakeFeeRate = 1_000; // in base points, 0.1%
-    uint64 internal _unstakeFeeRate = 1_000; // in base points, 0.2%
+    uint64 internal _unstakeFeeRate = 1_000; // in base points, 0.1%
     uint64 internal _startFeedTime = 1759301999; // 2025-10-01 14:59:59 UTC+8
     uint64 internal _currentTime = _startFeedTime - 1 days; // 2025-09-30 14:59:59 UTC+8
     uint128 internal _dustBalance = 1_000 * 10 ** 6; // 1,000 USDC
