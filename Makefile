@@ -9,7 +9,10 @@ abiOpenTermToken:; forge inspect OpenTermToken abi > abi/OpenTermToken.abi
 abiUnderlyingTokenExchanger:; forge inspect UnderlyingTokenExchanger abi > abi/UnderlyingTokenExchanger.abi
 abiUnderlyingToken:; forge inspect UnderlyingToken abi > abi/UnderlyingToken.abi
 abiWhitelist:; forge inspect Whitelist abi > abi/Whitelist.abi
+abiBlacklist:; forge inspect Blacklist abi > abi/Blacklist.abi
 abiTimePowerLoan:; forge inspect TimePowerLoan abi > abi/TimePowerLoan.abi
+abiTimeLinearLoan:; forge inspect TimeLinearLoan abi > abi/TimeLinearLoan.abi
+abiValueInflationVault:; forge inspect ValueInflationVault abi > abi/ValueInflationVault.abi
 
 coverage:; forge coverage --ir-minimum --no-match-test invariant* --ffi
 coverageReport:; forge coverage --ir-minimum --no-match-test invariant* --ffi --report debug > report/coverage.txt

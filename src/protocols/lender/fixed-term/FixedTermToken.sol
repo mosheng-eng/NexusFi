@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Errors} from "src/common/Errors.sol";
+
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
@@ -36,8 +38,6 @@ abstract contract FixedTermToken is ERC721EnumerableUpgradeable {
     /// @param receiver_ The address to receive the newly minted NFT
     /// @return The ID of the newly minted NFT
     function mint(address receiver_) internal returns (uint256) {
-        require(receiver_ != address(0), "INVALID_TO_ADDRESS");
-
         emit Mint(receiver_, _tokenId);
 
         _safeMint(receiver_, _tokenId);
@@ -77,13 +77,15 @@ abstract contract FixedTermToken is ERC721EnumerableUpgradeable {
         string memory image = string(
             abi.encodePacked(
                 "data:image/svg+xml;base64,",
-                Base64.encode( 
-                    abi.encodePacked('<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">',
-                        '<g>',
-                        '<title>Layer 1</title>',
+                Base64.encode(
+                    abi.encodePacked(
+                        '<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">',
+                        "<g>",
+                        "<title>Layer 1</title>",
                         '<text fill="#FFAFCC" stroke-width="0" x="290.16313" y="235.37489" id="svg_1" font-size="24" font-family="Noto Sans JP" text-anchor="start" xml:space="preserve" stroke="#000" transform="matrix(5.74209 0 0 5.90761 -1413.14 -1069.99)">MoS</text>',
-                        '</g>',
-                        '</svg>')
+                        "</g>",
+                        "</svg>"
+                    )
                 )
             )
         );

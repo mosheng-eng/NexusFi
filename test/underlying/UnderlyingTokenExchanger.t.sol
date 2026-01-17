@@ -332,7 +332,10 @@ contract UnderlyingTokenExchangerTest is Test {
     }
 
     function testNondirectCallToToken() public {
+        vm.expectEmit(false, false, false, true);
+        emit Initializable.Initialized(type(uint64).max);
         UnderlyingToken mockContract = new UnderlyingToken();
+
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
         mockContract.initialize(_owner, "mosUSD", "mosUSD");
 

@@ -1336,7 +1336,7 @@ contract FixedTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert("INVALID_TO_ADDRESS");
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidReceiver.selector, address(0x0)));
         boringFixedTermToken.wrapperMint(address(0x0));
 
         boringFixedTermToken.wrapperMint(address(0xffff));
@@ -1363,7 +1363,7 @@ contract FixedTermStakingTest is Test {
         boringFixedTermToken.tokenURI(2);
 
         MockFixedTermToken directCallMockFixedTermToken = new MockFixedTermToken();
-        vm.expectRevert("INVALID_TO_ADDRESS");
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidReceiver.selector, address(0x0)));
         directCallMockFixedTermToken.wrapperMint(address(0x0));
     }
 
