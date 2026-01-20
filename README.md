@@ -98,12 +98,15 @@
 
 ### Build
 
+You can run this command to **build all contracts**.
 ```shell
 $ forge build
 ```
 
 ### Test
 
+You can run these commands to test each contract.  
+Some contracts may cost thousand seconds because they contains fuzz test cases.  
 ```shell
 $ make testMultisigWallet
 $ make testThresholdWallet
@@ -115,8 +118,24 @@ $ make testBlacklist
 $ make testTimePowerLoan
 $ make testTimeLinearLoan
 $ make testValueInflationVault
+```
+
+You can run this command to do all invariant test cases in all contracts.  
+This test may fail because the conditions are different in each time you trigger it.  
+But it works well in most times based on the past experances.  
+Invariant test cases cost a very long time to get result (maybe hours).
+```
 $ make testInvariant
+```
+
+You can run this command to run all test cases of all contracts, including normal test cases, fuzz test cases and invariant test cases.
+```
 $ make testAll
+```
+
+You can run these commands to generate coverage rate and report.  
+Coverage report is located in **[report](https://github.com/mosheng-eng/NexusFi/blob/master/report/coverage.txt)** directory.
+```
 $ make coverage
 $ make coverageReport
 ```
