@@ -58,17 +58,25 @@
   > 5. 0x0f BLS12_PAIRING_CHECK
   > 6. 0x10 BLS12_MAP_FP_TO_G1
   > 7. 0x11 BLS12_MAP_FP2_TO_G2
-* **UnderlyingToken**
-* **UnderlyingTokenExchanger**
-* **FixedTermStaking**
-* **FixedTermToken**
-* **OpenTermStaking**
-* **OpenTermToken**
-* **ValueInflationVault**
-* **TimeLinearLoan**
-* **TimePowerLoan**
-* **Whitelist**
-* **Blacklist**
+* **UnderlyingToken**  
+  This is a ERC20 token that is used for circulation inside protocol (e.g. call it nfiUSD for short). Each participant should hold nfiUSD for different purposes. For example, lender should earn interest by staking nfiUSD into fixed term or open term staking protocols. All accepted assets by NexusFi protocol, such as USDC or USDT, can be used to exchange for nfiUSD.
+* **UnderlyingTokenExchanger**  
+  This is an exchanger between underlying asset (e.g. USDC or USDT) and underlying token (e.g. nfiUSD). But this is not an AMM protocol that DEX oftern used. Maybe it can be in the future but not now. It usually has a fixed rate betweeen underlying asset and underlying token.  
+  We are planning to build an oracle to support unstable coin asset.
+* **FixedTermStaking**  
+  Fixed term staking protocol is used for a long term investment, such as 30 or 180 or 360 days. It is suitable for investors who have much idle fund and are willing to stick to gain high yeilds.  
+  Investors will get NFT tokens (e.g. call it nfiFTT) after they stake nftUSD. Each nfiFFT token is unique because of the different start date, maturity date and principal.  
+  Fixed term staking conract stores daily accumulated interest rates for caculation of any nfiFFT token's interest amount at any day before or at or after maturity date. Daily accumulated interest rates make calculation more efficiency on chain.  
+  The following picture shows **the basic mathematical formula**.
+  ![FixedTermStaking](doc/FixedTermStaking.png "Fixed Term Staking")
+* **FixedTermToken**  
+* **OpenTermStaking**  
+* **OpenTermToken**  
+* **ValueInflationVault**  
+* **TimeLinearLoan**  
+* **TimePowerLoan**  
+* **Whitelist**  
+* **Blacklist**  
 
 ## Usage
 
