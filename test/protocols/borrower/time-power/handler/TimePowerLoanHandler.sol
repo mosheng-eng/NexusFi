@@ -133,12 +133,6 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
     }
 
     function _deployTimePowerLoan() internal {
-        address[] memory addrs = new address[](4);
-        addrs[0] = _owner;
-        addrs[1] = address(_whitelist);
-        addrs[2] = address(_blacklist);
-        addrs[3] = address(_depositToken);
-
         /// @dev 1000000000315520000 = (1 + 1%)^(1 / (365 * 24 * 60 * 60)) * 1e18
         _secondInterestRates.push(1000000000315520000);
         /// @dev 1000000000937300000 = (1 + 3%)^(1 / (365 * 24 * 60 * 60)) * 1e18
@@ -211,7 +205,13 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
         vm.startPrank(_owner);
 
         vm.recordLogs();
-        _timePowerLoan = TimePowerLoan(_deployer.deployTimePowerLoan(addrs, _secondInterestRates, _trustedVaults));
+        _timePowerLoan = TimePowerLoan(
+            _deployer.deployTimePowerLoan(
+                [_owner, address(_whitelist), address(_blacklist), address(_depositToken)],
+                _secondInterestRates,
+                _trustedVaults
+            )
+        );
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         _timePowerLoan.grantRole(Roles.OPERATOR_ROLE, _owner);

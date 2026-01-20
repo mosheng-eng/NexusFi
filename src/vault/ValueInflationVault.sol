@@ -138,7 +138,7 @@ contract ValueInflationVault is
          * 0: address owner_,
          * 1: address asset_,
          */
-        address[] memory addr_,
+        address[2] memory addr_,
         /**
          * trusted borrowers addresses
          */
@@ -158,10 +158,6 @@ contract ValueInflationVault is
 
         if (bytes(symbol_).length == 0) {
             revert Errors.InvalidValue("symbol is empty");
-        }
-
-        if (addr_.length != 2) {
-            revert Errors.InvalidValue("addresses length mismatch");
         }
 
         if (addr_[0] == address(0)) {

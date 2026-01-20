@@ -61,10 +61,6 @@ contract ValueInflationVaultTest is Test {
     }
 
     modifier deployValueInflationVault() {
-        address[] memory addrs = new address[](2);
-        addrs[0] = _owner;
-        addrs[1] = address(_depositToken);
-
         address[] memory trustedBorrowers = new address[](2);
         trustedBorrowers[0] = _trustedBorrower1;
         trustedBorrowers[1] = _trustedBorrower2;
@@ -79,7 +75,12 @@ contract ValueInflationVaultTest is Test {
 
         _valueInflationVault = ValueInflationVault(
             _deployer.deployValueInflationVault(
-                VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+                VAULT_TOKEN_NAME,
+                VAULT_TOKEN_SYMBOL,
+                [_owner, address(_depositToken)],
+                trustedBorrowers,
+                trustedBorrowersAllowance,
+                trustedLenders
             )
         );
 
@@ -398,10 +399,6 @@ contract ValueInflationVaultTest is Test {
     }
 
     function testInvalidInitialize() public {
-        address[] memory addrs = new address[](2);
-        addrs[0] = _owner;
-        addrs[1] = address(_depositToken);
-
         address[] memory trustedBorrowers = new address[](2);
         trustedBorrowers[0] = _trustedBorrower1;
         trustedBorrowers[1] = _trustedBorrower2;
@@ -415,48 +412,64 @@ contract ValueInflationVaultTest is Test {
         trustedLenders[1] = _trustedLender2;
 
         _deployer.deployValueInflationVault(
-            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "name is empty"));
-        _deployer.deployValueInflationVault(
-            "", VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "symbol is empty"));
-        _deployer.deployValueInflationVault(
-            VAULT_TOKEN_NAME, "", addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "addresses length mismatch"));
-        _deployer.deployValueInflationVault(
             VAULT_TOKEN_NAME,
             VAULT_TOKEN_SYMBOL,
-            new address[](3),
+            [_owner, address(_depositToken)],
             trustedBorrowers,
             trustedBorrowersAllowance,
             trustedLenders
         );
 
-        addrs[0] = address(0x00);
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "name is empty"));
+        _deployer.deployValueInflationVault(
+            "",
+            VAULT_TOKEN_SYMBOL,
+            [_owner, address(_depositToken)],
+            trustedBorrowers,
+            trustedBorrowersAllowance,
+            trustedLenders
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "symbol is empty"));
+        _deployer.deployValueInflationVault(
+            VAULT_TOKEN_NAME,
+            "",
+            [_owner, address(_depositToken)],
+            trustedBorrowers,
+            trustedBorrowersAllowance,
+            trustedLenders
+        );
+
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
         _deployer.deployValueInflationVault(
-            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+            VAULT_TOKEN_NAME,
+            VAULT_TOKEN_SYMBOL,
+            [address(0x00), address(_depositToken)],
+            trustedBorrowers,
+            trustedBorrowersAllowance,
+            trustedLenders
         );
-        addrs[0] = _owner;
 
-        addrs[1] = address(0x00);
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "asset"));
         _deployer.deployValueInflationVault(
-            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, trustedBorrowersAllowance, trustedLenders
+            VAULT_TOKEN_NAME,
+            VAULT_TOKEN_SYMBOL,
+            [_owner, address(0x00)],
+            trustedBorrowers,
+            trustedBorrowersAllowance,
+            trustedLenders
         );
-        addrs[1] = address(_depositToken);
 
         vm.expectRevert(
             abi.encodeWithSelector(Errors.InvalidValue.selector, "trusted borrowers and allowance length mismatch")
         );
         _deployer.deployValueInflationVault(
-            VAULT_TOKEN_NAME, VAULT_TOKEN_SYMBOL, addrs, trustedBorrowers, new uint256[](3), trustedLenders
+            VAULT_TOKEN_NAME,
+            VAULT_TOKEN_SYMBOL,
+            [_owner, address(_depositToken)],
+            trustedBorrowers,
+            new uint256[](3),
+            trustedLenders
         );
     }
 

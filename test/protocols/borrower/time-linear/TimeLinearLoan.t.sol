@@ -107,12 +107,6 @@ contract TimeLinearLoanTest is Test {
     }
 
     modifier deployTimeLinearLoan() {
-        address[] memory addrs = new address[](4);
-        addrs[0] = _owner;
-        addrs[1] = address(_whitelist);
-        addrs[2] = address(_blacklist);
-        addrs[3] = address(_depositToken);
-
         /// @dev 317097920 = 1% / (365 * 24 * 60 * 60) * 1e18
         _secondInterestRates.push(317097920);
         /// @dev 634195840 = 3% / (365 * 24 * 60 * 60) * 1e18
@@ -184,7 +178,13 @@ contract TimeLinearLoanTest is Test {
 
         vm.startPrank(_owner);
 
-        _timeLinearLoan = TimeLinearLoan(_deployer.deployTimeLinearLoan(addrs, _secondInterestRates, _trustedVaults));
+        _timeLinearLoan = TimeLinearLoan(
+            _deployer.deployTimeLinearLoan(
+                [_owner, address(_whitelist), address(_blacklist), address(_depositToken)],
+                _secondInterestRates,
+                _trustedVaults
+            )
+        );
 
         _timeLinearLoan.grantRole(Roles.OPERATOR_ROLE, _owner);
 
@@ -3068,19 +3068,16 @@ contract TimeLinearLoanTest is Test {
     }
 
     function testOnlyValidVault() public {
-        address[] memory addrs = new address[](4);
-        addrs[0] = _owner;
-        addrs[1] = address(_whitelist);
-        addrs[2] = address(_blacklist);
-        addrs[3] = address(_depositToken);
-
         MockTimeLinearLoan mockTimeLinearLoan = MockTimeLinearLoan(
             address(
                 new TransparentUpgradeableProxy(
                     address(new MockTimeLinearLoan()),
                     _owner,
                     abi.encodeWithSelector(
-                        TimeLinearLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults
+                        TimeLinearLoan.initialize.selector,
+                        [_owner, address(_whitelist), address(_blacklist), address(_depositToken)],
+                        _secondInterestRates,
+                        _trustedVaults
                     )
                 )
             )
@@ -3107,16 +3104,7 @@ contract TimeLinearLoanTest is Test {
 
     function testRevertWhenInitialize() public {
         address logic = address(new MockTimeLinearLoan());
-        address[] memory addrs = new address[](4);
-
-        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "addresses length mismatch"));
-        new TransparentUpgradeableProxy(
-            logic,
-            _owner,
-            abi.encodeWithSelector(
-                TimeLinearLoan.initialize.selector, new address[](5), _secondInterestRates, _trustedVaults
-            )
-        );
+        address[4] memory addrs;
 
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
         new TransparentUpgradeableProxy(

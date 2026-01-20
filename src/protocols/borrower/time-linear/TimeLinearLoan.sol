@@ -625,7 +625,7 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
          * 2: address blacklist_,
          * 3: address loanToken_,
          */
-        address[] memory addrs_,
+        address[4] memory addrs_,
         /**
          * annual interest rates sorted in ascending order
          */
@@ -635,9 +635,6 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
          */
         TrustedVault[] memory trustedVaults_
     ) external initializer {
-        if (addrs_.length != 4) {
-            revert Errors.InvalidValue("addresses length mismatch");
-        }
         if (addrs_[0] == address(0)) {
             revert Errors.ZeroAddress("owner");
         }

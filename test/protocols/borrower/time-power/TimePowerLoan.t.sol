@@ -107,12 +107,6 @@ contract TimePowerLoanTest is Test {
     }
 
     modifier deployTimePowerLoan() {
-        address[] memory addrs = new address[](4);
-        addrs[0] = _owner;
-        addrs[1] = address(_whitelist);
-        addrs[2] = address(_blacklist);
-        addrs[3] = address(_depositToken);
-
         /// @dev 1000000000315520000 = (1 + 1%)^(1 / (365 * 24 * 60 * 60)) * 1e18
         _secondInterestRates.push(1000000000315520000);
         /// @dev 1000000000937300000 = (1 + 3%)^(1 / (365 * 24 * 60 * 60)) * 1e18
@@ -184,7 +178,13 @@ contract TimePowerLoanTest is Test {
 
         vm.startPrank(_owner);
 
-        _timePowerLoan = TimePowerLoan(_deployer.deployTimePowerLoan(addrs, _secondInterestRates, _trustedVaults));
+        _timePowerLoan = TimePowerLoan(
+            _deployer.deployTimePowerLoan(
+                [_owner, address(_whitelist), address(_blacklist), address(_depositToken)],
+                _secondInterestRates,
+                _trustedVaults
+            )
+        );
 
         _timePowerLoan.grantRole(Roles.OPERATOR_ROLE, _owner);
 
@@ -3222,19 +3222,16 @@ contract TimePowerLoanTest is Test {
     }
 
     function testOnlyValidVault() public {
-        address[] memory addrs = new address[](4);
-        addrs[0] = _owner;
-        addrs[1] = address(_whitelist);
-        addrs[2] = address(_blacklist);
-        addrs[3] = address(_depositToken);
-
         MockTimePowerLoan mockTimePowerLoan = MockTimePowerLoan(
             address(
                 new TransparentUpgradeableProxy(
                     address(new MockTimePowerLoan()),
                     _owner,
                     abi.encodeWithSelector(
-                        TimePowerLoan.initialize.selector, addrs, _secondInterestRates, _trustedVaults
+                        TimePowerLoan.initialize.selector,
+                        [_owner, address(_whitelist), address(_blacklist), address(_depositToken)],
+                        _secondInterestRates,
+                        _trustedVaults
                     )
                 )
             )
@@ -3261,16 +3258,7 @@ contract TimePowerLoanTest is Test {
 
     function testRevertWhenInitialize() public {
         address logic = address(new MockTimePowerLoan());
-        address[] memory addrs = new address[](4);
-
-        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "addresses length mismatch"));
-        new TransparentUpgradeableProxy(
-            logic,
-            _owner,
-            abi.encodeWithSelector(
-                TimePowerLoan.initialize.selector, new address[](5), _secondInterestRates, _trustedVaults
-            )
-        );
+        address[4] memory addrs;
 
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "owner"));
         new TransparentUpgradeableProxy(

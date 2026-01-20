@@ -133,12 +133,6 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
     }
 
     function _deployTimeLinearLoan() internal {
-        address[] memory addrs = new address[](4);
-        addrs[0] = _owner;
-        addrs[1] = address(_whitelist);
-        addrs[2] = address(_blacklist);
-        addrs[3] = address(_depositToken);
-
         /// @dev 317097920 = 1% / (365 * 24 * 60 * 60) * 1e18
         _secondInterestRates.push(317097920);
         /// @dev 634195840 = 3% / (365 * 24 * 60 * 60) * 1e18
@@ -211,7 +205,13 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         vm.startPrank(_owner);
 
         vm.recordLogs();
-        _timeLinearLoan = TimeLinearLoan(_deployer.deployTimeLinearLoan(addrs, _secondInterestRates, _trustedVaults));
+        _timeLinearLoan = TimeLinearLoan(
+            _deployer.deployTimeLinearLoan(
+                [_owner, address(_whitelist), address(_blacklist), address(_depositToken)],
+                _secondInterestRates,
+                _trustedVaults
+            )
+        );
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         _timeLinearLoan.grantRole(Roles.OPERATOR_ROLE, _owner);
