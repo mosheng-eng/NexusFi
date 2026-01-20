@@ -20,7 +20,7 @@
 * **Bob :** a borrower who prefer long term fund
 * **Mos :** a borrower who prefer short term fund
 ### Contracts
-* **MultisigWallet**  
+* **[MultisigWallet](https://github.com/mosheng-eng/NexusFi/blob/master/src/multisig/MultisigWallet.sol)**  
   This is a n - n wallet where n means the total signers. Multisig wallet contract holds an aggregated public key built from all signers' public keys. Multisig wallet contract is built on BLS algorithm and support two modes:   
   * **Public key on G1 and Private key on G2 :**  
   Public key is a point on G1 which has two coordinates. Each coordinate are 48 bytes (uint384) that stores in 2 words (bytes32).  
@@ -39,7 +39,7 @@
   > 5. 0x0f BLS12_PAIRING_CHECK
   > 6. 0x10 BLS12_MAP_FP_TO_G1
   > 7. 0x11 BLS12_MAP_FP2_TO_G2
-* **ThresholdWallet**  
+* **[ThresholdWallet](https://github.com/mosheng-eng/NexusFi/blob/master/src/multisig/ThresholdWallet.sol)**  
   This is a m - n wallet where n means the total signers and m means the minimum signers required (the threshold). Threshold wallet contract holds all signers' public keys and onchain memory ids. Each signer's member id is signed by all signers. In another word, each signer is consensus by all participants. Multisig wallet contract is built on BLS algrorithm and support two modes:
   * **Public key on G1 and Private key on G2 :**  
   Public key is a point on G1 which has two coordinates. Each coordinate are 48 bytes (uint384) that stores in 2 words (bytes32).  
@@ -58,25 +58,41 @@
   > 5. 0x0f BLS12_PAIRING_CHECK
   > 6. 0x10 BLS12_MAP_FP_TO_G1
   > 7. 0x11 BLS12_MAP_FP2_TO_G2
-* **UnderlyingToken**  
+* **[UnderlyingToken](https://github.com/mosheng-eng/NexusFi/blob/master/src/underlying/UnderlyingToken.sol)**  
   This is a ERC20 token that is used for circulation inside protocol (e.g. call it nfiUSD for short). Each participant should hold nfiUSD for different purposes. For example, lender should earn interest by staking nfiUSD into fixed term or open term staking protocols. All accepted assets by NexusFi protocol, such as USDC or USDT, can be used to exchange for nfiUSD.
-* **UnderlyingTokenExchanger**  
+* **[UnderlyingTokenExchanger](https://github.com/mosheng-eng/NexusFi/blob/master/src/underlying/UnderlyingTokenExchanger.sol)**  
   This is an exchanger between underlying asset (e.g. USDC or USDT) and underlying token (e.g. nfiUSD). But this is not an AMM protocol that DEX oftern used. Maybe it can be in the future but not now. It usually has a fixed rate betweeen underlying asset and underlying token.  
   We are planning to build an oracle to support unstable coin asset.
-* **FixedTermStaking**  
-  Fixed term staking protocol is used for a long term investment, such as 30 or 180 or 360 days. It is suitable for investors who have much idle fund and are willing to stick to gain high yeilds.  
-  Investors will get NFT tokens (e.g. call it nfiFTT) after they stake nftUSD. Each nfiFFT token is unique because of the different start date, maturity date and principal.  
-  Fixed term staking conract stores daily accumulated interest rates for caculation of any nfiFFT token's interest amount at any day before or at or after maturity date. Daily accumulated interest rates make calculation more efficiency on chain.  
+* **[FixedTermStaking](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/lender/fixed-term/FixedTermStaking.sol)**  
+  Fixed term staking protocol is used for a long term investment, such as 30 or 180 or 360 days. It is suitable for professional investors who have much idle fund and are willing to stick to gain high yeilds.  
+  Investors will get NFT tokens (e.g. call it nfiFTT) as receipts after they stake nftUSD. Each nfiFFT token is unique because of the different start date, maturity date and principal.  
+  Fixed term staking contract stores daily accumulated interest rates for caculation of any nfiFFT token's interest amount at any day before or at or after maturity date. Daily accumulated interest rates make calculation more efficiency on chain.  
   The following picture shows **the basic mathematical formula**.
   ![FixedTermStaking](doc/FixedTermStaking.png "Fixed Term Staking")
-* **FixedTermToken**  
-* **OpenTermStaking**  
-* **OpenTermToken**  
-* **ValueInflationVault**  
-* **TimeLinearLoan**  
-* **TimePowerLoan**  
-* **Whitelist**  
-* **Blacklist**  
+* **[FixedTermToken](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/lender/fixed-term/FixedTermToken.sol)**  
+  This is a ERC721 token that is used to represent a fixed term staking (e.g. call it nfiFTT). Investor will get a specific token id of nfiFTT after stake nfiUSD into fixed term staking protocol. Each nfiFFT token is unique because of the different start date, maturity date and principal.  
+  We know that NFT is not friendly to defi or vault protocol. So we are working on the wrapper funcitons of nfiFTT and will upgrade protocol soon.
+* **[OpenTermStaking](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/lender/open-term/OpenTermStaking.sol)**  
+  Open term staking protocol is used for a short term investment, such as overnight stake and unstake. It is suitable for individual investors who have small and distributed fund and prefer to speculate.
+  Investors will get ERC20 tokens (e.g. call it nfiOTT) as receipts after they stake nftUSD. All nfiOTT tokens are rebasing token and investors can see the growth of balance in their self-hosted wallet after the oracle feed interest to protocol.
+  Open term staking contract stores total supply of nfiOTT and total reserve of nfiUSD (sum of all principal and interest). It works similarly to a vault (ERC4626) but accompanied with an oracle to distribute interest.
+* **[OpenTermToken](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/lender/open-term/OpenTermToken.sol)**  
+  This is a ERC20 token that is used to represent shares of open term staking protocol. All nfiOTT tokens are rebasing token and investors can see the growth of balance in their self-hosted wallet after the oracle feed interest to protocol.
+* **[ValueInflationVault](https://github.com/mosheng-eng/NexusFi/blob/master/src/vault/ValueInflationVault.sol)**  
+  This is a vault following to ERC4626 standard. It's a bridage between lender protocols (FixedTermStaking & OpenTermStaking) and borrower protocols (TimeLinearLoan & TimePowerLoan). Value inflation vault collects fund from lender protocols and release funds to borrower protocols on demands. Vice versa, value inflation vault earns profis from borrower protocols and distributes bonus to lender protocols. The fund strategy of value inflation vault can be smartly modified during the lifetime of protocol.
+  The following picture shows **the relationship among ValueInflationVault, FixedTermStaking, OpenTermStaking, TimeLinearLoan and TimePowerLoan**.
+  ![Key Protocols Relationship](doc/ValueInflationVault.png "Key Protocols Relationship")
+* **[TimeLinearLoan](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/borrower/time-linear/TimeLinearLoan.sol)**  
+  Time linear loan protocol is used for a long term loan because the interest is linearly increasing during time passing. Comparing to time power loan protocol, you will pay less interest amount in the same annual interest rate, repayment strategy and more than one year loan period.  
+  Borrowers should request a loan first and borrow from the loan after approved. Borrowers will receive underlying assets, such as USDC or USDT , which are offerd from one or multi value inflation vaults. These vaults own some tranches of net asset value from borrowers' debts and earn profits when borrowers repay.
+* **[TimePowerLoan](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/borrower/time-power/TimePowerLoan.sol)**  
+  Time power loan protocol is used for a short term loan because the interest is exponentially increasing during time passing. It's uneconomic for borrowers when they borrow a long term loan, expecially over one year if we use annual interrest rates.  
+  Borrowers should request a loan first and borrow from the loan after approved. Borrowers will receive underlying assets, such as USDC or USDT , which are offerd from one or multi value inflation vaults. These vaults own some tranches of net asset value from borrowers' debts and earn profits when borrowers repay.
+  ![TimeLinear&PowerLoan](doc/TimeLinear&PowerLoan.png "TimeLinear&PowerLoan")
+* **[Whitelist](https://github.com/mosheng-eng/NexusFi/blob/master/src/whitelist/Whitelist.sol)**  
+  Shared whitelist controller for the  whole protocol.
+* **[Blacklist](https://github.com/mosheng-eng/NexusFi/blob/master/src/blacklist/Blacklist.sol)**  
+  Shared blacklist  controller for the whole protocol.
 
 ## Usage
 
