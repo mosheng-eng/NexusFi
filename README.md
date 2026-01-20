@@ -122,7 +122,7 @@ $ make testValueInflationVault
 
 You can run this command to do all invariant test cases in all contracts.  
 This test may fail because the conditions are different in each time you trigger it.  
-But it works well in most times based on the past experances.  
+But it works well in most times based on the past experiences.  
 Invariant test cases cost a very long time to get result (maybe hours).
 ```
 $ make testInvariant
