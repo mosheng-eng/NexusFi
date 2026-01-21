@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.24;
 
-import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";
-import {BLS} from "src/multisig/utils/BLS.sol";
-import {BLSTool} from "src/multisig/utils/BLSTool.sol";
-import {BLSHelper} from "src/multisig/utils/BLSHelper.sol";
+import {ThresholdWallet} from "src/wallet/ThresholdWallet.sol";
+import {BLS} from "src/wallet/utils/BLS.sol";
+import {BLSTool} from "src/wallet/utils/BLSTool.sol";
+import {BLSHelper} from "src/wallet/utils/BLSHelper.sol";
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 import {Errors} from "src/common/Errors.sol";
 

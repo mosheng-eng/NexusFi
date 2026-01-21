@@ -7,10 +7,10 @@ import {console} from "forge-std/console.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {Errors} from "src/common/Errors.sol";
-import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
-import {BLS} from "src/multisig/utils/BLS.sol";
-import {BLSTool} from "src/multisig/utils/BLSTool.sol";
-import {BLSHelper} from "src/multisig/utils/BLSHelper.sol";
+import {MultisigWallet} from "src/wallet/MultisigWallet.sol";
+import {BLS} from "src/wallet/utils/BLS.sol";
+import {BLSTool} from "src/wallet/utils/BLSTool.sol";
+import {BLSHelper} from "src/wallet/utils/BLSHelper.sol";
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";

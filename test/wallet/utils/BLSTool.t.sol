@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {BLSTool} from "src/multisig/utils/BLSTool.sol";
+import {BLSTool} from "src/wallet/utils/BLSTool.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";

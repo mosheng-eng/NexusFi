@@ -8,8 +8,8 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
-import {MultisigWallet} from "src/multisig/MultisigWallet.sol";
-import {ThresholdWallet} from "src/multisig/ThresholdWallet.sol";
+import {MultisigWallet} from "src/wallet/MultisigWallet.sol";
+import {ThresholdWallet} from "src/wallet/ThresholdWallet.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
