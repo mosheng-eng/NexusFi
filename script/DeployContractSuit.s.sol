@@ -83,11 +83,13 @@ contract DeployContractSuit is Script {
 
     function run() external {
         _owner = vm.envAddress("NEXUSFI_OWNER");
+        vm.label(_owner, "owner");
         _underlyingTokenName = vm.envString("NEXUSFI_UNDERLYING_TOKEN_NAME");
         _underlyingTokenSymbol = vm.envString("NEXUSFI_UNDERLYING_TOKEN_SYMBOL");
         _enableWhitelist = vm.envBool("NEXUSFI_ENABLE_WHITELIST");
         _enableBlacklist = vm.envBool("NEXUSFI_ENABLE_BLACKLIST");
         _underlyingAsset = vm.envAddress("NEXUSFI_UNDERLYING_ASSET");
+        vm.label(_underlyingAsset, "underlyingAsset");
         _vault1Name = vm.envString("NEXUSFI_VAULT_1_NAME");
         _vault1Symbol = vm.envString("NEXUSFI_VAULT_1_SYMBOL");
         _vault1MinimumPercentageInALoan = uint48(vm.envUint("NEXUSFI_VAULT_1_MINIMUM_PERCENTAGE_IN_A_LOAN"));
@@ -183,7 +185,7 @@ contract DeployContractSuit is Script {
             deployFixedTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_underlyingTokenExchanger)],
                 (
-                    _fixedTermLockPeriod | (_fixedTermStakeFeeRate << 64) | (_fixedTermUnstakeFeeRate << 128)
+                    _fixedTermLockPeriod * 1 days | (_fixedTermStakeFeeRate << 64) | (_fixedTermUnstakeFeeRate << 128)
                         | (_fixedTermStartFeedTime << 192)
                 ),
                 (_fixedTermDustBalance | (_fixedTermMaxSupply << 128)),
