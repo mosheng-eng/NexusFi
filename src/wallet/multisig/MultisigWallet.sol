@@ -8,12 +8,12 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Roles} from "../common/Roles.sol";
-import {Errors} from "../common/Errors.sol";
+import {Roles} from "../../common/Roles.sol";
+import {Errors} from "../../common/Errors.sol";
 
-import {BLS} from "./utils/BLS.sol";
+import {BLS} from "../utils/BLS.sol";
 
-contract ThresholdWallet is
+contract MultisigWallet is
     Initializable,
     OwnableUpgradeable,
     AccessControlUpgradeable,
@@ -45,12 +45,6 @@ contract ThresholdWallet is
     /// @notice Error reverted if public keys are empty when initializing
     error EmptyPublicKey();
 
-    /// @notice Error reverted if the number of signers is not enough to meet the threshold
-    error SignersNotEnough();
-
-    /// @notice Error reverted if the threshold is not between 1 and total number of signers
-    error ThresholdShouldBetweenOneAndTotalSigners();
-
     /// @notice Error reverted if a public key is invalid when initializing
     /// @param why The reason why the public key is invalid
     error InvalidPublicKey(string why);
@@ -58,10 +52,6 @@ contract ThresholdWallet is
     /// @notice Error reverted if a signature is invalid when verifying or aggregating
     /// @param why The reason why the signature is invalid
     error InvalidSignature(string why);
-
-    /// @notice Error reverted if a signer is not recognized
-    /// @param signerPKHash The hash of the signer's public key
-    error UnrecognizedSigner(bytes32 signerPKHash);
 
     /// @notice Error reverted if operations are empty when submitting
     error EmptyOperations();
@@ -126,7 +116,6 @@ contract ThresholdWallet is
     /// @param hashCheckCode First 8 bytes of the operation hash, used to prevent signature replay attacks
     /// @param data Data payload of the operation to be sent to the target address
     /// @param aggregatedSignature Aggregated signature of the operation hash : keccak256(target, value, effectiveTime, expirationTime, gasLimit, nonce, data)
-    /// @param signers Array of signer public keys who signed the operation
     struct Operation {
         address target;
         uint32 value;
@@ -138,19 +127,6 @@ contract ThresholdWallet is
         bytes8 hashCheckCode;
         bytes data;
         bytes aggregatedSignature;
-        bytes[] signers;
-    }
-
-    struct MemberOnG1 {
-        uint256 threshold;
-        BLS.G1Point thresholdPointOnG1;
-        BLS.G1Point memberIDPointOnG1;
-    }
-
-    struct MemberOnG2 {
-        uint256 threshold;
-        BLS.G2Point thresholdPointOnG2;
-        BLS.G2Point memberIDPointOnG2;
     }
 
     /// @notice Current mode of the wallet
@@ -159,29 +135,12 @@ contract ThresholdWallet is
     /// @notice Aggregated public key on G1 curve
     /// @notice Require wallet mode to be PUBLIC_KEY_ON_G1
     /// @notice Must be empty if wallet mode is PUBLIC_KEY_ON_G2
-    /// @dev Aggregated mechanism is different from multi-sig wallet
     BLS.G1Point private _aggregatedPublicKeyOnG1;
-
-    /// @notice Mapping of member public keys hash to threshold points on G2 curve
-    /// @notice Require wallet mode to be PUBLIC_KEY_ON_G1
-    /// @notice Must be empty if wallet mode is PUBLIC_KEY_ON_G2
-    /// @dev Used for threshold signature verification
-    mapping(bytes32 => MemberOnG2) private _publicKeyToMemberOnG2;
 
     /// @notice Aggregated public key on G2 curve
     /// @notice Require wallet mode to be PUBLIC_KEY_ON_G2
     /// @notice Must be empty if wallet mode is PUBLIC_KEY_ON_G1
     BLS.G2Point private _aggregatedPublicKeyOnG2;
-
-    /// @notice Mapping of member public keys hash to threshold points on G1 curve
-    /// @notice Require wallet mode to be PUBLIC_KEY_ON_G2
-    /// @notice Must be empty if wallet mode is PUBLIC_KEY_ON_G1
-    /// @dev Used for threshold signature verification
-    mapping(bytes32 => MemberOnG1) private _publicKeyToMemberOnG1;
-
-    /// @notice Threshold number of signatures required to approve an operation
-    /// @dev Must be less than or equal to the number of all signers
-    uint128 private _threshold;
 
     /// @notice Record the operations number of the wallet
     /// @notice Incremented for each new operation
@@ -220,27 +179,12 @@ contract ThresholdWallet is
         _disableInitializers();
     }
 
-    /// @notice Initialize the threshold wallet with the given wallet mode and aggregated public key
+    /// @notice Initialize the multisig wallet with the given wallet mode and aggregated public key
     /// @param walletMode_ The mode of the wallet, either PUBLIC_KEY_ON_G1 or PUBLIC_KEY_ON_G2
-    /// @param threshold_ The threshold number of signatures required to approve an operation
-    /// @param publicKeys_ The member public keys, format depends on the wallet mode
-    /// @param memberIDs_ The member IDs that should be signed by all members' secret keys
-    function initialize(
-        WalletMode walletMode_,
-        uint128 threshold_,
-        bytes[] calldata publicKeys_,
-        bytes[] calldata memberIDs_
-    ) public initializer {
-        if (publicKeys_.length == 0) {
+    /// @param publicKey_ The aggregated public key, format depends on the wallet mode
+    function initialize(WalletMode walletMode_, bytes calldata publicKey_) public initializer {
+        if (publicKey_.length == 0) {
             revert EmptyPublicKey();
-        }
-
-        if (publicKeys_.length != memberIDs_.length) {
-            revert InvalidPublicKey("Public keys length mismatch with member IDs length");
-        }
-
-        if (threshold_ == 0 || threshold_ > publicKeys_.length) {
-            revert ThresholdShouldBetweenOneAndTotalSigners();
         }
 
         __AccessControl_init();
@@ -248,74 +192,35 @@ contract ThresholdWallet is
         __Pausable_init();
         __Ownable_init(msg.sender);
 
-        uint256 publicKeysNum = publicKeys_.length;
-        uint256[] memory thresholdOfPublicKeys = new uint256[](publicKeysNum);
-        bytes memory publicKeysInLine = _concatBytes(publicKeys_);
-
         if (walletMode_ == WalletMode.PUBLIC_KEY_ON_G1) {
-            BLS.G1Point[] memory publicKeysOnG1 = new BLS.G1Point[](publicKeysNum);
-
-            for (uint256 i = 0; i < publicKeysNum; ++i) {
-                if (publicKeys_[i].length != 128) {
-                    revert InvalidPublicKey("Invalid public key length for G1");
-                }
-                thresholdOfPublicKeys[i] = uint256(keccak256(bytes.concat(publicKeys_[i], publicKeysInLine)));
-                publicKeysOnG1[i] = abi.decode(publicKeys_[i], (BLS.G1Point));
-                _publicKeyToMemberOnG2[keccak256(publicKeys_[i])] = MemberOnG2({
-                    threshold: thresholdOfPublicKeys[i],
-                    thresholdPointOnG2: BLS.hashToG2(BLS.BLS_DOMAIN, abi.encodePacked(thresholdOfPublicKeys[i])),
-                    memberIDPointOnG2: abi.decode(memberIDs_[i], (BLS.G2Point))
-                });
+            if (publicKey_.length != 4 * 32) {
+                revert InvalidPublicKey("Invalid public key length for G1");
             }
-            _aggregatedPublicKeyOnG1 = publicKeysOnG1.scalarsMulPointsOnG1(thresholdOfPublicKeys);
-            for (uint256 i = 0; i < publicKeysNum; ++i) {
-                MemberOnG2 memory memberOnG2 = _publicKeyToMemberOnG2[keccak256(publicKeys_[i])];
-                if (
-                    !BLS.pairWhenPKOnG1(
-                        memberOnG2.memberIDPointOnG2, _aggregatedPublicKeyOnG1, memberOnG2.thresholdPointOnG2
-                    )
-                ) {
-                    revert InvalidSignature("Member ID does not match public key on G1");
-                }
-            }
+            _aggregatedPublicKeyOnG1 = BLS.G1Point(
+                BLS.Unit(uint256(bytes32(publicKey_[0:32])), uint256(bytes32(publicKey_[32:64]))),
+                BLS.Unit(uint256(bytes32(publicKey_[64:96])), uint256(bytes32(publicKey_[96:128])))
+            );
         } else if (walletMode_ == WalletMode.PUBLIC_KEY_ON_G2) {
-            BLS.G2Point[] memory publicKeysOnG2 = new BLS.G2Point[](publicKeysNum);
-
-            for (uint256 i = 0; i < publicKeysNum; ++i) {
-                if (publicKeys_[i].length != 256) {
-                    revert InvalidPublicKey("Invalid public key length for G2");
-                }
-                thresholdOfPublicKeys[i] = uint256(keccak256(bytes.concat(publicKeys_[i], publicKeysInLine)));
-                publicKeysOnG2[i] = abi.decode(publicKeys_[i], (BLS.G2Point));
-                _publicKeyToMemberOnG1[keccak256(publicKeys_[i])] = MemberOnG1({
-                    threshold: thresholdOfPublicKeys[i],
-                    thresholdPointOnG1: BLS.hashToG1(BLS.BLS_DOMAIN, abi.encodePacked(thresholdOfPublicKeys[i])),
-                    memberIDPointOnG1: abi.decode(memberIDs_[i], (BLS.G1Point))
-                });
+            if (publicKey_.length != 8 * 32) {
+                revert InvalidPublicKey("Invalid public key length for G2");
             }
-            _aggregatedPublicKeyOnG2 = publicKeysOnG2.scalarsMulPointsOnG2(thresholdOfPublicKeys);
-            for (uint256 i = 0; i < publicKeysNum; ++i) {
-                MemberOnG1 memory memberOnG1 = _publicKeyToMemberOnG1[keccak256(publicKeys_[i])];
-                if (
-                    !BLS.pairWhenPKOnG2(
-                        memberOnG1.memberIDPointOnG1, _aggregatedPublicKeyOnG2, memberOnG1.thresholdPointOnG1
-                    )
-                ) {
-                    revert InvalidSignature("Member ID does not match public key on G2");
-                }
-            }
+            _aggregatedPublicKeyOnG2 = BLS.G2Point(
+                BLS.Unit(uint256(bytes32(publicKey_[0:32])), uint256(bytes32(publicKey_[32:64]))),
+                BLS.Unit(uint256(bytes32(publicKey_[64:96])), uint256(bytes32(publicKey_[96:128]))),
+                BLS.Unit(uint256(bytes32(publicKey_[128:160])), uint256(bytes32(publicKey_[160:192]))),
+                BLS.Unit(uint256(bytes32(publicKey_[192:224])), uint256(bytes32(publicKey_[224:256])))
+            );
         } else {
             revert UnsupportedWalletMode(uint8(walletMode_));
         }
 
         _walletMode = walletMode_;
-        _threshold = threshold_;
 
         _grantRole(Roles.OWNER_ROLE, msg.sender);
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
-    /// @notice Submit a batch of operations to the threshold wallet
+    /// @notice Submit a batch of operations to the multisig wallet
     /// @param operations_ The array of operations to be submitted
     /// @return operationsHash_ The array of operation hashes corresponding to the submitted operations
     /// @dev Each operation's nonce must be unique and sequentially increasing as the order in the array
@@ -366,10 +271,6 @@ contract ThresholdWallet is
                 revert Errors.InvalidValue("Operation.aggregatedSignature invalid");
             }
 
-            if (operations_[i].signers.length != 0 && operations_[i].signers.length < _threshold) {
-                revert SignersNotEnough();
-            }
-
             operationsHash_[i] = _getOperationHash(operations_[i]);
 
             if (uint64(operations_[i].hashCheckCode) != uint64(bytes8(operationsHash_[i]))) {
@@ -380,12 +281,8 @@ contract ThresholdWallet is
                 revert OperationExists();
             }
 
-            if (operations_[i].aggregatedSignature.length != 0 && operations_[i].signers.length >= _threshold) {
-                if (
-                    !_verifySignatures(
-                        operations_[i].aggregatedSignature, abi.encode(operationsHash_[i]), operations_[i].signers
-                    )
-                ) {
+            if (operations_[i].aggregatedSignature.length != 0) {
+                if (!_verifySignatures(operations_[i].aggregatedSignature, abi.encode(operationsHash_[i]))) {
                     revert AggregatedSignatureNotMatchPublicKeys(i);
                 } else {
                     operations_[i].status = OperationStatus.APPROVED;
@@ -408,17 +305,25 @@ contract ThresholdWallet is
                 status: operations_[i].status,
                 hashCheckCode: operations_[i].hashCheckCode,
                 data: operations_[i].data,
-                aggregatedSignature: operations_[i].aggregatedSignature,
-                signers: operations_[i].signers
+                aggregatedSignature: operations_[i].aggregatedSignature
             });
         }
     }
 
-    function verifyOperations(
-        bytes32[] calldata operationsHash_,
-        bytes[] calldata aggregatedSignatures_,
-        bytes[][] calldata signers_
-    ) public nonReentrant whenNotPaused initialized returns (bool[] memory results_) {
+    /// @notice Verify a batch of operations with their aggregated signatures
+    /// @param operationsHash_ The array of operation hashes to be verified
+    /// @param aggregatedSignatures_ The array of aggregated signatures corresponding to the operation hashes
+    /// @return results_ The array of boolean results indicating whether each operation is approved or not
+    /// @dev Each operation must be in PENDING status to be verified
+    /// @dev Only one chance to verify each operation.
+    /// @dev After verification, the operation status will be updated to APPROVED or REJECTED
+    function verifyOperations(bytes32[] calldata operationsHash_, bytes[] calldata aggregatedSignatures_)
+        public
+        nonReentrant
+        whenNotPaused
+        initialized
+        returns (bool[] memory results_)
+    {
         uint256 operationNumber = operationsHash_.length;
 
         if (operationNumber == 0) {
@@ -426,9 +331,6 @@ contract ThresholdWallet is
         }
         if (operationNumber != aggregatedSignatures_.length) {
             revert Errors.InvalidValue("operationsHash_ and aggregatedSignatures_ length mismatch");
-        }
-        if (operationNumber != signers_.length) {
-            revert Errors.InvalidValue("operationsHash_ and signers_ length mismatch");
         }
 
         results_ = new bool[](operationNumber);
@@ -452,7 +354,7 @@ contract ThresholdWallet is
                 continue;
             }
 
-            results_[i] = _verifySignatures(aggregatedSignatures_[i], abi.encode(operationsHash_[i]), signers_[i]);
+            results_[i] = _verifySignatures(aggregatedSignatures_[i], abi.encode(operationsHash_[i]));
 
             op.aggregatedSignature = aggregatedSignatures_[i];
 
@@ -510,15 +412,11 @@ contract ThresholdWallet is
     /// @param message_ The message that was signed
     /// @return True if the aggregated signature is valid, false otherwise
     /// @dev The verification method depends on the wallet mode
-    function _verifySignatures(bytes memory aggregatedSignature_, bytes memory message_, bytes[] memory signers_)
-        internal
-        view
-        returns (bool)
-    {
+    function _verifySignatures(bytes memory aggregatedSignature_, bytes memory message_) internal view returns (bool) {
         if (_walletMode == WalletMode.PUBLIC_KEY_ON_G1) {
-            return _verifySignaturesWithPublicKeyOnG1(aggregatedSignature_, message_, signers_);
+            return _verifySignaturesWithPublicKeyOnG1(aggregatedSignature_, message_);
         } else if (_walletMode == WalletMode.PUBLIC_KEY_ON_G2) {
-            return _verifySignaturesWithPublicKeyOnG2(aggregatedSignature_, message_, signers_);
+            return _verifySignaturesWithPublicKeyOnG2(aggregatedSignature_, message_);
         } else {
             revert UnsupportedWalletMode(uint8(_walletMode));
         }
@@ -528,84 +426,40 @@ contract ThresholdWallet is
     /// @param aggregatedSignature_ The aggregated signature to be verified
     /// @param message_ The message that was signed
     /// @return True if the aggregated signature is valid, false otherwise
-    function _verifySignaturesWithPublicKeyOnG1(
-        bytes memory aggregatedSignature_,
-        bytes memory message_,
-        bytes[] memory signers_
-    ) internal view returns (bool) {
+    function _verifySignaturesWithPublicKeyOnG1(bytes memory aggregatedSignature_, bytes memory message_)
+        internal
+        view
+        returns (bool)
+    {
         if (aggregatedSignature_.length != 256) {
             revert InvalidSignature("Invalid aggregated signature length for G1");
         }
 
-        uint256 signersNum = signers_.length;
-        BLS.G1Point[] memory signerPKsOnG1 = new BLS.G1Point[](signersNum);
-        BLS.G2Point[] memory signerMemberIDsOnG2 = new BLS.G2Point[](signersNum);
+        BLS.G2Point memory sigOnG2 = abi.decode(aggregatedSignature_, (BLS.G2Point));
 
-        for (uint256 i = 0; i < signersNum; ++i) {
-            bytes32 signerPKHash = keccak256(signers_[i]);
-            if (_publicKeyToMemberOnG2[signerPKHash].threshold == 0) {
-                revert UnrecognizedSigner(signerPKHash);
-            }
-            signerPKsOnG1[i] = abi.decode(signers_[i], (BLS.G1Point));
-            signerMemberIDsOnG2[i] = _publicKeyToMemberOnG2[signerPKHash].thresholdPointOnG2;
-        }
+        BLS.G2Point memory hashToG2 = BLS.hashToG2(BLS.BLS_DOMAIN, message_);
 
-        BLS.G1Point[] memory g1Points = new BLS.G1Point[](3);
-        BLS.G2Point[] memory g2Points = new BLS.G2Point[](3);
-
-        g1Points[0] = BLS.negGeneratorG1();
-        g1Points[1] = signerPKsOnG1.sumPointsOnG1();
-        g1Points[2] = _aggregatedPublicKeyOnG1;
-
-        g2Points[0] = abi.decode(aggregatedSignature_, (BLS.G2Point));
-        g2Points[1] = BLS.hashToG2(BLS.BLS_DOMAIN, message_);
-        g2Points[2] = signerMemberIDsOnG2.sumPointsOnG2();
-
-        return BLS.generalPairing(g1Points, g2Points);
+        return sigOnG2.pairWhenPKOnG1(_aggregatedPublicKeyOnG1, hashToG2);
     }
 
     /// @notice Verify aggregated signatures with public key on G2 curve
     /// @param aggregatedSignature_ The aggregated signature to be verified
     /// @param message_ The message that was signed
     /// @return True if the aggregated signature is valid, false otherwise
-    function _verifySignaturesWithPublicKeyOnG2(
-        bytes memory aggregatedSignature_,
-        bytes memory message_,
-        bytes[] memory signers_
-    ) internal view returns (bool) {
+    function _verifySignaturesWithPublicKeyOnG2(bytes memory aggregatedSignature_, bytes memory message_)
+        internal
+        view
+        returns (bool)
+    {
         if (aggregatedSignature_.length != 128) {
             revert InvalidSignature("Invalid aggregated signature length for G2");
         }
 
-        uint256 signersNum = signers_.length;
-        BLS.G2Point[] memory signerPKsOnG2 = new BLS.G2Point[](signersNum);
-        BLS.G1Point[] memory signerMemberIDsOnG1 = new BLS.G1Point[](signersNum);
+        BLS.G1Point memory sigOnG1 = abi.decode(aggregatedSignature_, (BLS.G1Point));
 
-        for (uint256 i = 0; i < signersNum; ++i) {
-            bytes32 signerPKHash = keccak256(signers_[i]);
-            if (_publicKeyToMemberOnG1[signerPKHash].threshold == 0) {
-                revert UnrecognizedSigner(signerPKHash);
-            }
-            signerPKsOnG2[i] = abi.decode(signers_[i], (BLS.G2Point));
-            signerMemberIDsOnG1[i] = _publicKeyToMemberOnG1[signerPKHash].thresholdPointOnG1;
-        }
+        BLS.G1Point memory hashToG1 = BLS.hashToG1(BLS.BLS_DOMAIN, message_);
 
-        BLS.G1Point[] memory g1Points = new BLS.G1Point[](3);
-        BLS.G2Point[] memory g2Points = new BLS.G2Point[](3);
-
-        g1Points[0] = abi.decode(aggregatedSignature_, (BLS.G1Point));
-        g1Points[1] = BLS.hashToG1(BLS.BLS_DOMAIN, message_);
-        g1Points[2] = signerMemberIDsOnG1.sumPointsOnG1();
-
-        g2Points[0] = BLS.negGeneratorG2();
-        g2Points[1] = signerPKsOnG2.sumPointsOnG2();
-        g2Points[2] = _aggregatedPublicKeyOnG2;
-
-        return BLS.generalPairing(g1Points, g2Points);
-    }
-
-    function readWalletMode() public view returns (WalletMode) {
-        return _walletMode;
+        return sigOnG1.pairWhenPKOnG2(_aggregatedPublicKeyOnG2, hashToG1);
     }
 
     /// @notice Calculate the operation hash
@@ -615,14 +469,5 @@ contract ThresholdWallet is
         return keccak256(
             abi.encodePacked(op.target, op.value, op.effectiveTime, op.expirationTime, op.gasLimit, op.nonce, op.data)
         );
-    }
-
-    /// @notice Concatenate an array of bytes into a single bytes array
-    /// @param bytesArray_ The array of bytes to concatenate
-    /// @return bytesSingle_ The concatenated bytes array
-    function _concatBytes(bytes[] memory bytesArray_) internal pure returns (bytes memory bytesSingle_) {
-        for (uint256 i = 0; i < bytesArray_.length; ++i) {
-            bytesSingle_ = abi.encodePacked(bytesSingle_, bytesArray_[i]);
-        }
     }
 }

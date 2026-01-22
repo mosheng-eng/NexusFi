@@ -7,7 +7,7 @@ import {console} from "forge-std/console.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {Errors} from "src/common/Errors.sol";
-import {MultisigWallet} from "src/wallet/MultisigWallet.sol";
+import {MultisigWallet} from "src/wallet/multisig/MultisigWallet.sol";
 import {BLS} from "src/wallet/utils/BLS.sol";
 import {BLSTool} from "src/wallet/utils/BLSTool.sol";
 import {BLSHelper} from "src/wallet/utils/BLSHelper.sol";

@@ -8,8 +8,9 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
-import {MultisigWallet} from "src/wallet/MultisigWallet.sol";
-import {ThresholdWallet} from "src/wallet/ThresholdWallet.sol";
+import {MultisigWallet} from "src/wallet/multisig/MultisigWallet.sol";
+import {ThresholdWallet} from "src/wallet/threshold/ThresholdWallet.sol";
+import {ThresholdWalletLibs} from "src/wallet/threshold/utils/ThresholdWalletLibs.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
@@ -62,7 +63,7 @@ contract DeployContractSuit is Script {
     string internal _openTermTokenSymbol;
     MultisigWallet.WalletMode internal _multisigWalletMode;
     bytes internal _multisigWalletPublicKey;
-    ThresholdWallet.WalletMode internal _thresholdWalletMode;
+    ThresholdWalletLibs.WalletMode internal _thresholdWalletMode;
     bytes[] internal _thresholdWalletPublicKeys;
     bytes[] internal _thresholdWalletMemberIDs;
     uint128 internal _thresholdWalletN;
@@ -127,7 +128,7 @@ contract DeployContractSuit is Script {
         _openTermTokenSymbol = vm.envString("NEXUSFI_OPEN_TERM_TOKEN_SYMBOL");
         _multisigWalletMode = MultisigWallet.WalletMode(uint8(vm.envUint("NEXUSFI_MULTISIG_WALLET_PK_ON_G")));
         _multisigWalletPublicKey = vm.envBytes("NEXUSFI_MULTISIG_WALLET_PUBLIC_KEY");
-        _thresholdWalletMode = ThresholdWallet.WalletMode(uint8(vm.envUint("NEXUSFI_THRESHOLD_WALLET_PK_ON_G")));
+        _thresholdWalletMode = ThresholdWalletLibs.WalletMode(uint8(vm.envUint("NEXUSFI_THRESHOLD_WALLET_PK_ON_G")));
         _thresholdWalletPublicKeys = vm.envBytes("NEXUSFI_THRESHOLD_WALLET_PUBLIC_KEYS", ",");
         _thresholdWalletMemberIDs = vm.envBytes("NEXUSFI_THRESHOLD_WALLET_MEMBER_IDS", ",");
         _thresholdWalletN = uint128(vm.envUint("NEXUSFI_THRESHOLD_WALLET_N"));
@@ -397,7 +398,7 @@ contract DeployContractSuit is Script {
 
     function deployThresholdWallet(
         address owner_,
-        ThresholdWallet.WalletMode walletMode_,
+        ThresholdWalletLibs.WalletMode walletMode_,
         uint128 threshold_,
         bytes[] memory publicKeys_,
         bytes[] memory memberIDs_

@@ -2,7 +2,8 @@
 
 pragma solidity ^0.8.24;
 
-import {ThresholdWallet} from "src/wallet/ThresholdWallet.sol";
+import {ThresholdWallet} from "src/wallet/threshold/ThresholdWallet.sol";
+import {ThresholdWalletLibs} from "src/wallet/threshold/utils/ThresholdWalletLibs.sol";
 import {BLS} from "src/wallet/utils/BLS.sol";
 import {BLSTool} from "src/wallet/utils/BLSTool.sol";
 import {BLSHelper} from "src/wallet/utils/BLSHelper.sol";
@@ -119,12 +120,12 @@ contract ThresholdWalletTest is Test {
 
         _thresholdWalletPKOnG1 = ThresholdWallet(
             _deployer.deployThresholdWallet(
-                _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, memberIDsOnG2
+                _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, memberIDsOnG2
             )
         );
         _thresholdWalletPKOnG2 = ThresholdWallet(
             _deployer.deployThresholdWallet(
-                _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, memberIDsOnG1
+                _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, memberIDsOnG1
             )
         );
 
@@ -169,40 +170,40 @@ contract ThresholdWalletTest is Test {
     }
 
     function testSubmitOperationsWithoutSIGToWalletPKOnG1() public returns (bytes32) {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
 
         bytes32[] memory operationsHash = _thresholdWalletPKOnG1.submitOperations(operations);
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.PENDING));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.PENDING));
 
         return operationHash;
     }
 
     function testSubmitOperationsWithoutSIGToWalletPKOnG2() public returns (bytes32) {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
 
         bytes32[] memory operationsHash = _thresholdWalletPKOnG2.submitOperations(operations);
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.PENDING));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.PENDING));
 
         return operationHash;
     }
 
     function testVerifyOperationsInWalletPKOnG1() public {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
 
         bytes32[] memory operationsHash = _thresholdWalletPKOnG1.submitOperations(operations);
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.PENDING));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.PENDING));
 
         bytes[] memory aggregatedSignatures = new bytes[](1);
         bytes[][] memory signers = new bytes[][](1);
@@ -211,25 +212,25 @@ contract ThresholdWalletTest is Test {
         _thresholdWalletPKOnG1.verifyOperations(operationsHash, aggregatedSignatures, signers);
 
         (,,,,,, status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.APPROVED));
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.APPROVED));
 
         vm.warp(block.timestamp + 2 days);
 
         _thresholdWalletPKOnG1.executeOperations(operationsHash);
 
         (,,,,,, status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.EXECUTED));
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.EXECUTED));
     }
 
     function testVerifyOperationsInWalletPKOnG2() public {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
 
         bytes32[] memory operationsHash = _thresholdWalletPKOnG2.submitOperations(operations);
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.PENDING));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.PENDING));
 
         bytes[] memory aggregatedSignatures = new bytes[](1);
         bytes[][] memory signers = new bytes[][](1);
@@ -238,18 +239,18 @@ contract ThresholdWalletTest is Test {
         _thresholdWalletPKOnG2.verifyOperations(operationsHash, aggregatedSignatures, signers);
 
         (,,,,,, status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.APPROVED));
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.APPROVED));
 
         vm.warp(block.timestamp + 2 days);
 
         _thresholdWalletPKOnG2.executeOperations(operationsHash);
 
         (,,,,,, status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.EXECUTED));
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.EXECUTED));
     }
 
     function testSubmitOperationsWithSIGToWalletPKOnG1() public returns (bytes32, bytes memory, bytes[] memory) {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
         assertEq(operations.length, 1);
 
         uint256[] memory sks = new uint256[](2);
@@ -277,14 +278,14 @@ contract ThresholdWalletTest is Test {
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.APPROVED));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.APPROVED));
 
         return (operationHash, operations[0].aggregatedSignature, operations[0].signers);
     }
 
     function testSubmitOperationsWithSIGToWalletPKOnG2() public returns (bytes32, bytes memory, bytes[] memory) {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
         assertEq(operations.length, 1);
 
         uint256[] memory sks = new uint256[](2);
@@ -312,14 +313,14 @@ contract ThresholdWalletTest is Test {
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.APPROVED));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.APPROVED));
 
         return (operationHash, operations[0].aggregatedSignature, operations[0].signers);
     }
 
     function testExecuteOperationsToWalletPKOnG1() public {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG1);
         assertEq(operations.length, 1);
 
         uint256[] memory sks = new uint256[](2);
@@ -347,18 +348,18 @@ contract ThresholdWalletTest is Test {
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.APPROVED));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.APPROVED));
 
         vm.warp((operations[0].effectiveTime + operations[0].expirationTime) / 2);
         _thresholdWalletPKOnG1.executeOperations(operationsHash);
 
         (,,,,,, status,,,) = _thresholdWalletPKOnG1._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.EXECUTED));
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.EXECUTED));
     }
 
     function testExecuteOperationsToWalletPKOnG2() public {
-        (ThresholdWallet.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
+        (ThresholdWalletLibs.Operation[] memory operations, bytes32 operationHash) = _operations(_thresholdWalletPKOnG2);
         assertEq(operations.length, 1);
 
         uint256[] memory sks = new uint256[](2);
@@ -386,20 +387,20 @@ contract ThresholdWalletTest is Test {
 
         assertEq(operationsHash.length, 1);
         assertEq(operationsHash[0], operationHash);
-        (,,,,,, ThresholdWallet.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.APPROVED));
+        (,,,,,, ThresholdWalletLibs.OperationStatus status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.APPROVED));
 
         vm.warp((operations[0].effectiveTime + operations[0].expirationTime) / 2);
         _thresholdWalletPKOnG2.executeOperations(operationsHash);
 
         (,,,,,, status,,,) = _thresholdWalletPKOnG2._operations(operationHash);
-        assertEq(uint8(status), uint8(ThresholdWallet.OperationStatus.EXECUTED));
+        assertEq(uint8(status), uint8(ThresholdWalletLibs.OperationStatus.EXECUTED));
     }
 
     function testInitializedModifier() public {
         ThresholdWallet directCallThresholdWallet = new ThresholdWallet();
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "Mode or PK is not set"));
-        directCallThresholdWallet.submitOperations(new ThresholdWallet.Operation[](0));
+        directCallThresholdWallet.submitOperations(new ThresholdWalletLibs.Operation[](0));
 
         vm.mockCall(BLS.PAIRING, abi.encodeWithSelector(0x00000000), abi.encode(uint256(1)));
         bytes[] memory publicKeysOnG1 = _publicKeysOnG1;
@@ -410,12 +411,12 @@ contract ThresholdWalletTest is Test {
         ThresholdWallet nondirectCallThresholdWalletG1 = ThresholdWallet(
             address(
                 _deployer.deployThresholdWallet(
-                    _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
+                    _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
                 )
             )
         );
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "Mode or PK is not set"));
-        nondirectCallThresholdWalletG1.submitOperations(new ThresholdWallet.Operation[](0));
+        nondirectCallThresholdWalletG1.submitOperations(new ThresholdWalletLibs.Operation[](0));
 
         bytes[] memory publicKeysOnG2 = _publicKeysOnG2;
         assertEq(publicKeysOnG2.length, 3);
@@ -446,62 +447,62 @@ contract ThresholdWalletTest is Test {
         ThresholdWallet nondirectCallThresholdWalletG2 = ThresholdWallet(
             address(
                 _deployer.deployThresholdWallet(
-                    _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, _memberIDsOnG1
+                    _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, _memberIDsOnG1
                 )
             )
         );
         vm.expectRevert(abi.encodeWithSelector(Errors.Uninitialized.selector, "Mode or PK is not set"));
-        nondirectCallThresholdWalletG2.submitOperations(new ThresholdWallet.Operation[](0));
+        nondirectCallThresholdWalletG2.submitOperations(new ThresholdWalletLibs.Operation[](0));
         vm.clearMockedCalls();
     }
 
     function testInvalidInitialize() public {
-        vm.expectRevert(ThresholdWallet.EmptyPublicKey.selector);
+        vm.expectRevert(ThresholdWalletLibs.EmptyPublicKey.selector);
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, new bytes[](0), _memberIDsOnG2
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, new bytes[](0), _memberIDsOnG2
         );
-        vm.expectRevert(ThresholdWallet.EmptyPublicKey.selector);
+        vm.expectRevert(ThresholdWalletLibs.EmptyPublicKey.selector);
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, new bytes[](0), _memberIDsOnG1
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, new bytes[](0), _memberIDsOnG1
         );
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.InvalidPublicKey.selector, "Public keys length mismatch with member IDs length"
+                ThresholdWalletLibs.InvalidPublicKey.selector, "Public keys length mismatch with member IDs length"
             )
         );
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, new bytes[](1), _memberIDsOnG2
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, new bytes[](1), _memberIDsOnG2
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.InvalidPublicKey.selector, "Public keys length mismatch with member IDs length"
+                ThresholdWalletLibs.InvalidPublicKey.selector, "Public keys length mismatch with member IDs length"
             )
         );
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, new bytes[](1), _memberIDsOnG1
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, new bytes[](1), _memberIDsOnG1
         );
 
-        vm.expectRevert(ThresholdWallet.ThresholdShouldBetweenOneAndTotalSigners.selector);
+        vm.expectRevert(ThresholdWalletLibs.ThresholdShouldBetweenOneAndTotalSigners.selector);
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, 0, _publicKeysOnG1, _memberIDsOnG2
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, 0, _publicKeysOnG1, _memberIDsOnG2
         );
-        vm.expectRevert(ThresholdWallet.ThresholdShouldBetweenOneAndTotalSigners.selector);
+        vm.expectRevert(ThresholdWalletLibs.ThresholdShouldBetweenOneAndTotalSigners.selector);
         _deployer.deployThresholdWallet(
             _owner,
-            ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1,
+            ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1,
             uint128(_publicKeysOnG1.length + 1),
             _publicKeysOnG1,
             _memberIDsOnG2
         );
-        vm.expectRevert(ThresholdWallet.ThresholdShouldBetweenOneAndTotalSigners.selector);
+        vm.expectRevert(ThresholdWalletLibs.ThresholdShouldBetweenOneAndTotalSigners.selector);
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, 0, _publicKeysOnG2, _memberIDsOnG1
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, 0, _publicKeysOnG2, _memberIDsOnG1
         );
-        vm.expectRevert(ThresholdWallet.ThresholdShouldBetweenOneAndTotalSigners.selector);
+        vm.expectRevert(ThresholdWalletLibs.ThresholdShouldBetweenOneAndTotalSigners.selector);
         _deployer.deployThresholdWallet(
             _owner,
-            ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2,
+            ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2,
             uint128(_publicKeysOnG2.length + 1),
             _publicKeysOnG2,
             _memberIDsOnG1
@@ -517,10 +518,10 @@ contract ThresholdWalletTest is Test {
         publicKeysOnG1[1] = abi.encode(BLS.Unit({upper: 0, lower: 0}));
         publicKeysOnG1[2] = abi.encode(BLS.Unit({upper: 0, lower: 0}));
         vm.expectRevert(
-            abi.encodeWithSelector(ThresholdWallet.InvalidPublicKey.selector, "Invalid public key length for G1")
+            abi.encodeWithSelector(ThresholdWalletLibs.InvalidPublicKey.selector, "Invalid public key length for G1")
         );
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
         );
         publicKeysOnG2 = _publicKeysOnG2;
         assertEq(publicKeysOnG2.length, 3);
@@ -528,10 +529,10 @@ contract ThresholdWalletTest is Test {
         publicKeysOnG2[1] = abi.encode(BLS.Unit({upper: 0, lower: 0}));
         publicKeysOnG2[2] = abi.encode(BLS.Unit({upper: 0, lower: 0}));
         vm.expectRevert(
-            abi.encodeWithSelector(ThresholdWallet.InvalidPublicKey.selector, "Invalid public key length for G2")
+            abi.encodeWithSelector(ThresholdWalletLibs.InvalidPublicKey.selector, "Invalid public key length for G2")
         );
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, _memberIDsOnG1
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, _memberIDsOnG1
         );
 
         publicKeysOnG1 = _publicKeysOnG1;
@@ -541,11 +542,11 @@ contract ThresholdWalletTest is Test {
         publicKeysOnG1[2] = abi.encode(BLS.G1Point(BLS.Unit({upper: 0, lower: 0}), BLS.Unit({upper: 0, lower: 0})));
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.InvalidSignature.selector, "Member ID does not match public key on G1"
+                ThresholdWalletLibs.InvalidSignature.selector, "Member ID does not match public key on G1"
             )
         );
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
         );
         publicKeysOnG2 = _publicKeysOnG2;
         assertEq(publicKeysOnG2.length, 3);
@@ -575,29 +576,29 @@ contract ThresholdWalletTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.InvalidSignature.selector, "Member ID does not match public key on G2"
+                ThresholdWalletLibs.InvalidSignature.selector, "Member ID does not match public key on G2"
             )
         );
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, _memberIDsOnG1
+            _owner, ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2, THRESHOLD, publicKeysOnG2, _memberIDsOnG1
         );
 
-        vm.expectRevert(abi.encodeWithSelector(ThresholdWallet.UnsupportedWalletMode.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(ThresholdWalletLibs.UnsupportedWalletMode.selector, 0));
         _deployer.deployThresholdWallet(
-            _owner, ThresholdWallet.WalletMode.UNKNOWN, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
+            _owner, ThresholdWalletLibs.WalletMode.UNKNOWN, THRESHOLD, publicKeysOnG1, _memberIDsOnG2
         );
     }
 
     function testSubmitInvalidOperations() public {
         console.log("case1: empty operations");
-        vm.expectRevert(ThresholdWallet.EmptyOperations.selector);
-        _thresholdWalletPKOnG1.submitOperations(new ThresholdWallet.Operation[](0));
-        vm.expectRevert(ThresholdWallet.EmptyOperations.selector);
-        _thresholdWalletPKOnG2.submitOperations(new ThresholdWallet.Operation[](0));
+        vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
+        _thresholdWalletPKOnG1.submitOperations(new ThresholdWalletLibs.Operation[](0));
+        vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
+        _thresholdWalletPKOnG2.submitOperations(new ThresholdWalletLibs.Operation[](0));
 
-        ThresholdWallet.Operation[] memory operationsG1;
+        ThresholdWalletLibs.Operation[] memory operationsG1;
         bytes32 operationHashG1;
-        ThresholdWallet.Operation[] memory operationsG2;
+        ThresholdWalletLibs.Operation[] memory operationsG2;
         bytes32 operationHashG2;
 
         console.log("case2: target is zero address");
@@ -695,11 +696,11 @@ contract ThresholdWalletTest is Test {
         console.log("case10: Signers not enough");
         (operationsG1, operationHashG1) = _operations(_thresholdWalletPKOnG1);
         operationsG1[0].signers = new bytes[](1);
-        vm.expectRevert(ThresholdWallet.SignersNotEnough.selector);
+        vm.expectRevert(ThresholdWalletLibs.SignersNotEnough.selector);
         _thresholdWalletPKOnG1.submitOperations(operationsG1);
         (operationsG2, operationHashG2) = _operations(_thresholdWalletPKOnG2);
         operationsG2[0].signers = new bytes[](1);
-        vm.expectRevert(ThresholdWallet.SignersNotEnough.selector);
+        vm.expectRevert(ThresholdWalletLibs.SignersNotEnough.selector);
         _thresholdWalletPKOnG2.submitOperations(operationsG2);
 
         console.log("case11: Operation.hashCheckCode mismatch");
@@ -720,12 +721,12 @@ contract ThresholdWalletTest is Test {
         (operationsG1, operationHashG1) = _operations(_thresholdWalletPKOnG1);
         _thresholdWalletPKOnG1.submitOperations(operationsG1);
         operationsG1[0].nonce = operationsG1[0].nonce + 1;
-        vm.expectRevert(ThresholdWallet.OperationExists.selector);
+        vm.expectRevert(ThresholdWalletLibs.OperationExists.selector);
         _thresholdWalletPKOnG1.submitOperations(operationsG1);
         (operationsG2, operationHashG2) = _operations(_thresholdWalletPKOnG2);
         _thresholdWalletPKOnG2.submitOperations(operationsG2);
         operationsG2[0].nonce = operationsG2[0].nonce + 1;
-        vm.expectRevert(ThresholdWallet.OperationExists.selector);
+        vm.expectRevert(ThresholdWalletLibs.OperationExists.selector);
         _thresholdWalletPKOnG2.submitOperations(operationsG2);
         */
 
@@ -741,21 +742,21 @@ contract ThresholdWalletTest is Test {
         (operationsG1, operationHashG1) = _operations(_thresholdWalletPKOnG1);
         (operationsG1[0].aggregatedSignature, operationsG1[0].signers) = _signOnG2(operationHashG1);
         operationsG1[0].aggregatedSignature = invalidAggregatedSignatureG2;
-        vm.expectRevert(abi.encodeWithSelector(ThresholdWallet.AggregatedSignatureNotMatchPublicKeys.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(ThresholdWalletLibs.AggregatedSignatureNotMatchPublicKeys.selector, 0));
         _thresholdWalletPKOnG1.submitOperations(operationsG1);
         bytes memory invalidAggregatedSignatureG1 = operationsG2[0].aggregatedSignature;
         (operationsG2, operationHashG2) = _operations(_thresholdWalletPKOnG2);
         (operationsG2[0].aggregatedSignature, operationsG2[0].signers) = _signOnG1(operationHashG2);
         operationsG2[0].aggregatedSignature = invalidAggregatedSignatureG1;
-        vm.expectRevert(abi.encodeWithSelector(ThresholdWallet.AggregatedSignatureNotMatchPublicKeys.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(ThresholdWalletLibs.AggregatedSignatureNotMatchPublicKeys.selector, 0));
         _thresholdWalletPKOnG2.submitOperations(operationsG2);
     }
 
     function testVerifyInvalidOperations() public {
         console.log("case1: empty operations");
-        vm.expectRevert(ThresholdWallet.EmptyOperations.selector);
+        vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
         _thresholdWalletPKOnG1.verifyOperations(new bytes32[](0), new bytes[](0), new bytes[][](0));
-        vm.expectRevert(ThresholdWallet.EmptyOperations.selector);
+        vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
         _thresholdWalletPKOnG2.verifyOperations(new bytes32[](0), new bytes[](0), new bytes[][](0));
 
         console.log("case2: operationsHash_ and aggregatedSignatures_ length mismatch");
@@ -783,10 +784,10 @@ contract ThresholdWalletTest is Test {
         _thresholdWalletPKOnG2.verifyOperations(new bytes32[](1), new bytes[](1), new bytes[][](0));
 
         console.log("case4: invalid aggregated signature length");
-        ThresholdWallet.Operation[] memory operationsG1;
+        ThresholdWalletLibs.Operation[] memory operationsG1;
         bytes32[] memory operationHashG1;
         bytes[][] memory signersG1 = new bytes[][](1);
-        ThresholdWallet.Operation[] memory operationsG2;
+        ThresholdWalletLibs.Operation[] memory operationsG2;
         bytes32[] memory operationHashG2;
         bytes[][] memory signersG2 = new bytes[][](1);
         bytes[] memory aggregatedSignaturesG1 = new bytes[](1);
@@ -798,7 +799,7 @@ contract ThresholdWalletTest is Test {
         operationHashG1 = _thresholdWalletPKOnG1.submitOperations(operationsG1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.InvalidSignature.selector, "Invalid aggregated signature length for G1"
+                ThresholdWalletLibs.InvalidSignature.selector, "Invalid aggregated signature length for G1"
             )
         );
         _thresholdWalletPKOnG1.verifyOperations(operationHashG1, aggregatedSignaturesG2, signersG1);
@@ -807,7 +808,7 @@ contract ThresholdWalletTest is Test {
         operationHashG2 = _thresholdWalletPKOnG2.submitOperations(operationsG2);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.InvalidSignature.selector, "Invalid aggregated signature length for G2"
+                ThresholdWalletLibs.InvalidSignature.selector, "Invalid aggregated signature length for G2"
             )
         );
         _thresholdWalletPKOnG2.verifyOperations(operationHashG2, aggregatedSignaturesG1, signersG2);
@@ -819,9 +820,13 @@ contract ThresholdWalletTest is Test {
         operationHashG2[0] = testSubmitOperationsWithoutSIGToWalletPKOnG2();
         (aggregatedSignaturesG1[0], signersG2[0]) = _signOnG1(operationHashG2[0]);
         signersG2[0][0] = bytes.concat(bytes1(0xff), signersG2[0][0].slice(1));
-        vm.expectRevert(abi.encodeWithSelector(ThresholdWallet.UnrecognizedSigner.selector, keccak256(signersG1[0][0])));
+        vm.expectRevert(
+            abi.encodeWithSelector(ThresholdWalletLibs.UnrecognizedSigner.selector, keccak256(signersG1[0][0]))
+        );
         _thresholdWalletPKOnG1.verifyOperations(operationHashG1, aggregatedSignaturesG2, signersG1);
-        vm.expectRevert(abi.encodeWithSelector(ThresholdWallet.UnrecognizedSigner.selector, keccak256(signersG2[0][0])));
+        vm.expectRevert(
+            abi.encodeWithSelector(ThresholdWalletLibs.UnrecognizedSigner.selector, keccak256(signersG2[0][0]))
+        );
         _thresholdWalletPKOnG2.verifyOperations(operationHashG2, aggregatedSignaturesG1, signersG2);
 
         console.log("case6: unsupported wallet mode(impossible)");
@@ -832,31 +837,31 @@ contract ThresholdWalletTest is Test {
         (aggregatedSignaturesG1[0], signersG2[0]) = _signOnG1(operationHashG2[0]);
         console.log("debug: find wallet mode storage slot on G1");
         uint256 slotOnG1 =
-            stdstore.target(address(_thresholdWalletPKOnG1)).sig(ThresholdWallet.readWalletMode.selector).find();
+            stdstore.target(address(_thresholdWalletPKOnG1)).sig(ThresholdWalletLibs.readWalletMode.selector).find();
         console.log("slotOnG1: %s", slotOnG1);
-        stdstore.target(address(_thresholdWalletPKOnG1)).sig(ThresholdWallet.readWalletMode.selector).checked_write(
-            uint256(uint8(ThresholdWallet.WalletMode.UNKNOWN))
+        stdstore.target(address(_thresholdWalletPKOnG1)).sig(ThresholdWalletLibs.readWalletMode.selector).checked_write(
+            uint256(uint8(ThresholdWalletLibs.WalletMode.UNKNOWN))
         );
         vm.expectRevert(
-            abi.encodeWithSelector(ThresholdWallet.UnsupportedWalletMode.selector, ThresholdWallet.WalletMode.UNKNOWN)
+            abi.encodeWithSelector(ThresholdWalletLibs.UnsupportedWalletMode.selector, ThresholdWalletLibs.WalletMode.UNKNOWN)
         );
         _thresholdWalletPKOnG1.verifyOperations(operationHashG1, aggregatedSignaturesG2, signersG1);
-        stdstore.target(address(_thresholdWalletPKOnG1)).sig(ThresholdWallet.readWalletMode.selector).checked_write(
-            uint256(uint8(ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1))
+        stdstore.target(address(_thresholdWalletPKOnG1)).sig(ThresholdWalletLibs.readWalletMode.selector).checked_write(
+            uint256(uint8(ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1))
         );
         console.log("debug: find wallet mode storage slot on G1");
         uint256 slotOnG2 =
-            stdstore.target(address(_thresholdWalletPKOnG2)).sig(ThresholdWallet.readWalletMode.selector).find();
+            stdstore.target(address(_thresholdWalletPKOnG2)).sig(ThresholdWalletLibs.readWalletMode.selector).find();
         console.log("slotOnG2: %s", slotOnG2);
-        stdstore.target(address(_thresholdWalletPKOnG2)).sig(ThresholdWallet.readWalletMode.selector).checked_write(
-            uint256(uint8(ThresholdWallet.WalletMode.UNKNOWN))
+        stdstore.target(address(_thresholdWalletPKOnG2)).sig(ThresholdWalletLibs.readWalletMode.selector).checked_write(
+            uint256(uint8(ThresholdWalletLibs.WalletMode.UNKNOWN))
         );
         vm.expectRevert(
-            abi.encodeWithSelector(ThresholdWallet.UnsupportedWalletMode.selector, ThresholdWallet.WalletMode.UNKNOWN)
+            abi.encodeWithSelector(ThresholdWalletLibs.UnsupportedWalletMode.selector, ThresholdWalletLibs.WalletMode.UNKNOWN)
         );
         _thresholdWalletPKOnG2.verifyOperations(operationHashG2, aggregatedSignaturesG1, signersG2);
-        stdstore.target(address(_thresholdWalletPKOnG2)).sig(ThresholdWallet.readWalletMode.selector).checked_write(
-            uint256(uint8(ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2))
+        stdstore.target(address(_thresholdWalletPKOnG2)).sig(ThresholdWalletLibs.readWalletMode.selector).checked_write(
+            uint256(uint8(ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2))
         );*/
 
         operationHashG1 = new bytes32[](5);
@@ -912,21 +917,21 @@ contract ThresholdWalletTest is Test {
     }
 
     function testExecuteInvalidOperations() public {
-        vm.expectRevert(ThresholdWallet.EmptyOperations.selector);
+        vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
         _thresholdWalletPKOnG1.executeOperations(new bytes32[](0));
-        vm.expectRevert(ThresholdWallet.EmptyOperations.selector);
+        vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
         _thresholdWalletPKOnG2.executeOperations(new bytes32[](0));
 
-        ThresholdWallet.Operation[] memory operationsG1;
+        ThresholdWalletLibs.Operation[] memory operationsG1;
         bytes32[] memory operationHashG1;
-        ThresholdWallet.Operation[] memory operationsG2;
+        ThresholdWalletLibs.Operation[] memory operationsG2;
         bytes32[] memory operationHashG2;
 
         (operationsG1,) = _operations(_thresholdWalletPKOnG1);
         operationHashG1 = _thresholdWalletPKOnG1.submitOperations(operationsG1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.ExecuteUnapprovedOperation.selector, ThresholdWallet.OperationStatus.PENDING
+                ThresholdWalletLibs.ExecuteUnapprovedOperation.selector, ThresholdWalletLibs.OperationStatus.PENDING
             )
         );
         _thresholdWalletPKOnG1.executeOperations(operationHashG1);
@@ -934,7 +939,7 @@ contract ThresholdWalletTest is Test {
         operationHashG2 = _thresholdWalletPKOnG2.submitOperations(operationsG2);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.ExecuteUnapprovedOperation.selector, ThresholdWallet.OperationStatus.PENDING
+                ThresholdWalletLibs.ExecuteUnapprovedOperation.selector, ThresholdWalletLibs.OperationStatus.PENDING
             )
         );
         _thresholdWalletPKOnG2.executeOperations(operationHashG2);
@@ -945,7 +950,7 @@ contract ThresholdWalletTest is Test {
         operationHashG1 = _thresholdWalletPKOnG1.submitOperations(operationsG1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.ExecuteUneffectiveOperation.selector,
+                ThresholdWalletLibs.ExecuteUneffectiveOperation.selector,
                 operationsG1[0].effectiveTime,
                 uint32(block.timestamp)
             )
@@ -956,7 +961,7 @@ contract ThresholdWalletTest is Test {
         operationHashG2 = _thresholdWalletPKOnG2.submitOperations(operationsG2);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.ExecuteUneffectiveOperation.selector,
+                ThresholdWalletLibs.ExecuteUneffectiveOperation.selector,
                 operationsG2[0].effectiveTime,
                 uint32(block.timestamp)
             )
@@ -967,13 +972,17 @@ contract ThresholdWalletTest is Test {
         vm.warp(currentTime);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.ExecuteExpiredOperation.selector, operationsG1[0].expirationTime, uint32(currentTime)
+                ThresholdWalletLibs.ExecuteExpiredOperation.selector,
+                operationsG1[0].expirationTime,
+                uint32(currentTime)
             )
         );
         _thresholdWalletPKOnG1.executeOperations(operationHashG1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ThresholdWallet.ExecuteExpiredOperation.selector, operationsG2[0].expirationTime, uint32(currentTime)
+                ThresholdWalletLibs.ExecuteExpiredOperation.selector,
+                operationsG2[0].expirationTime,
+                uint32(currentTime)
             )
         );
         _thresholdWalletPKOnG2.executeOperations(operationHashG2);
@@ -982,19 +991,21 @@ contract ThresholdWalletTest is Test {
         vm.mockCallRevert(operationsG2[0].target, operationsG2[0].data, abi.encode(uint256(0)));
         vm.warp(block.timestamp - 2 days);
         _thresholdWalletPKOnG1.executeOperations(operationHashG1);
-        (,,,,,, ThresholdWallet.OperationStatus statusG1,,,) = _thresholdWalletPKOnG1._operations(operationHashG1[0]);
-        assertTrue(statusG1 == ThresholdWallet.OperationStatus.FAILED);
+        (,,,,,, ThresholdWalletLibs.OperationStatus statusG1,,,) =
+            _thresholdWalletPKOnG1._operations(operationHashG1[0]);
+        assertTrue(statusG1 == ThresholdWalletLibs.OperationStatus.FAILED);
         _thresholdWalletPKOnG2.executeOperations(operationHashG2);
-        (,,,,,, ThresholdWallet.OperationStatus statusG2,,,) = _thresholdWalletPKOnG2._operations(operationHashG2[0]);
-        assertTrue(statusG2 == ThresholdWallet.OperationStatus.FAILED);
+        (,,,,,, ThresholdWalletLibs.OperationStatus statusG2,,,) =
+            _thresholdWalletPKOnG2._operations(operationHashG2[0]);
+        assertTrue(statusG2 == ThresholdWalletLibs.OperationStatus.FAILED);
         vm.clearMockedCalls();
     }
 
     function testReadWalletMode() public view {
-        ThresholdWallet.WalletMode modeOnG1 = _thresholdWalletPKOnG1.readWalletMode();
-        assertEq(uint8(modeOnG1), uint8(ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G1));
-        ThresholdWallet.WalletMode modeOnG2 = _thresholdWalletPKOnG2.readWalletMode();
-        assertEq(uint8(modeOnG2), uint8(ThresholdWallet.WalletMode.PUBLIC_KEY_ON_G2));
+        ThresholdWalletLibs.WalletMode modeOnG1 = _thresholdWalletPKOnG1.readWalletMode();
+        assertEq(uint8(modeOnG1), uint8(ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G1));
+        ThresholdWalletLibs.WalletMode modeOnG2 = _thresholdWalletPKOnG2.readWalletMode();
+        assertEq(uint8(modeOnG2), uint8(ThresholdWalletLibs.WalletMode.PUBLIC_KEY_ON_G2));
     }
 
     /// @notice Concatenate an array of bytes into a single bytes array
@@ -1067,9 +1078,9 @@ contract ThresholdWalletTest is Test {
     function _operations(ThresholdWallet thresholdWallet_)
         internal
         view
-        returns (ThresholdWallet.Operation[] memory operations_, bytes32 operationHash_)
+        returns (ThresholdWalletLibs.Operation[] memory operations_, bytes32 operationHash_)
     {
-        operations_ = new ThresholdWallet.Operation[](1);
+        operations_ = new ThresholdWalletLibs.Operation[](1);
         operations_[0].target = address(_depositAsset);
         operations_[0].value = 0;
         operations_[0].effectiveTime = uint32(block.timestamp + 1 days);
