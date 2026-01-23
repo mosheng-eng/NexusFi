@@ -11,6 +11,10 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Roles} from "../../common/Roles.sol";
 import {Errors} from "../../common/Errors.sol";
 
+import {MultisigWalletLibs} from "./utils/MultisigWalletLibs.sol";
+import {MultisigWalletPKOnG1} from "./utils/MultisigWalletPKOnG1.sol";
+import {MultisigWalletPKOnG2} from "./utils/MultisigWalletPKOnG2.sol";
+
 import {BLS} from "../utils/BLS.sol";
 
 contract MultisigWallet is
@@ -24,113 +28,12 @@ contract MultisigWallet is
     using BLS for BLS.G2Point;
     using BLS for BLS.G1Point[];
     using BLS for BLS.G2Point[];
-
-    /// @notice Emitted when the status of an operation changes
-    /// @param operationHash The hash of the operation
-    /// @param oldStatus The previous status of the operation
-    /// @param newStatus The new status of the operation
-    event OperationStatusChanged(bytes32 indexed operationHash, OperationStatus oldStatus, OperationStatus newStatus);
-
-    /// @notice Error reverted if the operation status does not match the expected status
-    /// @param operationHash The hash of the operation
-    /// @param expectedStatus The expected status of the operation
-    /// @param actualStatus The actual status of the operation
-    event OperationStatusNotMatch(
-        bytes32 indexed operationHash, OperationStatus expectedStatus, OperationStatus actualStatus
-    );
-
-    /// @notice Error reverted if the wallet mode is not supported
-    error UnsupportedWalletMode(uint8 walletMode);
-
-    /// @notice Error reverted if public keys are empty when initializing
-    error EmptyPublicKey();
-
-    /// @notice Error reverted if a public key is invalid when initializing
-    /// @param why The reason why the public key is invalid
-    error InvalidPublicKey(string why);
-
-    /// @notice Error reverted if a signature is invalid when verifying or aggregating
-    /// @param why The reason why the signature is invalid
-    error InvalidSignature(string why);
-
-    /// @notice Error reverted if operations are empty when submitting
-    error EmptyOperations();
-
-    /// @notice Error reverted if an operation already exists when submitting
-    error OperationExists();
-
-    /// @notice Error reverted if aggregated signature does not match public keys
-    error AggregatedSignatureNotMatchPublicKeys(uint256 operationIndex);
-
-    /// @notice Error reverted if trying to execute an unapproved operation
-    error ExecuteUnapprovedOperation(OperationStatus currentStatus);
-
-    /// @notice Error reverted if trying to execute an operation that is effective in the future
-    /// @param effectiveTime The time when the operation can be executed
-    /// @param currentTime The current block timestamp
-    error ExecuteUneffectiveOperation(uint32 effectiveTime, uint32 currentTime);
-
-    /// @notice Error reverted if trying to execute an operation that has expired
-    /// @param expirationTime The time when the operation expires
-    /// @param currentTime The current block timestamp
-    error ExecuteExpiredOperation(uint32 expirationTime, uint32 currentTime);
-
-    /// @notice Enumeration of wallet modes
-    enum WalletMode {
-        /// @notice Unknown mode, default value when uninitialized
-        UNKNOWN,
-        /// @notice BLS public keys are on G1 curve
-        PUBLIC_KEY_ON_G1,
-        /// @notice BLS public keys are on G2 curve
-        PUBLIC_KEY_ON_G2
-    }
-
-    /// @notice Enumeration of operation status
-    enum OperationStatus {
-        /// @notice Zero value means operation does not exist
-        NONE,
-        /// @notice Operation is submitted and waiting for approval
-        PENDING,
-        /// @notice Operation has been approved
-        APPROVED,
-        /// @notice Operation has been rejected
-        REJECTED,
-        /// @notice Operation is currently being executed
-        EXECUTING,
-        /// @notice Operation has been executed successfully
-        EXECUTED,
-        /// @notice Operation has been executed but failed
-        FAILED,
-        /// @notice Operation hasn't been executed before expiration time
-        EXPIRED
-    }
-
-    /// @dev Operation structure to indicate a transaction operation
-    /// @param target Target address
-    /// @param value Ether value
-    /// @param effectiveTime The time when the operation can be executed
-    /// @param expirationTime The time when the operation expires
-    /// @param gasLimit Gas limit for the operation execution
-    /// @param nonce Nonce of the operation, should be unique for each operation
-    /// @param status Status of the operation
-    /// @param hashCheckCode First 8 bytes of the operation hash, used to prevent signature replay attacks
-    /// @param data Data payload of the operation to be sent to the target address
-    /// @param aggregatedSignature Aggregated signature of the operation hash : keccak256(target, value, effectiveTime, expirationTime, gasLimit, nonce, data)
-    struct Operation {
-        address target;
-        uint32 value;
-        uint32 effectiveTime;
-        uint32 expirationTime;
-        uint32 gasLimit;
-        uint128 nonce;
-        OperationStatus status;
-        bytes8 hashCheckCode;
-        bytes data;
-        bytes aggregatedSignature;
-    }
+    using MultisigWalletLibs for BLS.G1Point;
+    using MultisigWalletLibs for BLS.G2Point;
+    using MultisigWalletLibs for MultisigWalletLibs.Operation;
 
     /// @notice Current mode of the wallet
-    WalletMode private _walletMode;
+    MultisigWalletLibs.WalletMode private _walletMode;
 
     /// @notice Aggregated public key on G1 curve
     /// @notice Require wallet mode to be PUBLIC_KEY_ON_G1
@@ -147,31 +50,18 @@ contract MultisigWallet is
     uint128 public _nonce;
 
     /// @notice Records of all operations no matter what their status is
-    mapping(bytes32 => Operation) public _operations;
+    mapping(bytes32 => MultisigWalletLibs.Operation) public _operations;
 
     /// @notice Modifier to check if the wallet has been initialized
     modifier initialized() {
-        if (_walletMode == WalletMode.UNKNOWN || (_publicKeyOnG1IsEmpty() && _publicKeyOnG2IsEmpty())) {
+        if (
+            _walletMode == MultisigWalletLibs.WalletMode.UNKNOWN
+                || (_aggregatedPublicKeyOnG1.publicKeyOnG1IsEmpty() && _aggregatedPublicKeyOnG2.publicKeyOnG2IsEmpty())
+        ) {
             revert Errors.Uninitialized("Mode or PK is not set");
         }
 
         _;
-    }
-
-    /// @notice Check if the aggregated public key on G1 curve is empty
-    /// @return True if the aggregated public key on G1 curve is empty, false otherwise
-    function _publicKeyOnG1IsEmpty() internal view returns (bool) {
-        return _aggregatedPublicKeyOnG1.X.upper == 0 && _aggregatedPublicKeyOnG1.X.lower == 0
-            && _aggregatedPublicKeyOnG1.Y.upper == 0 && _aggregatedPublicKeyOnG1.Y.lower == 0;
-    }
-
-    /// @notice Check if the aggregated public key on G2 curve is empty
-    /// @return True if the aggregated public key on G2 curve is empty, false otherwise
-    function _publicKeyOnG2IsEmpty() internal view returns (bool) {
-        return _aggregatedPublicKeyOnG2.X0.upper == 0 && _aggregatedPublicKeyOnG2.X0.lower == 0
-            && _aggregatedPublicKeyOnG2.X1.upper == 0 && _aggregatedPublicKeyOnG2.X1.lower == 0
-            && _aggregatedPublicKeyOnG2.Y0.upper == 0 && _aggregatedPublicKeyOnG2.Y0.lower == 0
-            && _aggregatedPublicKeyOnG2.Y1.upper == 0 && _aggregatedPublicKeyOnG2.Y1.lower == 0;
     }
 
     /// @notice Can not be called directly, use proxy and initialize instead
@@ -182,9 +72,9 @@ contract MultisigWallet is
     /// @notice Initialize the multisig wallet with the given wallet mode and aggregated public key
     /// @param walletMode_ The mode of the wallet, either PUBLIC_KEY_ON_G1 or PUBLIC_KEY_ON_G2
     /// @param publicKey_ The aggregated public key, format depends on the wallet mode
-    function initialize(WalletMode walletMode_, bytes calldata publicKey_) public initializer {
+    function initialize(MultisigWalletLibs.WalletMode walletMode_, bytes calldata publicKey_) public initializer {
         if (publicKey_.length == 0) {
-            revert EmptyPublicKey();
+            revert MultisigWalletLibs.EmptyPublicKey();
         }
 
         __AccessControl_init();
@@ -192,26 +82,12 @@ contract MultisigWallet is
         __Pausable_init();
         __Ownable_init(msg.sender);
 
-        if (walletMode_ == WalletMode.PUBLIC_KEY_ON_G1) {
-            if (publicKey_.length != 4 * 32) {
-                revert InvalidPublicKey("Invalid public key length for G1");
-            }
-            _aggregatedPublicKeyOnG1 = BLS.G1Point(
-                BLS.Unit(uint256(bytes32(publicKey_[0:32])), uint256(bytes32(publicKey_[32:64]))),
-                BLS.Unit(uint256(bytes32(publicKey_[64:96])), uint256(bytes32(publicKey_[96:128])))
-            );
-        } else if (walletMode_ == WalletMode.PUBLIC_KEY_ON_G2) {
-            if (publicKey_.length != 8 * 32) {
-                revert InvalidPublicKey("Invalid public key length for G2");
-            }
-            _aggregatedPublicKeyOnG2 = BLS.G2Point(
-                BLS.Unit(uint256(bytes32(publicKey_[0:32])), uint256(bytes32(publicKey_[32:64]))),
-                BLS.Unit(uint256(bytes32(publicKey_[64:96])), uint256(bytes32(publicKey_[96:128]))),
-                BLS.Unit(uint256(bytes32(publicKey_[128:160])), uint256(bytes32(publicKey_[160:192]))),
-                BLS.Unit(uint256(bytes32(publicKey_[192:224])), uint256(bytes32(publicKey_[224:256])))
-            );
+        if (walletMode_ == MultisigWalletLibs.WalletMode.PUBLIC_KEY_ON_G1) {
+            _aggregatedPublicKeyOnG1 = MultisigWalletPKOnG1.initialize(publicKey_);
+        } else if (walletMode_ == MultisigWalletLibs.WalletMode.PUBLIC_KEY_ON_G2) {
+            _aggregatedPublicKeyOnG2 = MultisigWalletPKOnG2.initialize(publicKey_);
         } else {
-            revert UnsupportedWalletMode(uint8(walletMode_));
+            revert MultisigWalletLibs.UnsupportedWalletMode(uint8(walletMode_));
         }
 
         _walletMode = walletMode_;
@@ -224,7 +100,7 @@ contract MultisigWallet is
     /// @param operations_ The array of operations to be submitted
     /// @return operationsHash_ The array of operation hashes corresponding to the submitted operations
     /// @dev Each operation's nonce must be unique and sequentially increasing as the order in the array
-    function submitOperations(Operation[] memory operations_)
+    function submitOperations(MultisigWalletLibs.Operation[] memory operations_)
         public
         nonReentrant
         whenNotPaused
@@ -234,7 +110,7 @@ contract MultisigWallet is
         uint256 operationNumber = operations_.length;
 
         if (operationNumber == 0) {
-            revert EmptyOperations();
+            revert MultisigWalletLibs.EmptyOperations();
         }
 
         operationsHash_ = new bytes32[](operationNumber);
@@ -264,38 +140,52 @@ contract MultisigWallet is
             if (
                 operations_[i].aggregatedSignature.length != 0
                     && (
-                        (_walletMode == WalletMode.PUBLIC_KEY_ON_G1 && operations_[i].aggregatedSignature.length != 256)
-                            || (_walletMode == WalletMode.PUBLIC_KEY_ON_G2 && operations_[i].aggregatedSignature.length != 128)
+                        (
+                            _walletMode == MultisigWalletLibs.WalletMode.PUBLIC_KEY_ON_G1
+                                && operations_[i].aggregatedSignature.length != 256
+                        )
+                            || (
+                                _walletMode == MultisigWalletLibs.WalletMode.PUBLIC_KEY_ON_G2
+                                    && operations_[i].aggregatedSignature.length != 128
+                            )
                     )
             ) {
                 revert Errors.InvalidValue("Operation.aggregatedSignature invalid");
             }
 
-            operationsHash_[i] = _getOperationHash(operations_[i]);
+            operationsHash_[i] = operations_[i].getOperationHash();
 
             if (uint64(operations_[i].hashCheckCode) != uint64(bytes8(operationsHash_[i]))) {
                 revert Errors.InvalidValue("Operation.hashCheckCode mismatch");
             }
 
-            if (_operations[operationsHash_[i]].status != OperationStatus.NONE) {
-                revert OperationExists();
+            if (_operations[operationsHash_[i]].status != MultisigWalletLibs.OperationStatus.NONE) {
+                revert MultisigWalletLibs.OperationExists();
             }
 
             if (operations_[i].aggregatedSignature.length != 0) {
                 if (!_verifySignatures(operations_[i].aggregatedSignature, abi.encode(operationsHash_[i]))) {
-                    revert AggregatedSignatureNotMatchPublicKeys(i);
+                    revert MultisigWalletLibs.AggregatedSignatureNotMatchPublicKeys(i);
                 } else {
-                    operations_[i].status = OperationStatus.APPROVED;
-                    emit OperationStatusChanged(operationsHash_[i], OperationStatus.NONE, OperationStatus.APPROVED);
+                    operations_[i].status = MultisigWalletLibs.OperationStatus.APPROVED;
+                    emit MultisigWalletLibs.OperationStatusChanged(
+                        operationsHash_[i],
+                        MultisigWalletLibs.OperationStatus.NONE,
+                        MultisigWalletLibs.OperationStatus.APPROVED
+                    );
                 }
             } else {
-                operations_[i].status = OperationStatus.PENDING;
-                emit OperationStatusChanged(operationsHash_[i], OperationStatus.NONE, OperationStatus.PENDING);
+                operations_[i].status = MultisigWalletLibs.OperationStatus.PENDING;
+                emit MultisigWalletLibs.OperationStatusChanged(
+                    operationsHash_[i],
+                    MultisigWalletLibs.OperationStatus.NONE,
+                    MultisigWalletLibs.OperationStatus.PENDING
+                );
             }
 
             _nonce += 1;
 
-            _operations[operationsHash_[i]] = Operation({
+            _operations[operationsHash_[i]] = MultisigWalletLibs.Operation({
                 target: operations_[i].target,
                 value: operations_[i].value,
                 effectiveTime: operations_[i].effectiveTime,
@@ -327,7 +217,7 @@ contract MultisigWallet is
         uint256 operationNumber = operationsHash_.length;
 
         if (operationNumber == 0) {
-            revert EmptyOperations();
+            revert MultisigWalletLibs.EmptyOperations();
         }
         if (operationNumber != aggregatedSignatures_.length) {
             revert Errors.InvalidValue("operationsHash_ and aggregatedSignatures_ length mismatch");
@@ -336,9 +226,9 @@ contract MultisigWallet is
         results_ = new bool[](operationNumber);
 
         for (uint256 i = 0; i < operationNumber; ++i) {
-            Operation storage op = _operations[operationsHash_[i]];
+            MultisigWalletLibs.Operation storage op = _operations[operationsHash_[i]];
 
-            if (op.status == OperationStatus.NONE) {
+            if (op.status == MultisigWalletLibs.OperationStatus.NONE) {
                 results_[i] = false;
                 continue;
             }
@@ -348,9 +238,11 @@ contract MultisigWallet is
                 continue;
             }
 
-            if (op.status != OperationStatus.PENDING) {
+            if (op.status != MultisigWalletLibs.OperationStatus.PENDING) {
                 results_[i] = false;
-                emit OperationStatusNotMatch(operationsHash_[i], OperationStatus.PENDING, op.status);
+                emit MultisigWalletLibs.OperationStatusNotMatch(
+                    operationsHash_[i], MultisigWalletLibs.OperationStatus.PENDING, op.status
+                );
                 continue;
             }
 
@@ -359,11 +251,19 @@ contract MultisigWallet is
             op.aggregatedSignature = aggregatedSignatures_[i];
 
             if (results_[i]) {
-                op.status = OperationStatus.APPROVED;
-                emit OperationStatusChanged(operationsHash_[i], OperationStatus.PENDING, OperationStatus.APPROVED);
+                op.status = MultisigWalletLibs.OperationStatus.APPROVED;
+                emit MultisigWalletLibs.OperationStatusChanged(
+                    operationsHash_[i],
+                    MultisigWalletLibs.OperationStatus.PENDING,
+                    MultisigWalletLibs.OperationStatus.APPROVED
+                );
             } else {
-                op.status = OperationStatus.REJECTED;
-                emit OperationStatusChanged(operationsHash_[i], OperationStatus.PENDING, OperationStatus.REJECTED);
+                op.status = MultisigWalletLibs.OperationStatus.REJECTED;
+                emit MultisigWalletLibs.OperationStatusChanged(
+                    operationsHash_[i],
+                    MultisigWalletLibs.OperationStatus.PENDING,
+                    MultisigWalletLibs.OperationStatus.REJECTED
+                );
             }
         }
     }
@@ -375,34 +275,45 @@ contract MultisigWallet is
         uint256 operationNumber = operationsHash_.length;
 
         if (operationNumber == 0) {
-            revert EmptyOperations();
+            revert MultisigWalletLibs.EmptyOperations();
         }
 
         for (uint256 i = 0; i < operationNumber; i++) {
-            Operation storage op = _operations[operationsHash_[i]];
+            MultisigWalletLibs.Operation storage op = _operations[operationsHash_[i]];
 
-            if (op.status != OperationStatus.APPROVED) {
-                revert ExecuteUnapprovedOperation(op.status);
+            if (op.status != MultisigWalletLibs.OperationStatus.APPROVED) {
+                revert MultisigWalletLibs.ExecuteUnapprovedOperation(op.status);
             }
             if (block.timestamp < op.effectiveTime) {
-                revert ExecuteUneffectiveOperation(op.effectiveTime, uint32(block.timestamp));
+                revert MultisigWalletLibs.ExecuteUneffectiveOperation(op.effectiveTime, uint32(block.timestamp));
             }
             if (block.timestamp >= op.expirationTime) {
-                op.status = OperationStatus.EXPIRED;
-                revert ExecuteExpiredOperation(op.expirationTime, uint32(block.timestamp));
+                op.status = MultisigWalletLibs.OperationStatus.EXPIRED;
+                revert MultisigWalletLibs.ExecuteExpiredOperation(op.expirationTime, uint32(block.timestamp));
             }
 
-            op.status = OperationStatus.EXECUTING;
-            emit OperationStatusChanged(operationsHash_[i], OperationStatus.APPROVED, OperationStatus.EXECUTING);
-
+            op.status = MultisigWalletLibs.OperationStatus.EXECUTING;
+            emit MultisigWalletLibs.OperationStatusChanged(
+                operationsHash_[i],
+                MultisigWalletLibs.OperationStatus.APPROVED,
+                MultisigWalletLibs.OperationStatus.EXECUTING
+            );
             (bool success,) = op.target.call{value: op.value, gas: op.gasLimit}(op.data);
 
             if (success) {
-                op.status = OperationStatus.EXECUTED;
-                emit OperationStatusChanged(operationsHash_[i], OperationStatus.EXECUTING, OperationStatus.EXECUTED);
+                op.status = MultisigWalletLibs.OperationStatus.EXECUTED;
+                emit MultisigWalletLibs.OperationStatusChanged(
+                    operationsHash_[i],
+                    MultisigWalletLibs.OperationStatus.EXECUTING,
+                    MultisigWalletLibs.OperationStatus.EXECUTED
+                );
             } else {
-                op.status = OperationStatus.FAILED;
-                emit OperationStatusChanged(operationsHash_[i], OperationStatus.EXECUTING, OperationStatus.FAILED);
+                op.status = MultisigWalletLibs.OperationStatus.FAILED;
+                emit MultisigWalletLibs.OperationStatusChanged(
+                    operationsHash_[i],
+                    MultisigWalletLibs.OperationStatus.EXECUTING,
+                    MultisigWalletLibs.OperationStatus.FAILED
+                );
             }
         }
     }
@@ -413,61 +324,12 @@ contract MultisigWallet is
     /// @return True if the aggregated signature is valid, false otherwise
     /// @dev The verification method depends on the wallet mode
     function _verifySignatures(bytes memory aggregatedSignature_, bytes memory message_) internal view returns (bool) {
-        if (_walletMode == WalletMode.PUBLIC_KEY_ON_G1) {
-            return _verifySignaturesWithPublicKeyOnG1(aggregatedSignature_, message_);
-        } else if (_walletMode == WalletMode.PUBLIC_KEY_ON_G2) {
-            return _verifySignaturesWithPublicKeyOnG2(aggregatedSignature_, message_);
+        if (_walletMode == MultisigWalletLibs.WalletMode.PUBLIC_KEY_ON_G1) {
+            return _aggregatedPublicKeyOnG1.verifySignaturesWithPublicKeyOnG1(aggregatedSignature_, message_);
+        } else if (_walletMode == MultisigWalletLibs.WalletMode.PUBLIC_KEY_ON_G2) {
+            return _aggregatedPublicKeyOnG2.verifySignaturesWithPublicKeyOnG2(aggregatedSignature_, message_);
         } else {
-            revert UnsupportedWalletMode(uint8(_walletMode));
+            revert MultisigWalletLibs.UnsupportedWalletMode(uint8(_walletMode));
         }
-    }
-
-    /// @notice Verify aggregated signatures with public key on G1 curve
-    /// @param aggregatedSignature_ The aggregated signature to be verified
-    /// @param message_ The message that was signed
-    /// @return True if the aggregated signature is valid, false otherwise
-    function _verifySignaturesWithPublicKeyOnG1(bytes memory aggregatedSignature_, bytes memory message_)
-        internal
-        view
-        returns (bool)
-    {
-        if (aggregatedSignature_.length != 256) {
-            revert InvalidSignature("Invalid aggregated signature length for G1");
-        }
-
-        BLS.G2Point memory sigOnG2 = abi.decode(aggregatedSignature_, (BLS.G2Point));
-
-        BLS.G2Point memory hashToG2 = BLS.hashToG2(BLS.BLS_DOMAIN, message_);
-
-        return sigOnG2.pairWhenPKOnG1(_aggregatedPublicKeyOnG1, hashToG2);
-    }
-
-    /// @notice Verify aggregated signatures with public key on G2 curve
-    /// @param aggregatedSignature_ The aggregated signature to be verified
-    /// @param message_ The message that was signed
-    /// @return True if the aggregated signature is valid, false otherwise
-    function _verifySignaturesWithPublicKeyOnG2(bytes memory aggregatedSignature_, bytes memory message_)
-        internal
-        view
-        returns (bool)
-    {
-        if (aggregatedSignature_.length != 128) {
-            revert InvalidSignature("Invalid aggregated signature length for G2");
-        }
-
-        BLS.G1Point memory sigOnG1 = abi.decode(aggregatedSignature_, (BLS.G1Point));
-
-        BLS.G1Point memory hashToG1 = BLS.hashToG1(BLS.BLS_DOMAIN, message_);
-
-        return sigOnG1.pairWhenPKOnG2(_aggregatedPublicKeyOnG2, hashToG1);
-    }
-
-    /// @notice Calculate the operation hash
-    /// @param op The operation to calculate the hash for
-    /// @return The hash of the operation
-    function _getOperationHash(Operation memory op) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(op.target, op.value, op.effectiveTime, op.expirationTime, op.gasLimit, op.nonce, op.data)
-        );
     }
 }

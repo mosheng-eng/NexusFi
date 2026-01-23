@@ -51,13 +51,4 @@ library ThresholdWalletPKOnG2 {
             }
         }
     }
-
-    /// @notice Check if the aggregated public key on G2 curve is empty
-    /// @return True if the aggregated public key on G2 curve is empty, false otherwise
-    function publicKeyOnG2IsEmpty(BLS.G2Point storage aggregatedPublicKeyOnG2_) public view returns (bool) {
-        return aggregatedPublicKeyOnG2_.X0.upper == 0 && aggregatedPublicKeyOnG2_.X0.lower == 0
-            && aggregatedPublicKeyOnG2_.X1.upper == 0 && aggregatedPublicKeyOnG2_.X1.lower == 0
-            && aggregatedPublicKeyOnG2_.Y0.upper == 0 && aggregatedPublicKeyOnG2_.Y0.lower == 0
-            && aggregatedPublicKeyOnG2_.Y1.upper == 0 && aggregatedPublicKeyOnG2_.Y1.lower == 0;
-    }
 }

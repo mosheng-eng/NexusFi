@@ -27,11 +27,11 @@ contract ThresholdWallet is
     using BLS for BLS.G2Point;
     using BLS for BLS.G1Point[];
     using BLS for BLS.G2Point[];
+    using ThresholdWalletLibs for BLS.G1Point;
+    using ThresholdWalletLibs for BLS.G2Point;
+    using ThresholdWalletLibs for ThresholdWalletLibs.Operation;
     using ThresholdWalletLibs for mapping(bytes32 => ThresholdWalletLibs.MemberOnG1);
     using ThresholdWalletLibs for mapping(bytes32 => ThresholdWalletLibs.MemberOnG2);
-    using ThresholdWalletLibs for ThresholdWalletLibs.Operation;
-    using ThresholdWalletPKOnG1 for BLS.G1Point;
-    using ThresholdWalletPKOnG2 for BLS.G2Point;
 
     /// @notice Current mode of the wallet
     ThresholdWalletLibs.WalletMode private _walletMode;
