@@ -16,6 +16,7 @@ import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
+import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
 import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
@@ -196,11 +197,11 @@ contract DeployContractSuit is Script {
                 fixedTermAssetsInfoBasket
             )
         );
-        OpenTermStaking.AssetInfo[] memory openTermAssetsInfoBasket = new OpenTermStaking.AssetInfo[](2);
+        OpenTermStakingLibs.AssetInfo[] memory openTermAssetsInfoBasket = new OpenTermStakingLibs.AssetInfo[](2);
         openTermAssetsInfoBasket[0] =
-            OpenTermStaking.AssetInfo({targetVault: address(_vault1), weight: _vault1WeightInAStake});
+            OpenTermStakingLibs.AssetInfo({targetVault: address(_vault1), weight: _vault1WeightInAStake});
         openTermAssetsInfoBasket[1] =
-            OpenTermStaking.AssetInfo({targetVault: address(_vault2), weight: _vault2WeightInAStake});
+            OpenTermStakingLibs.AssetInfo({targetVault: address(_vault2), weight: _vault2WeightInAStake});
         _openTermStaking = OpenTermStaking(
             deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_underlyingTokenExchanger)],
@@ -347,7 +348,7 @@ contract DeployContractSuit is Script {
         uint256 limits_,
         string memory name_,
         string memory symbol_,
-        OpenTermStaking.AssetInfo[] memory assetsInfoBasket_
+        OpenTermStakingLibs.AssetInfo[] memory assetsInfoBasket_
     ) public returns (address) {
         return address(
             new TransparentUpgradeableProxy(

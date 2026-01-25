@@ -7,6 +7,7 @@ import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
+import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
 import {OpenTermToken} from "src/protocols/lender/open-term/OpenTermToken.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
@@ -33,7 +34,7 @@ contract OpenTermStakingTest is Test {
     OpenTermStaking internal _openTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;
-    OpenTermStaking.AssetInfo[] internal _assetsInfoBasket;
+    OpenTermStakingLibs.AssetInfo[] internal _assetsInfoBasket;
     DepositAsset internal _depositToken;
     UnderlyingTokenExchanger internal _exchanger;
 
@@ -97,14 +98,14 @@ contract OpenTermStakingTest is Test {
 
     modifier deployOpenTermStaking() {
         _assetsInfoBasket.push(
-            OpenTermStaking.AssetInfo({
+            OpenTermStakingLibs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
-            OpenTermStaking.AssetInfo({
+            OpenTermStakingLibs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })
@@ -340,7 +341,7 @@ contract OpenTermStakingTest is Test {
 
     function testUpdateMaxStakeFeeRate() public {
         vm.prank(_owner);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidFeeRate.selector, 50_001));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidFeeRate.selector, 50_001));
         _openTermStaking.updateStakeFeeRate(50_001);
     }
 
@@ -352,7 +353,7 @@ contract OpenTermStakingTest is Test {
 
     function testUpdateMaxUnstakeFeeRate() public {
         vm.prank(_owner);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidFeeRate.selector, 50_001));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidFeeRate.selector, 50_001));
         _openTermStaking.updateUnstakeFeeRate(50_001);
     }
 
@@ -363,7 +364,7 @@ contract OpenTermStakingTest is Test {
 
         uint128 maxSupply = _openTermStaking._maxSupply();
         uint128 totalInterestBearing = _openTermStaking._totalInterestBearing();
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "dustBalance"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "dustBalance"));
         vm.prank(_owner);
         _openTermStaking.updateDustBalance(maxSupply - totalInterestBearing + 1);
     }
@@ -377,10 +378,10 @@ contract OpenTermStakingTest is Test {
 
         uint128 totalInterestBearing = _openTermStaking._totalInterestBearing();
         uint128 dustBalance = _openTermStaking._dustBalance();
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "newMaxSupply"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "newMaxSupply"));
         vm.prank(_owner);
         _openTermStaking.updateMaxSupply(totalInterestBearing - 1);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "newMaxSupply"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "newMaxSupply"));
         vm.prank(_owner);
         _openTermStaking.updateMaxSupply(totalInterestBearing + dustBalance - 1);
     }
@@ -419,10 +420,6 @@ contract OpenTermStakingTest is Test {
         _openTermStaking.unpause();
     }
 
-    function testContractName() public view {
-        assertEq(_openTermStaking.contractName(), "OpenTermStaking");
-    }
-
     function testBalanceOf() public {
         address someone = makeAddr("someone");
         _fundUser(someone, 1_000_000 * 10 ** 6);
@@ -447,29 +444,29 @@ contract OpenTermStakingTest is Test {
     function testInvalidStake() public {
         console.log("case1: zero whitelist!");
         OpenTermStaking uninitializedStaking = new OpenTermStaking();
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "whitelist"));
         vm.prank(address(0x0));
         uninitializedStaking.stake(1_000 * 10 ** 6);
 
         console.log("case2: zero user!");
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "user"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "user"));
         vm.prank(address(0x0));
         _openTermStaking.stake(1_000 * 10 ** 6);
 
         console.log("case3: stakeAmount is zero!");
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "stakeAmount"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "stakeAmount"));
         vm.prank(_whitelistedUser1);
         _openTermStaking.stake(0);
 
         console.log("case4: insufficient allowance!");
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InsufficientAllowance.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InsufficientAllowance.selector, 0, 1));
         vm.prank(_whitelistedUser1);
         _openTermStaking.stake(1);
 
         console.log("case5: insufficient balance!");
         vm.prank(_whitelistedUser1);
         _underlyingToken.approve(address(_openTermStaking), 1);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InsufficientBalance.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InsufficientBalance.selector, 0, 1));
         vm.prank(_whitelistedUser1);
         _openTermStaking.stake(1);
 
@@ -487,7 +484,7 @@ contract OpenTermStakingTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.ExceedMaxSupply.selector,
+                OpenTermStakingLibs.ExceedMaxSupply.selector,
                 _maxSupply,
                 _openTermStaking._totalInterestBearing(),
                 _openTermStaking._maxSupply()
@@ -499,7 +496,7 @@ contract OpenTermStakingTest is Test {
         console.log("case7: below dust balance!");
         amountToStake = (_maxSupply - 1) * 10 ** 6 / (10 ** 6 - _stakeFeeRate);
         vm.expectRevert(
-            abi.encodeWithSelector(OpenTermStaking.BelowDustBalance.selector, _maxSupply - 1, 0, _dustBalance)
+            abi.encodeWithSelector(OpenTermStakingLibs.BelowDustBalance.selector, _maxSupply - 1, 0, _dustBalance)
         );
         vm.prank(_whitelistedUser1);
         _openTermStaking.stake(uint128(amountToStake));
@@ -510,7 +507,7 @@ contract OpenTermStakingTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.DepositFailed.selector, 499500000, 0, _assetsInfoBasket[0].targetVault
+                OpenTermStakingLibs.DepositFailed.selector, 499500000, 0, _assetsInfoBasket[0].targetVault
             )
         );
         vm.prank(_whitelistedUser1);
@@ -535,7 +532,7 @@ contract OpenTermStakingTest is Test {
         _stake(_whitelistedUser1, 1_000_000 * 10 ** 6, false);
 
         console.log("case1: unstakeAmount is zero!");
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "unstakeAmount"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "unstakeAmount"));
         vm.prank(_whitelistedUser1);
         _openTermStaking.unstake(0);
 
@@ -545,7 +542,7 @@ contract OpenTermStakingTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.WithdrawFailed.selector, 250000000000, 0, _assetsInfoBasket[0].targetVault
+                OpenTermStakingLibs.WithdrawFailed.selector, 250000000000, 0, _assetsInfoBasket[0].targetVault
             )
         );
         vm.prank(_whitelistedUser1);
@@ -566,7 +563,7 @@ contract OpenTermStakingTest is Test {
     }
 
     function testInitializeException() public {
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "owner"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "owner"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [address(0x0), address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -578,7 +575,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "underlyingToken"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "underlyingToken"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(0x0), address(_whitelist), address(_exchanger)],
@@ -590,7 +587,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "whitelist"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(0x0), address(_exchanger)],
@@ -602,7 +599,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "underlyingTokenExchanger"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "underlyingTokenExchanger"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(0x0)],
@@ -614,7 +611,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "stakeFeeRate"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "stakeFeeRate"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -626,7 +623,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "unstakeFeeRate"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "unstakeFeeRate"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -638,7 +635,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "startFeedTime"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "startFeedTime"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -650,7 +647,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "name"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "name"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -662,7 +659,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "symbol"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "symbol"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -674,7 +671,7 @@ contract OpenTermStakingTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "assetsInfoBasket"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "assetsInfoBasket"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -682,13 +679,13 @@ contract OpenTermStakingTest is Test {
                 (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
                 "mosUSD+",
                 "mosUSD+",
-                new OpenTermStaking.AssetInfo[](0)
+                new OpenTermStakingLibs.AssetInfo[](0)
             )
         );
 
         address originalTargetVault = _assetsInfoBasket[0].targetVault;
         _assetsInfoBasket[0].targetVault = address(0x0);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "asset vault"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "asset vault"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -703,7 +700,7 @@ contract OpenTermStakingTest is Test {
 
         uint64 originalWeight = _assetsInfoBasket[0].weight;
         _assetsInfoBasket[0].weight = 0;
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "weight of asset in basket"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "weight of asset in basket"));
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
                 [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -721,7 +718,7 @@ contract OpenTermStakingTest is Test {
         _assetsInfoBasket[0].weight = 500_001;
         _assetsInfoBasket[1].weight = 500_001;
         vm.expectRevert(
-            abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "total weight of assets in basket")
+            abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "total weight of assets in basket")
         );
         _openTermStaking = OpenTermStaking(
             _deployer.deployOpenTermStaking(
@@ -736,8 +733,8 @@ contract OpenTermStakingTest is Test {
         _assetsInfoBasket[0].weight = originalWeight0;
         _assetsInfoBasket[1].weight = originalWeight1;
 
-        OpenTermStaking.AssetInfo memory originalAssetInfo = _assetsInfoBasket[0];
-        _assetsInfoBasket[0] = OpenTermStaking.AssetInfo({
+        OpenTermStakingLibs.AssetInfo memory originalAssetInfo = _assetsInfoBasket[0];
+        _assetsInfoBasket[0] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(
                 new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@mosUSD", "MMF@mosUSD")
             ),
@@ -745,7 +742,7 @@ contract OpenTermStakingTest is Test {
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.VaultAssetNotEqualExchangerToken1.selector,
+                OpenTermStakingLibs.VaultAssetNotEqualExchangerToken1.selector,
                 IERC4626(_assetsInfoBasket[0].targetVault).asset(),
                 _exchanger._token1()
             )
@@ -764,7 +761,9 @@ contract OpenTermStakingTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.ExchangerToken0NotEqualUnderlyingToken.selector, _exchanger._token0(), address(0x1234)
+                OpenTermStakingLibs.ExchangerToken0NotEqualUnderlyingToken.selector,
+                _exchanger._token0(),
+                address(0x1234)
             )
         );
         _openTermStaking = OpenTermStaking(
@@ -809,7 +808,7 @@ contract OpenTermStakingTest is Test {
         console.log("case 3: AncientFeedTimeUpdateIsNotAllowed");
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.AncientFeedTimeUpdateIsNotAllowed.selector,
+                OpenTermStakingLibs.AncientFeedTimeUpdateIsNotAllowed.selector,
                 _normalizeTimestamp(_currentTime - 1 days),
                 _openTermStaking._lastFeedTime(),
                 uint64(block.timestamp)
@@ -820,7 +819,7 @@ contract OpenTermStakingTest is Test {
         console.log("case 4: LastFeedTimeUpdateRequireForce");
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.LastFeedTimeUpdateRequireForce.selector,
+                OpenTermStakingLibs.LastFeedTimeUpdateRequireForce.selector,
                 _normalizeTimestamp(_currentTime),
                 _openTermStaking._lastFeedTime(),
                 uint64(block.timestamp)
@@ -831,7 +830,7 @@ contract OpenTermStakingTest is Test {
         console.log("case 5: FutureFeedTimeIsNotAllowed");
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.FutureFeedTimeUpdateIsNotAllowed.selector,
+                OpenTermStakingLibs.FutureFeedTimeUpdateIsNotAllowed.selector,
                 _normalizeTimestamp(_currentTime + 1 days + 1 minutes),
                 _openTermStaking._lastFeedTime(),
                 uint64(block.timestamp)
@@ -851,7 +850,7 @@ contract OpenTermStakingTest is Test {
         _exchanger.exchange(1_000_000 * 10 ** 6, true);
         assertEq(_underlyingToken.balanceOf(_whitelistedUser1), 1_000_000 * 10 ** 6);
         _underlyingToken.approve(address(_openTermStaking), 1_000_000 * 10 ** 6);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.PoolBankrupt.selector));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.PoolBankrupt.selector));
         _openTermStaking.stake(1_000_000 * 10 ** 6);
         vm.stopPrank();
     }
@@ -926,48 +925,44 @@ contract OpenTermStakingTest is Test {
     function testBoringOpenTermStakingOnlyInitialized() public {
         BoringOpenTermStaking boringOpenTermStaking = new BoringOpenTermStaking();
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.Uninitialized.selector, "underlyingToken"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.Uninitialized.selector, "underlyingToken"));
         boringOpenTermStaking.boringTestOnlyInitialized();
 
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.underlyingToken.selector).checked_write(
+        stdstore.target(address(boringOpenTermStaking)).sig("_underlyingToken()").checked_write(
             address(_underlyingToken)
         );
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.Uninitialized.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.Uninitialized.selector, "whitelist"));
         boringOpenTermStaking.boringTestOnlyInitialized();
 
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
+        stdstore.target(address(boringOpenTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.Uninitialized.selector, "exchanger"));
+        boringOpenTermStaking.boringTestOnlyInitialized();
+
+        stdstore.target(address(boringOpenTermStaking)).sig("_exchanger()").checked_write(address(_exchanger));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.Uninitialized.selector, "maxSupply"));
+        boringOpenTermStaking.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig("_maxSupply()").checked_write(
+            _maxSupply
         );
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.Uninitialized.selector, "exchanger"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.Uninitialized.selector, "lastFeedTime"));
         boringOpenTermStaking.boringTestOnlyInitialized();
 
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.exchanger.selector).checked_write(
-            address(_exchanger)
+        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig("_lastFeedTime()").checked_write(
+            _normalizeTimestamp(_startFeedTime)
         );
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.Uninitialized.selector, "maxSupply"));
-        boringOpenTermStaking.boringTestOnlyInitialized();
-
-        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig(OpenTermStaking.maxSupply.selector)
-            .checked_write(_maxSupply);
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.Uninitialized.selector, "lastFeedTime"));
-        boringOpenTermStaking.boringTestOnlyInitialized();
-
-        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig(OpenTermStaking.lastFeedTime.selector)
-            .checked_write(_normalizeTimestamp(_startFeedTime));
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.Uninitialized.selector, "assetsInfoBasket"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.Uninitialized.selector, "assetsInfoBasket"));
         boringOpenTermStaking.boringTestOnlyInitialized();
     }
 
     function testBoringOpenTermStakingOnlyWhitelist() public {
         BoringOpenTermStaking boringOpenTermStaking = new BoringOpenTermStaking();
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "whitelist"));
         boringOpenTermStaking.boringTestOnlyWhitelist();
 
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
-        );
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "user"));
+        stdstore.target(address(boringOpenTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "user"));
         vm.prank(address(0x0));
         boringOpenTermStaking.boringTestOnlyWhitelist();
         vm.expectRevert(abi.encodeWithSelector(IWhitelist.NotWhitelisted.selector, _nonWhitelistedUser1));
@@ -978,19 +973,17 @@ contract OpenTermStakingTest is Test {
     function testBoringOpenTermStake() public {
         BoringOpenTermStaking boringOpenTermStaking = new BoringOpenTermStaking();
 
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.underlyingToken.selector).checked_write(
+        stdstore.target(address(boringOpenTermStaking)).sig("_underlyingToken()").checked_write(
             address(_underlyingToken)
         );
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
+        stdstore.target(address(boringOpenTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        stdstore.target(address(boringOpenTermStaking)).sig("_exchanger()").checked_write(address(_exchanger));
+        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig("_maxSupply()").checked_write(
+            _maxSupply
         );
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.exchanger.selector).checked_write(
-            address(_exchanger)
+        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig("_lastFeedTime()").checked_write(
+            _normalizeTimestamp(_startFeedTime)
         );
-        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig(OpenTermStaking.maxSupply.selector)
-            .checked_write(_maxSupply);
-        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig(OpenTermStaking.lastFeedTime.selector)
-            .checked_write(_normalizeTimestamp(_startFeedTime));
 
         address operator = makeAddr("operator");
         stdstore.target(address(boringOpenTermStaking)).sig(AccessControlUpgradeable.hasRole.selector).with_key(
@@ -999,28 +992,26 @@ contract OpenTermStakingTest is Test {
         vm.prank(operator);
         boringOpenTermStaking.addNewAssetIntoBasket(_assetsInfoBasket);
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "from"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "from"));
         boringOpenTermStaking.boringTestStake(1000, address(0), address(0x01));
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "to"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "to"));
         boringOpenTermStaking.boringTestStake(1000, address(0x01), address(0));
     }
 
     function testBoringOpenTermUnstake() public {
         BoringOpenTermStaking boringOpenTermStaking = new BoringOpenTermStaking();
 
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.underlyingToken.selector).checked_write(
+        stdstore.target(address(boringOpenTermStaking)).sig("_underlyingToken()").checked_write(
             address(_underlyingToken)
         );
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
+        stdstore.target(address(boringOpenTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        stdstore.target(address(boringOpenTermStaking)).sig("_exchanger()").checked_write(address(_exchanger));
+        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig("_maxSupply()").checked_write(
+            _maxSupply
         );
-        stdstore.target(address(boringOpenTermStaking)).sig(OpenTermStaking.exchanger.selector).checked_write(
-            address(_exchanger)
+        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig("_lastFeedTime()").checked_write(
+            _normalizeTimestamp(_startFeedTime)
         );
-        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig(OpenTermStaking.maxSupply.selector)
-            .checked_write(_maxSupply);
-        stdstore.enable_packed_slots().target(address(boringOpenTermStaking)).sig(OpenTermStaking.lastFeedTime.selector)
-            .checked_write(_normalizeTimestamp(_startFeedTime));
 
         address operator = makeAddr("operator");
         stdstore.target(address(boringOpenTermStaking)).sig(AccessControlUpgradeable.hasRole.selector).with_key(
@@ -1029,54 +1020,14 @@ contract OpenTermStakingTest is Test {
         vm.prank(operator);
         boringOpenTermStaking.addNewAssetIntoBasket(_assetsInfoBasket);
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "from"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "from"));
         boringOpenTermStaking.boringTestUnstake(1000, address(0), address(0x01));
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "to"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "to"));
         boringOpenTermStaking.boringTestUnstake(1000, address(0x01), address(0));
     }
 
-    function testUnderlyingToken() public view {
-        assertEq(address(_openTermStaking.underlyingToken()), address(_underlyingToken));
-    }
-
-    function testWhitelist() public view {
-        assertEq(address(_openTermStaking.whitelist()), address(_whitelist));
-    }
-
-    function testExchanger() public view {
-        assertEq(address(_openTermStaking.exchanger()), address(_exchanger));
-    }
-
-    function testTotalInterestBearing() public view {
-        assertEq(_openTermStaking.totalInterestBearing(), 1);
-    }
-
-    function testTotalFee() public view {
-        assertEq(_openTermStaking.totalFee(), 0);
-    }
-
-    function testDustBalance() public view {
-        assertEq(_openTermStaking.dustBalance(), _dustBalance);
-    }
-
-    function testMaxSupply() public view {
-        assertEq(_openTermStaking.maxSupply(), _maxSupply);
-    }
-
-    function testStakeFeeRate() public view {
-        assertEq(_openTermStaking.stakeFeeRate(), _stakeFeeRate);
-    }
-
-    function testUnstakeFeeRate() public view {
-        assertEq(_openTermStaking.unstakeFeeRate(), _unstakeFeeRate);
-    }
-
-    function testLastFeedTime() public view {
-        assertEq(_openTermStaking.lastFeedTime(), _normalizeTimestamp(_startFeedTime));
-    }
-
     function testAssetsInfoBasket() public view {
-        OpenTermStaking.AssetInfo[] memory assetsInfoBasket = _openTermStaking.assetsInfoBasket();
+        OpenTermStakingLibs.AssetInfo[] memory assetsInfoBasket = _openTermStaking.assetsInfoBasket();
         assertEq(assetsInfoBasket.length, _assetsInfoBasket.length);
         for (uint256 i = 0; i < assetsInfoBasket.length; i++) {
             assertEq(assetsInfoBasket[i].targetVault, _assetsInfoBasket[i].targetVault);
@@ -1086,29 +1037,29 @@ contract OpenTermStakingTest is Test {
 
     function testAssetInfoAt() public view {
         for (uint256 i = 0; i < _assetsInfoBasket.length; i++) {
-            OpenTermStaking.AssetInfo memory assetInfo = _openTermStaking.assetInfoAt(i);
+            OpenTermStakingLibs.AssetInfo memory assetInfo = _openTermStaking.assetInfoAt(i);
             assertEq(assetInfo.targetVault, _assetsInfoBasket[i].targetVault);
             assertEq(assetInfo.weight, _assetsInfoBasket[i].weight);
         }
     }
 
     function testAddNewAssetIntoBasket() public {
-        OpenTermStaking.AssetInfo[] memory assetsIntoBasket = new OpenTermStaking.AssetInfo[](2);
-        assetsIntoBasket[0] = OpenTermStaking.AssetInfo({
+        OpenTermStakingLibs.AssetInfo[] memory assetsIntoBasket = new OpenTermStakingLibs.AssetInfo[](2);
+        assetsIntoBasket[0] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
             weight: 250_000 // 25%
         });
-        assetsIntoBasket[1] = OpenTermStaking.AssetInfo({
+        assetsIntoBasket[1] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
             weight: 250_000 // 25%
         });
 
-        OpenTermStaking.AssetInfo[] memory newAssetsIntoBasket = new OpenTermStaking.AssetInfo[](2);
-        newAssetsIntoBasket[0] = OpenTermStaking.AssetInfo({
+        OpenTermStakingLibs.AssetInfo[] memory newAssetsIntoBasket = new OpenTermStakingLibs.AssetInfo[](2);
+        newAssetsIntoBasket[0] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 300_000 // 30%
         });
-        newAssetsIntoBasket[1] = OpenTermStaking.AssetInfo({
+        newAssetsIntoBasket[1] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@mosUSD", "ETH@mosUSD")),
             weight: 300_000 // 30%
         });
@@ -1130,41 +1081,45 @@ contract OpenTermStakingTest is Test {
 
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "empty newAssetInfo"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "empty newAssetInfo"));
         vm.prank(_owner);
-        openTermStaking.addNewAssetIntoBasket(new OpenTermStaking.AssetInfo[](0));
+        openTermStaking.addNewAssetIntoBasket(new OpenTermStakingLibs.AssetInfo[](0));
 
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.ZeroAddress.selector, "new asset's vault"));
+        vm.expectRevert(abi.encodeWithSelector(OpenTermStakingLibs.ZeroAddress.selector, "new asset's vault"));
         vm.prank(_owner);
-        openTermStaking.addNewAssetIntoBasket(new OpenTermStaking.AssetInfo[](1));
+        openTermStaking.addNewAssetIntoBasket(new OpenTermStakingLibs.AssetInfo[](1));
 
         newAssetsIntoBasket[0].weight = 0;
-        vm.expectRevert(abi.encodeWithSelector(OpenTermStaking.InvalidValue.selector, "weight of new asset in basket"));
+        vm.expectRevert(
+            abi.encodeWithSelector(OpenTermStakingLibs.InvalidValue.selector, "weight of new asset in basket")
+        );
         vm.prank(_owner);
         openTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
         newAssetsIntoBasket[0].weight = 300_000;
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.InvalidValue.selector, "total weight of assets in basket and new assets"
+                OpenTermStakingLibs.InvalidValue.selector, "total weight of assets in basket and new assets"
             )
         );
         vm.prank(_owner);
         openTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
-        newAssetsIntoBasket[0] = OpenTermStaking.AssetInfo({
+        newAssetsIntoBasket[0] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                OpenTermStaking.VaultAssetNotEqualExchangerToken1.selector, address(0xdeadbeef), address(_depositToken)
+                OpenTermStakingLibs.VaultAssetNotEqualExchangerToken1.selector,
+                address(0xdeadbeef),
+                address(_depositToken)
             )
         );
         vm.prank(_owner);
         openTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
-        newAssetsIntoBasket[0] = OpenTermStaking.AssetInfo({
+        newAssetsIntoBasket[0] = OpenTermStakingLibs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
@@ -1234,6 +1189,8 @@ contract OpenTermStakingTest is Test {
 }
 
 contract BoringOpenTermStaking is OpenTermStaking {
+    using OpenTermStakingLibs for OpenTermStakingLibs.AssetInfo[];
+
     function boringTestOnlyInitialized() public view onlyInitialized returns (bool) {
         return true;
     }
@@ -1246,13 +1203,87 @@ contract BoringOpenTermStaking is OpenTermStaking {
         public
         returns (uint128 sharesAmount_, uint128 stakedAmount_)
     {
-        return _stake(stakeAmount_, from_, to_);
+        /**
+         * uint128 sharesAmount_,
+         * uint128 stakedAmount_,
+         * uint128 updatedTotalInterestBearing_,
+         * uint128 updatedTotalFee_
+         */
+        uint128[4] memory results = _assetsInfoBasket.stake(
+            /**
+             * address from_,
+             * address to_,
+             * address underlyingToken_,
+             * address exchanger_,
+             */
+            [from_, to_, _underlyingToken, _exchanger],
+            /**
+             * uint128 stakeAmount_,
+             * uint128 maxSupply_,
+             * uint128 dustBalance_,
+             * uint128 totalInterestBearing_,
+             * uint128 totalFee_,
+             * uint128 stakeFeeRate_,
+             * uint128 totalSupply_
+             */
+            [
+                stakeAmount_,
+                _maxSupply,
+                _dustBalance,
+                _totalInterestBearing,
+                _totalFee,
+                uint128(_stakeFeeRate),
+                uint128(totalSupply())
+            ]
+        );
+        unchecked {
+            _totalInterestBearing = results[2];
+            _totalFee = results[3];
+        }
+        mint(to_, results[0]);
+        return (results[0], results[1]);
     }
 
     function boringTestUnstake(uint128 unstakeAmount_, address from_, address to_)
         public
         returns (uint128 sharesBurned_, uint128 unstakedAmount_)
     {
-        return _unstake(unstakeAmount_, from_, to_);
+        /**
+         * uint128 sharesAmount_,
+         * uint128 unstakedAmount_,
+         * uint128 updatedTotalInterestBearing_,
+         * uint128 updatedTotalFee_
+         */
+        uint128[4] memory results = _assetsInfoBasket.unstake(
+            /**
+             * address from_,
+             * address to_,
+             * address underlyingToken_,
+             * address exchanger_,
+             */
+            [from_, to_, _underlyingToken, _exchanger],
+            /**
+             * uint128 unstakeAmount_,
+             * uint128 maxSharesAmount_,
+             * uint128 totalInterestBearing_,
+             * uint128 totalFee_,
+             * uint128 unstakeFeeRate_,
+             * uint128 totalSupply_
+             */
+            [
+                unstakeAmount_,
+                uint128(sharesOf(from_)),
+                _totalInterestBearing,
+                _totalFee,
+                uint128(_unstakeFeeRate),
+                uint128(totalSupply())
+            ]
+        );
+        unchecked {
+            _totalInterestBearing = results[2];
+            _totalFee = results[3];
+        }
+        burn(from_, results[0]);
+        return (results[0], results[1]);
     }
 }
