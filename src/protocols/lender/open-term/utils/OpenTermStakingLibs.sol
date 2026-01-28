@@ -561,7 +561,7 @@ library OpenTermStakingLibs {
         address[3] memory addrs_,
         /**
          * uint128 _maxSupply,
-         * uint128 _lastFeedTime
+         * uint64 _lastFeedTime
          */
         uint128[2] memory paras_
     ) public view {

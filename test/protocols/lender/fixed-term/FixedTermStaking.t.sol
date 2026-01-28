@@ -7,6 +7,9 @@ import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
+import {FixedTermStakingCore} from "src/protocols/lender/fixed-term/utils/FixedTermStakingCore.sol";
+import {FixedTermStakingLibs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
+import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 import {FixedTermToken} from "src/protocols/lender/fixed-term/FixedTermToken.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
@@ -34,12 +37,13 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 
 contract FixedTermStakingTest is Test {
     using stdStorage for StdStorage;
+    using FixedTermStakingLibs for uint64;
 
     DeployContractSuit internal _deployer = new DeployContractSuit();
     FixedTermStaking internal _fixedTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;
-    FixedTermStaking.AssetInfo[] internal _assetsInfoBasket;
+    FixedTermStakingDefs.AssetInfo[] internal _assetsInfoBasket;
     DepositAsset internal _depositToken;
     UnderlyingTokenExchanger internal _exchanger;
 
@@ -104,14 +108,14 @@ contract FixedTermStakingTest is Test {
 
     modifier deployFixedTermStaking() {
         _assetsInfoBasket.push(
-            FixedTermStaking.AssetInfo({
+            FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
-            FixedTermStaking.AssetInfo({
+            FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })
@@ -248,7 +252,7 @@ contract FixedTermStakingTest is Test {
         }
 
         for (uint256 i = 0; i < 365; ++i) {
-            console.log(_fixedTermStaking.getAccumulatedInterestRate(timepoints[i]));
+            console.log(_fixedTermStaking._accumulatedInterestRate(timepoints[i].normalizeTimestamp()));
         }
     }
 
@@ -333,7 +337,7 @@ contract FixedTermStakingTest is Test {
 
     function testUpdateMaxStakeFeeRate() public {
         vm.prank(_owner);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidFeeRate.selector, 50_001));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidFeeRate.selector, 50_001));
         _fixedTermStaking.updateStakeFeeRate(50_001);
     }
 
@@ -345,7 +349,7 @@ contract FixedTermStakingTest is Test {
 
     function testUpdateMaxUnstakeFeeRate() public {
         vm.prank(_owner);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidFeeRate.selector, 50_001));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidFeeRate.selector, 50_001));
         _fixedTermStaking.updateUnstakeFeeRate(50_001);
     }
 
@@ -355,7 +359,7 @@ contract FixedTermStakingTest is Test {
         assertEq(_fixedTermStaking._dustBalance(), _dustBalance * 2);
 
         uint128 remainingBalance = _fixedTermStaking._remainingBalance();
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "dustBalance"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "dustBalance"));
         vm.prank(_owner);
         _fixedTermStaking.updateDustBalance(remainingBalance + 1);
     }
@@ -375,11 +379,11 @@ contract FixedTermStakingTest is Test {
         uint128 totalPrincipal = _fixedTermStaking._totalPrincipal();
         uint128 dustBalance = _fixedTermStaking._dustBalance();
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "newMaxSupply"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "newMaxSupply"));
         vm.prank(_owner);
         _fixedTermStaking.updateMaxSupply(totalPrincipal - 1);
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "newMaxSupply"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "newMaxSupply"));
         vm.prank(_owner);
         _fixedTermStaking.updateMaxSupply(totalPrincipal + dustBalance - 1);
     }
@@ -425,10 +429,6 @@ contract FixedTermStakingTest is Test {
         assertTrue(_fixedTermStaking.supportsInterface(type(IERC165).interfaceId));
     }
 
-    function testContractName() public view {
-        assertEq(_fixedTermStaking.contractName(), "FixedTermStaking");
-    }
-
     function testReadFixedTermTokenDetails() public {
         uint256 tokenId = _stake(_whitelistedUser1, 1_000_000 * 10 ** 6, false);
         string memory tokenURI = _fixedTermStaking.tokenURI(tokenId);
@@ -444,7 +444,7 @@ contract FixedTermStakingTest is Test {
     function testInvalidStake() public {
         console.log("case1: zero address user stake");
         vm.prank(address(0x0));
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "user"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "user"));
         _fixedTermStaking.stake(1_000 * 10 ** 6);
 
         console.log("case2: unwhitelisted user stake");
@@ -454,18 +454,18 @@ contract FixedTermStakingTest is Test {
 
         console.log("case3: stake amount is zero");
         vm.prank(_whitelistedUser1);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "stakeAmount"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "stakeAmount"));
         _fixedTermStaking.stake(0);
 
         console.log("case4: insufficient allowance");
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InsufficientAllowance.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InsufficientAllowance.selector, 0, 1));
         vm.prank(_whitelistedUser1);
         _fixedTermStaking.stake(1);
 
         console.log("case5: insufficient balance");
         vm.prank(_whitelistedUser1);
         _underlyingToken.approve(address(_fixedTermStaking), 1);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InsufficientBalance.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InsufficientBalance.selector, 0, 1));
         vm.prank(_whitelistedUser1);
         _fixedTermStaking.stake(1);
 
@@ -483,7 +483,7 @@ contract FixedTermStakingTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.ExceedMaxSupply.selector,
+                FixedTermStakingDefs.ExceedMaxSupply.selector,
                 _maxSupply + 1,
                 _fixedTermStaking._totalPrincipal(),
                 _fixedTermStaking._maxSupply()
@@ -496,7 +496,9 @@ contract FixedTermStakingTest is Test {
         amountToStake = (_maxSupply - 1) * 10 ** 6 / (10 ** 6 - _stakeFeeRate);
         vm.prank(_whitelistedUser1);
         vm.expectRevert(
-            abi.encodeWithSelector(FixedTermStaking.BelowDustBalance.selector, _maxSupply - 1, _maxSupply, _dustBalance)
+            abi.encodeWithSelector(
+                FixedTermStakingDefs.BelowDustBalance.selector, _maxSupply - 1, _maxSupply, _dustBalance
+            )
         );
         _fixedTermStaking.stake(uint128(amountToStake));
 
@@ -506,7 +508,7 @@ contract FixedTermStakingTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.DepositFailed.selector, 499500000, 0, _assetsInfoBasket[0].targetVault
+                FixedTermStakingDefs.DepositFailed.selector, 499500000, 0, _assetsInfoBasket[0].targetVault
             )
         );
         vm.prank(_whitelistedUser1);
@@ -517,7 +519,7 @@ contract FixedTermStakingTest is Test {
     function testInvalidUnstake() public {
         console.log("case1: invalid tokenId");
         vm.prank(_whitelistedUser1);
-        vm.expectRevert(abi.encodeWithSelector(Errors.InvalidValue.selector, "tokenId"));
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 0));
         _fixedTermStaking.unstake(0);
 
         console.log("case2: duplicate unstake");
@@ -536,7 +538,7 @@ contract FixedTermStakingTest is Test {
         vm.startPrank(_whitelistedUser1);
         _fixedTermStaking.approve(address(_fixedTermStaking), tokenId);
         _fixedTermStaking.unstake(tokenId);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.AlreadyUnstaked.selector, tokenId));
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, tokenId));
         _fixedTermStaking.unstake(tokenId);
         vm.stopPrank();
 
@@ -553,7 +555,7 @@ contract FixedTermStakingTest is Test {
                 );
             }
         }
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.NotTokenOwner.selector, _whitelistedUser1, tokenId));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.NotTokenOwner.selector, _whitelistedUser1, tokenId));
         vm.prank(_whitelistedUser1);
         _fixedTermStaking.unstake(tokenId);
 
@@ -561,7 +563,7 @@ contract FixedTermStakingTest is Test {
         (,, uint64 maturityDate,) = _fixedTermStaking._tokenId_stakeInfo(tokenId);
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.StakeNotMatured.selector, tokenId, maturityDate, uint64(block.timestamp)
+                FixedTermStakingDefs.StakeNotMatured.selector, tokenId, maturityDate, uint64(block.timestamp)
             )
         );
         vm.prank(_whitelistedUser2);
@@ -578,7 +580,7 @@ contract FixedTermStakingTest is Test {
                 );
             }
         }
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.WaitingForMaturityDateFeed.selector));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.WaitingForMaturityDateFeed.selector));
         vm.prank(_whitelistedUser2);
         _fixedTermStaking.unstake(tokenId);
 
@@ -591,7 +593,7 @@ contract FixedTermStakingTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.WithdrawFailed.selector, 499500000000, 0, _assetsInfoBasket[0].targetVault
+                FixedTermStakingDefs.WithdrawFailed.selector, 499500000000, 0, _assetsInfoBasket[0].targetVault
             )
         );
         vm.prank(_whitelistedUser2);
@@ -600,7 +602,7 @@ contract FixedTermStakingTest is Test {
     }
 
     function testInitializeException() public {
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "owner"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "owner"));
         _deployer.deployFixedTermStaking(
             [address(0x0), address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -613,7 +615,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "underlyingToken"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "underlyingToken"));
         _deployer.deployFixedTermStaking(
             [_owner, address(0x0), address(_whitelist), address(_exchanger)],
             (
@@ -626,7 +628,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "whitelist"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(0x0), address(_exchanger)],
             (
@@ -639,7 +641,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "exchanger"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "exchanger"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(0x0)],
             (
@@ -652,7 +654,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "lockPeriod"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "lockPeriod"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -665,7 +667,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "stakeFeeRate"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "stakeFeeRate"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -678,7 +680,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "unstakeFeeRate"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "unstakeFeeRate"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -691,7 +693,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "startFeedTime"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "startFeedTime"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -704,7 +706,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "name"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "name"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -717,7 +719,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "symbol"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "symbol"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -730,7 +732,7 @@ contract FixedTermStakingTest is Test {
             _assetsInfoBasket
         );
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "assetsInfoBasket"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "assetsInfoBasket"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -740,12 +742,12 @@ contract FixedTermStakingTest is Test {
             (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
             "mosUSD12M+",
             "mosUSD12M+",
-            new FixedTermStaking.AssetInfo[](0)
+            new FixedTermStakingDefs.AssetInfo[](0)
         );
 
         address originalTargetVault = _assetsInfoBasket[0].targetVault;
         _assetsInfoBasket[0].targetVault = address(0x0);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "asset vault"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "asset vault"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -761,7 +763,7 @@ contract FixedTermStakingTest is Test {
 
         uint64 originalWeight = _assetsInfoBasket[0].weight;
         _assetsInfoBasket[0].weight = 0;
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "weight of asset in basket"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "weight of asset in basket"));
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
             (
@@ -780,7 +782,7 @@ contract FixedTermStakingTest is Test {
         _assetsInfoBasket[0].weight = 500_001;
         _assetsInfoBasket[1].weight = 500_001;
         vm.expectRevert(
-            abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "total weight of assets in basket")
+            abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "total weight of assets in basket")
         );
         _deployer.deployFixedTermStaking(
             [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
@@ -796,8 +798,8 @@ contract FixedTermStakingTest is Test {
         _assetsInfoBasket[0].weight = originalWeight0;
         _assetsInfoBasket[1].weight = originalWeight1;
 
-        FixedTermStaking.AssetInfo memory originalAssetInfo = _assetsInfoBasket[0];
-        _assetsInfoBasket[0] = FixedTermStaking.AssetInfo({
+        FixedTermStakingDefs.AssetInfo memory originalAssetInfo = _assetsInfoBasket[0];
+        _assetsInfoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(
                 new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@mosUSD", "MMF@mosUSD")
             ),
@@ -805,7 +807,7 @@ contract FixedTermStakingTest is Test {
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.VaultAssetNotEqualExchangerToken1.selector,
+                FixedTermStakingDefs.VaultAssetNotEqualExchangerToken1.selector,
                 IERC4626(_assetsInfoBasket[0].targetVault).asset(),
                 UnderlyingTokenExchanger(_exchanger)._token1()
             )
@@ -825,7 +827,7 @@ contract FixedTermStakingTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.ExchangerToken0NotEqualUnderlyingToken.selector,
+                FixedTermStakingDefs.ExchangerToken0NotEqualUnderlyingToken.selector,
                 UnderlyingTokenExchanger(_exchanger)._token0(),
                 address(0x1234)
             )
@@ -862,7 +864,7 @@ contract FixedTermStakingTest is Test {
         _depositToken.transfer(_assetsInfoBasket[1].targetVault, 1_000 * 10 ** 6);
         vm.stopPrank();
         vm.expectRevert(
-            abi.encodeWithSelector(FixedTermStaking.UnbelievableInterestRate.selector, 2_002_001, 10_000, -10_000)
+            abi.encodeWithSelector(FixedTermStakingDefs.UnbelievableInterestRate.selector, 2_002_001, 10_000, -10_000)
         );
         _fixedTermStaking.feed(_currentTime);
 
@@ -883,7 +885,7 @@ contract FixedTermStakingTest is Test {
         console.log("case 4: AncientFeedTimeUpdateIsNotAllowed");
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.AncientFeedTimeUpdateIsNotAllowed.selector,
+                FixedTermStakingDefs.AncientFeedTimeUpdateIsNotAllowed.selector,
                 _normalizeTimestamp(_currentTime - 1 days),
                 _fixedTermStaking._lastFeedTime(),
                 uint64(block.timestamp)
@@ -894,7 +896,7 @@ contract FixedTermStakingTest is Test {
         console.log("case 5: LastFeedTimeUpdateRequireForce");
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.LastFeedTimeUpdateRequireForce.selector,
+                FixedTermStakingDefs.LastFeedTimeUpdateRequireForce.selector,
                 _normalizeTimestamp(_currentTime),
                 _fixedTermStaking._lastFeedTime(),
                 uint64(block.timestamp)
@@ -905,7 +907,7 @@ contract FixedTermStakingTest is Test {
         console.log("case 6: FutureFeedTimeIsNotAllowed");
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.FutureFeedTimeUpdateIsNotAllowed.selector,
+                FixedTermStakingDefs.FutureFeedTimeUpdateIsNotAllowed.selector,
                 _normalizeTimestamp(_currentTime + 1 days + 1 minutes),
                 _fixedTermStaking._lastFeedTime(),
                 uint64(block.timestamp)
@@ -1003,54 +1005,50 @@ contract FixedTermStakingTest is Test {
     function testBoringOpenTermStakingOnlyInitialized() public {
         BoringFixedTermStaking boringFixedTermStaking = new BoringFixedTermStaking();
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "underlyingToken"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "underlyingToken"));
         boringFixedTermStaking.boringTestOnlyInitialized();
 
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.underlyingToken.selector).checked_write(
+        stdstore.target(address(boringFixedTermStaking)).sig("_underlyingToken()").checked_write(
             address(_underlyingToken)
         );
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "whitelist"));
         boringFixedTermStaking.boringTestOnlyInitialized();
 
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
+        stdstore.target(address(boringFixedTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "exchanger"));
+        boringFixedTermStaking.boringTestOnlyInitialized();
+
+        stdstore.target(address(boringFixedTermStaking)).sig("_exchanger()").checked_write(address(_exchanger));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "lockPeriod"));
+        boringFixedTermStaking.boringTestOnlyInitialized();
+
+        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig("_lockPeriod()").checked_write(
+            _lockPeriod
         );
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "exchanger"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "maxSupply"));
         boringFixedTermStaking.boringTestOnlyInitialized();
 
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.exchanger.selector).checked_write(
-            address(_exchanger)
+        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig("_maxSupply()").checked_write(
+            _maxSupply
         );
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "lockPeriod"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "lastFeedTime"));
         boringFixedTermStaking.boringTestOnlyInitialized();
 
-        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig(FixedTermStaking.lockPeriod.selector)
-            .checked_write(_lockPeriod);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "maxSupply"));
-        boringFixedTermStaking.boringTestOnlyInitialized();
-
-        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig(FixedTermStaking.maxSupply.selector)
-            .checked_write(_maxSupply);
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "lastFeedTime"));
-        boringFixedTermStaking.boringTestOnlyInitialized();
-
-        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig(
-            FixedTermStaking.lastFeedTime.selector
-        ).checked_write(_normalizeTimestamp(_startFeedTime));
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.Uninitialized.selector, "assetsInfoBasket"));
+        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig("_lastFeedTime()").checked_write(
+            _normalizeTimestamp(_startFeedTime)
+        );
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.Uninitialized.selector, "assetsInfoBasket"));
         boringFixedTermStaking.boringTestOnlyInitialized();
     }
 
     function testBoringOpenTermStakingOnlyWhitelist() public {
         BoringFixedTermStaking boringFixedTermStaking = new BoringFixedTermStaking();
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "whitelist"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "whitelist"));
         boringFixedTermStaking.boringTestOnlyWhitelist();
 
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
-        );
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "user"));
+        stdstore.target(address(boringFixedTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "user"));
         vm.prank(address(0x0));
         boringFixedTermStaking.boringTestOnlyWhitelist();
         vm.expectRevert(abi.encodeWithSelector(IWhitelist.NotWhitelisted.selector, _nonWhitelistedUser1));
@@ -1061,22 +1059,20 @@ contract FixedTermStakingTest is Test {
     function testBoringOpenTermStake() public {
         BoringFixedTermStaking boringFixedTermStaking = new BoringFixedTermStaking();
 
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.underlyingToken.selector).checked_write(
+        stdstore.target(address(boringFixedTermStaking)).sig("_underlyingToken()").checked_write(
             address(_underlyingToken)
         );
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.whitelist.selector).checked_write(
-            address(_whitelist)
+        stdstore.target(address(boringFixedTermStaking)).sig("_whitelist()").checked_write(address(_whitelist));
+        stdstore.target(address(boringFixedTermStaking)).sig("_exchanger()").checked_write(address(_exchanger));
+        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig("_lockPeriod()").checked_write(
+            _lockPeriod
         );
-        stdstore.target(address(boringFixedTermStaking)).sig(FixedTermStaking.exchanger.selector).checked_write(
-            address(_exchanger)
+        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig("_maxSupply()").checked_write(
+            _maxSupply
         );
-        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig(FixedTermStaking.lockPeriod.selector)
-            .checked_write(_lockPeriod);
-        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig(FixedTermStaking.maxSupply.selector)
-            .checked_write(_maxSupply);
-        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig(
-            FixedTermStaking.lastFeedTime.selector
-        ).checked_write(_normalizeTimestamp(_startFeedTime));
+        stdstore.enable_packed_slots().target(address(boringFixedTermStaking)).sig("_lastFeedTime()").checked_write(
+            _normalizeTimestamp(_startFeedTime)
+        );
 
         address operator = makeAddr("operator");
         stdstore.target(address(boringFixedTermStaking)).sig(AccessControlUpgradeable.hasRole.selector).with_key(
@@ -1085,9 +1081,9 @@ contract FixedTermStakingTest is Test {
         vm.prank(operator);
         boringFixedTermStaking.addNewAssetIntoBasket(_assetsInfoBasket);
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "from"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "from"));
         boringFixedTermStaking.boringTestStake(1000, address(0), address(0x01));
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "to"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "to"));
         boringFixedTermStaking.boringTestStake(1000, address(0x01), address(0));
     }
 
@@ -1148,79 +1144,29 @@ contract FixedTermStakingTest is Test {
         assertEq(poolBalanceAfterStake - poolBalanceBeforeStake, 1_000_000 * 10 ** 6);
         assertEq(int128(poolBalanceAfterStake), int128(totalFee) + int128(totalPrincipal) + totalInterest);
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "from"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "from"));
         boringFixedTermStaking.boringTestUnstake(1, address(0), address(0x01));
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "to"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "to"));
         boringFixedTermStaking.boringTestUnstake(1, address(0x01), address(0));
-    }
-
-    function testUnderlyingToken() public view {
-        assertEq(address(_fixedTermStaking.underlyingToken()), address(_underlyingToken));
-    }
-
-    function testWhitelist() public view {
-        assertEq(address(_fixedTermStaking.whitelist()), address(_whitelist));
-    }
-
-    function testExchanger() public view {
-        assertEq(address(_fixedTermStaking.exchanger()), address(_exchanger));
-    }
-
-    function testTotalPrincipal() public view {
-        assertEq(_fixedTermStaking.totalPrincipal(), 0);
-    }
-
-    function testTotalFee() public view {
-        assertEq(_fixedTermStaking.totalFee(), 0);
-    }
-
-    function testTotalInterest() public view {
-        assertEq(_fixedTermStaking.totalInterest(), 0);
-    }
-
-    function testRemainingBalance() public view {
-        assertEq(_fixedTermStaking.remainingBalance(), _maxSupply);
-    }
-
-    function testDustBalance() public view {
-        assertEq(_fixedTermStaking.dustBalance(), _dustBalance);
-    }
-
-    function testMaxSupply() public view {
-        assertEq(_fixedTermStaking.maxSupply(), _maxSupply);
-    }
-
-    function testLastFeedTime() public view {
-        assertEq(_fixedTermStaking.lastFeedTime(), _normalizeTimestamp(_startFeedTime));
-    }
-
-    function testLockPeriod() public view {
-        assertEq(_fixedTermStaking.lockPeriod(), _lockPeriod);
-    }
-
-    function testStakeFeeRate() public view {
-        assertEq(_fixedTermStaking.stakeFeeRate(), _stakeFeeRate);
-    }
-
-    function testUnstakeFeeRate() public view {
-        assertEq(_fixedTermStaking.unstakeFeeRate(), _unstakeFeeRate);
     }
 
     function testTokenIDToStakeInfo() public {
         uint256 tokenId = _stake(_whitelistedUser1, 100_000 * 10 ** 6, true);
-        FixedTermStaking.StakeInfo memory stakeInfo = _fixedTermStaking.tokenIDToStakeInfo(tokenId);
+        FixedTermStakingDefs.StakeInfo memory stakeInfo;
+        (stakeInfo.principal, stakeInfo.startDate, stakeInfo.maturityDate, stakeInfo.status) =
+            _fixedTermStaking._tokenId_stakeInfo(tokenId);
 
         assertEq(stakeInfo.principal, 100_000 * 10 ** 6 * (10 ** 6 - _stakeFeeRate) / 10 ** 6);
         assertEq(stakeInfo.startDate, _normalizeTimestamp(uint64(block.timestamp)));
         assertEq(stakeInfo.maturityDate, _normalizeTimestamp(uint64(block.timestamp + 365 days)));
-        assertEq(uint8(stakeInfo.status), uint8(FixedTermStaking.StakeStatus.ACTIVE));
+        assertEq(uint8(stakeInfo.status), uint8(FixedTermStakingDefs.StakeStatus.ACTIVE));
 
-        assertEq(_fixedTermStaking.principalStartFrom(stakeInfo.startDate), stakeInfo.principal);
-        assertEq(_fixedTermStaking.principalMatureAt(stakeInfo.maturityDate), stakeInfo.principal);
+        assertEq(_fixedTermStaking._startDate_principal(stakeInfo.startDate), stakeInfo.principal);
+        assertEq(_fixedTermStaking._maturityDate_principal(stakeInfo.maturityDate), stakeInfo.principal);
     }
 
     function testAssetsInfoBasket() public view {
-        FixedTermStaking.AssetInfo[] memory assetsInfoBasket = _fixedTermStaking.assetsInfoBasket();
+        FixedTermStakingDefs.AssetInfo[] memory assetsInfoBasket = _fixedTermStaking.assetsInfoBasket();
 
         assertEq(assetsInfoBasket.length, _assetsInfoBasket.length);
 
@@ -1230,31 +1176,23 @@ contract FixedTermStakingTest is Test {
         }
     }
 
-    function testAssetInfoAt() public view {
-        for (uint256 i = 0; i < _assetsInfoBasket.length; ++i) {
-            FixedTermStaking.AssetInfo memory assetInfo = _fixedTermStaking.assetInfoAt(i);
-            assertEq(assetInfo.targetVault, _assetsInfoBasket[i].targetVault);
-            assertEq(assetInfo.weight, _assetsInfoBasket[i].weight);
-        }
-    }
-
     function testAddNewAssetIntoBasket() public {
-        FixedTermStaking.AssetInfo[] memory assetsIntoBasket = new FixedTermStaking.AssetInfo[](2);
-        assetsIntoBasket[0] = FixedTermStaking.AssetInfo({
+        FixedTermStakingDefs.AssetInfo[] memory assetsIntoBasket = new FixedTermStakingDefs.AssetInfo[](2);
+        assetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
             weight: 250_000 // 25%
         });
-        assetsIntoBasket[1] = FixedTermStaking.AssetInfo({
+        assetsIntoBasket[1] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
             weight: 250_000 // 25%
         });
 
-        FixedTermStaking.AssetInfo[] memory newAssetsIntoBasket = new FixedTermStaking.AssetInfo[](2);
-        newAssetsIntoBasket[0] = FixedTermStaking.AssetInfo({
+        FixedTermStakingDefs.AssetInfo[] memory newAssetsIntoBasket = new FixedTermStakingDefs.AssetInfo[](2);
+        newAssetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 300_000 // 30%
         });
-        newAssetsIntoBasket[1] = FixedTermStaking.AssetInfo({
+        newAssetsIntoBasket[1] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@mosUSD", "ETH@mosUSD")),
             weight: 300_000 // 30%
         });
@@ -1279,41 +1217,45 @@ contract FixedTermStakingTest is Test {
 
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "empty newAssetInfo"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "empty newAssetInfo"));
         vm.prank(_owner);
-        fixedTermStaking.addNewAssetIntoBasket(new FixedTermStaking.AssetInfo[](0));
+        fixedTermStaking.addNewAssetIntoBasket(new FixedTermStakingDefs.AssetInfo[](0));
 
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.ZeroAddress.selector, "new asset's vault"));
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.ZeroAddress.selector, "new asset's vault"));
         vm.prank(_owner);
-        fixedTermStaking.addNewAssetIntoBasket(new FixedTermStaking.AssetInfo[](1));
+        fixedTermStaking.addNewAssetIntoBasket(new FixedTermStakingDefs.AssetInfo[](1));
 
         newAssetsIntoBasket[0].weight = 0;
-        vm.expectRevert(abi.encodeWithSelector(FixedTermStaking.InvalidValue.selector, "weight of new asset in basket"));
+        vm.expectRevert(
+            abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "weight of new asset in basket")
+        );
         vm.prank(_owner);
         fixedTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
         newAssetsIntoBasket[0].weight = 300_000;
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.InvalidValue.selector, "total weight of assets in basket and new assets"
+                FixedTermStakingDefs.InvalidValue.selector, "total weight of assets in basket and new assets"
             )
         );
         vm.prank(_owner);
         fixedTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
-        newAssetsIntoBasket[0] = FixedTermStaking.AssetInfo({
+        newAssetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                FixedTermStaking.VaultAssetNotEqualExchangerToken1.selector, address(0xdeadbeef), address(_depositToken)
+                FixedTermStakingDefs.VaultAssetNotEqualExchangerToken1.selector,
+                address(0xdeadbeef),
+                address(_depositToken)
             )
         );
         vm.prank(_owner);
         fixedTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
 
-        newAssetsIntoBasket[0] = FixedTermStaking.AssetInfo({
+        newAssetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
             weight: 200_000 // 20%
         });
@@ -1438,6 +1380,8 @@ contract FixedTermStakingTest is Test {
 }
 
 contract BoringFixedTermStaking is FixedTermStaking {
+    using FixedTermStakingCore for mapping(uint256 => FixedTermStakingDefs.StakeInfo);
+
     function boringTestOnlyWhitelist() public view onlyWhitelisted(msg.sender) returns (bool) {
         return true;
     }
@@ -1446,12 +1390,107 @@ contract BoringFixedTermStaking is FixedTermStaking {
         return true;
     }
 
-    function boringTestStake(uint128 stakeAmount_, address from_, address to_) public returns (uint256) {
-        return _stake(stakeAmount_, from_, to_);
+    function boringTestStake(uint128 stakeAmount_, address from_, address to_) public returns (uint256 tokenId_) {
+        /**
+         * uint128 updatedTotalPrincipal_,
+         * uint128 updatedRemainingBalance_,
+         * uint128 updatedTotalFee_,
+         */
+        (uint128[3] memory results, uint256[] memory timepoints) = _tokenId_stakeInfo.stake(
+            _startDate_principal,
+            _maturityDate_principal,
+            _assetsInfoBasket,
+            _timepoints,
+            /**
+             * address from_,
+             * address to_,
+             * address underlyingToken_,
+             * address exchanger_,
+             */
+            [from_, to_, _underlyingToken, _exchanger],
+            /**
+             * uint128 totalPrincipal_,
+             * uint128 remainingBalance_,
+             * uint128 totalFee_,
+             * uint128 stakeAmount_,
+             * uint128 dustBalance_,
+             * uint128 tokenId_,
+             * uint64 stakeFeeRate_,
+             * uint64 lockPeriod_,
+             */
+            [
+                _totalPrincipal,
+                _remainingBalance,
+                _totalFee,
+                stakeAmount_,
+                _dustBalance,
+                _maxSupply,
+                uint128(_tokenId),
+                uint128(_stakeFeeRate),
+                uint128(_lockPeriod)
+            ]
+        );
+        unchecked {
+            _totalPrincipal = results[0];
+            _remainingBalance = results[1];
+            _totalFee = results[2];
+        }
+        delete _timepoints;
+        _timepoints = timepoints;
+        tokenId_ = mint(to_);
     }
 
-    function boringTestUnstake(uint256 tokenId_, address from_, address to_) public returns (uint128) {
-        return _unstake(tokenId_, from_, to_);
+    function boringTestUnstake(uint256 tokenId_, address from_, address to_) public returns (uint128 repayAmount_) {
+        /**
+         * uint128 repayAmount_,
+         * uint128 updatedTotalPrincipal_,
+         * uint128 updatedRemainingBalance_,
+         * uint128 updatedTotalFee_,
+         * int128 updatedTotalInterest_,
+         */
+        int256[5] memory results = _tokenId_stakeInfo.unstake(
+            _accumulatedInterestRate,
+            _assetsInfoBasket,
+            /**
+             * address from_,
+             * address to_,
+             * address tokenOwner_,
+             * address underlyingToken_,
+             * address exchanger_,
+             */
+            [from_, to_, _requireOwned(tokenId_), _underlyingToken, _exchanger],
+            /**
+             * uint256 tokenId_,
+             * uint128 totalPrincipal_,
+             * uint128 remainingBalance_,
+             * uint128 totalFee_,
+             * int128 totalInterest_,
+             * uint64 lastFeedTime_,
+             * uint64 unstakeFeeRate_,
+             * uint256 maxTokenId_
+             */
+            [
+                int256(tokenId_),
+                int256(uint256(_totalPrincipal)),
+                int256(uint256(_remainingBalance)),
+                int256(uint256(_totalFee)),
+                int256(_totalInterest),
+                int256(uint256(_lastFeedTime)),
+                int256(uint256(_unstakeFeeRate)),
+                int256(_tokenId)
+            ]
+        );
+
+        unchecked {
+            _totalPrincipal = uint128(uint256(results[1]));
+            _remainingBalance = uint128(uint256(results[2]));
+            _totalFee = uint128(uint256(results[3]));
+            _totalInterest = int128(results[4]);
+        }
+
+        burn(tokenId_);
+
+        repayAmount_ = uint128(uint256(results[0]));
     }
 }
 

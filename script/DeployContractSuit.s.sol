@@ -20,6 +20,7 @@ import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTerm
 import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
+import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
 import {AssetVault} from "test/mock/AssetVault.sol";
 
@@ -178,11 +179,11 @@ contract DeployContractSuit is Script {
                 new address[](0)
             )
         );
-        FixedTermStaking.AssetInfo[] memory fixedTermAssetsInfoBasket = new FixedTermStaking.AssetInfo[](2);
+        FixedTermStakingDefs.AssetInfo[] memory fixedTermAssetsInfoBasket = new FixedTermStakingDefs.AssetInfo[](2);
         fixedTermAssetsInfoBasket[0] =
-            FixedTermStaking.AssetInfo({targetVault: address(_vault1), weight: _vault1WeightInAStake});
+            FixedTermStakingDefs.AssetInfo({targetVault: address(_vault1), weight: _vault1WeightInAStake});
         fixedTermAssetsInfoBasket[1] =
-            FixedTermStaking.AssetInfo({targetVault: address(_vault2), weight: _vault2WeightInAStake});
+            FixedTermStakingDefs.AssetInfo({targetVault: address(_vault2), weight: _vault2WeightInAStake});
 
         _fixedTermStaking = FixedTermStaking(
             deployFixedTermStaking(
@@ -307,7 +308,7 @@ contract DeployContractSuit is Script {
         uint256 limits_,
         string memory name_,
         string memory symbol_,
-        FixedTermStaking.AssetInfo[] memory assetsInfoBasket_
+        FixedTermStakingDefs.AssetInfo[] memory assetsInfoBasket_
     ) public returns (address) {
         return address(
             new TransparentUpgradeableProxy(

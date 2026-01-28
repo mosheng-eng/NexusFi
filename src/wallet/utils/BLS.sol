@@ -3,6 +3,8 @@
 pragma solidity ^0.8.24;
 
 import {BLSHelper} from "./BLSHelper.sol";
+import {console} from "forge-std/console.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title BLS library
 /// @author Mr.Silent
@@ -176,6 +178,19 @@ library BLS {
             result_ = pointsOnG1_[0];
             uint256[8] memory input;
             for (uint256 i = 1; i < pointsOnG1_.length; ++i) {
+                bytes memory point1Bytes = abi.encode(result_);
+                bytes memory point2Bytes = abi.encode(pointsOnG1_[i]);
+                assembly ("memory-safe") {
+                    mstore(add(input, mul(0x20, 0)), mload(add(point1Bytes, mul(0x20, 1)))) // result_.X.upper
+                    mstore(add(input, mul(0x20, 1)), mload(add(point1Bytes, mul(0x20, 2)))) // result_.X.lower
+                    mstore(add(input, mul(0x20, 2)), mload(add(point1Bytes, mul(0x20, 3)))) // result_.Y.upper
+                    mstore(add(input, mul(0x20, 3)), mload(add(point1Bytes, mul(0x20, 4)))) // result_.Y.lower
+                    mstore(add(input, mul(0x20, 4)), mload(add(point2Bytes, mul(0x20, 1)))) // pointsOnG1_[i].X.upper
+                    mstore(add(input, mul(0x20, 5)), mload(add(point2Bytes, mul(0x20, 2)))) // pointsOnG1_[i].X.lower
+                    mstore(add(input, mul(0x20, 6)), mload(add(point2Bytes, mul(0x20, 3)))) // pointsOnG1_[i].Y.upper
+                    mstore(add(input, mul(0x20, 7)), mload(add(point2Bytes, mul(0x20, 4)))) // pointsOnG1_[i].Y.lower
+                }
+                /*
                 input[0] = result_.X.upper;
                 input[1] = result_.X.lower;
                 input[2] = result_.Y.upper;
@@ -184,6 +199,7 @@ library BLS {
                 input[5] = pointsOnG1_[i].X.lower;
                 input[6] = pointsOnG1_[i].Y.upper;
                 input[7] = pointsOnG1_[i].Y.lower;
+                */
 
                 bool success;
                 uint256[4] memory output;
@@ -225,6 +241,28 @@ library BLS {
             result_ = pointsOnG2_[0];
             uint256[16] memory input;
             for (uint256 i = 1; i < pointsOnG2_.length; ++i) {
+                bytes memory point1Bytes = abi.encode(result_);
+                bytes memory point2Bytes = abi.encode(pointsOnG2_[i]);
+                assembly ("memory-safe") {
+                    mstore(add(input, mul(0x20, 0)), mload(add(point1Bytes, mul(0x20, 1)))) // result_.X0.upper
+                    mstore(add(input, mul(0x20, 1)), mload(add(point1Bytes, mul(0x20, 2)))) // result_.X0.lower
+                    mstore(add(input, mul(0x20, 2)), mload(add(point1Bytes, mul(0x20, 3)))) // result_.X1.upper
+                    mstore(add(input, mul(0x20, 3)), mload(add(point1Bytes, mul(0x20, 4)))) // result_.X1.lower
+                    mstore(add(input, mul(0x20, 4)), mload(add(point1Bytes, mul(0x20, 5)))) // result_.Y0.upper
+                    mstore(add(input, mul(0x20, 5)), mload(add(point1Bytes, mul(0x20, 6)))) // result_.Y0.lower
+                    mstore(add(input, mul(0x20, 6)), mload(add(point1Bytes, mul(0x20, 7)))) // result_.Y1.upper
+                    mstore(add(input, mul(0x20, 7)), mload(add(point1Bytes, mul(0x20, 8)))) // result_.Y1.lower
+                    mstore(add(input, mul(0x20, 8)), mload(add(point2Bytes, mul(0x20, 1)))) // pointsOnG2_[i].X0.upper
+                    mstore(add(input, mul(0x20, 9)), mload(add(point2Bytes, mul(0x20, 2)))) // pointsOnG2_[i].X0.lower
+                    mstore(add(input, mul(0x20, 10)), mload(add(point2Bytes, mul(0x20, 3)))) // pointsOnG2_[i].X1.upper
+                    mstore(add(input, mul(0x20, 11)), mload(add(point2Bytes, mul(0x20, 4)))) // pointsOnG2_[i].X1.lower
+                    mstore(add(input, mul(0x20, 12)), mload(add(point2Bytes, mul(0x20, 5)))) // pointsOnG2_[i].Y0.upper
+                    mstore(add(input, mul(0x20, 13)), mload(add(point2Bytes, mul(0x20, 6)))) // pointsOnG2_[i].Y0.lower
+                    mstore(add(input, mul(0x20, 14)), mload(add(point2Bytes, mul(0x20, 7)))) // pointsOnG2_[i].Y1.upper
+                    mstore(add(input, mul(0x20, 15)), mload(add(point2Bytes, mul(0x20, 8)))) // pointsOnG2_[i].Y1.lower
+                }
+
+                /*
                 input[0] = result_.X0.upper;
                 input[1] = result_.X0.lower;
                 input[2] = result_.X1.upper;
@@ -241,6 +279,7 @@ library BLS {
                 input[13] = pointsOnG2_[i].Y0.lower;
                 input[14] = pointsOnG2_[i].Y1.upper;
                 input[15] = pointsOnG2_[i].Y1.lower;
+                */
 
                 bool success;
                 uint256[8] memory output;

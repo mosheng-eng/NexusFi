@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
+import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
@@ -25,7 +26,7 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     FixedTermStaking internal _fixedTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;
-    FixedTermStaking.AssetInfo[] internal _assetsInfoBasket;
+    FixedTermStakingDefs.AssetInfo[] internal _assetsInfoBasket;
     DepositAsset internal _depositToken;
     UnderlyingTokenExchanger internal _exchanger;
 
@@ -60,7 +61,7 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
         return _assetsInfoBasket.length;
     }
 
-    function getAssetInfoInBasket(uint256 index_) external view returns (FixedTermStaking.AssetInfo memory) {
+    function getAssetInfoInBasket(uint256 index_) external view returns (FixedTermStakingDefs.AssetInfo memory) {
         return _assetsInfoBasket[index_];
     }
 
@@ -102,14 +103,14 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
 
     function _deployFixedTermStaking() internal {
         _assetsInfoBasket.push(
-            FixedTermStaking.AssetInfo({
+            FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
-            FixedTermStaking.AssetInfo({
+            FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })

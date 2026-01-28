@@ -86,7 +86,7 @@ contract OpenTermStaking is
             [_underlyingToken, _whitelist, _exchanger],
             /**
              * uint128 _maxSupply,
-             * uint128 _lastFeedTime
+             * uint64 _lastFeedTime
              */
             [_maxSupply, uint128(_lastFeedTime)]
         );
