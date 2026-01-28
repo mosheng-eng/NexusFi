@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
-import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
+import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
@@ -27,7 +27,7 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
     OpenTermStaking internal _openTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;
-    OpenTermStakingLibs.AssetInfo[] internal _assetsInfoBasket;
+    OpenTermStakingDefs.AssetInfo[] internal _assetsInfoBasket;
     DepositAsset internal _depositToken;
     UnderlyingTokenExchanger internal _exchanger;
 
@@ -63,7 +63,7 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
         return _assetsInfoBasket.length;
     }
 
-    function getAssetInfoInBasket(uint256 index_) external view returns (OpenTermStakingLibs.AssetInfo memory) {
+    function getAssetInfoInBasket(uint256 index_) external view returns (OpenTermStakingDefs.AssetInfo memory) {
         return _assetsInfoBasket[index_];
     }
 
@@ -105,14 +105,14 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
 
     function _deployOpenTermStaking() internal {
         _assetsInfoBasket.push(
-            OpenTermStakingLibs.AssetInfo({
+            OpenTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
                 weight: 500_000 // 50%
             })
         );
 
         _assetsInfoBasket.push(
-            OpenTermStakingLibs.AssetInfo({
+            OpenTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
                 weight: 500_000 // 50%
             })

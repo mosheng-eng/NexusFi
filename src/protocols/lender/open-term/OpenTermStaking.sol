@@ -6,18 +6,12 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
-import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {OpenTermToken} from "src/protocols/lender/open-term/OpenTermToken.sol";
-import {Errors} from "src/common/Errors.sol";
 import {Roles} from "src/common/Roles.sol";
-
+import {OpenTermToken} from "src/protocols/lender/open-term/OpenTermToken.sol";
+import {OpenTermStakingCore} from "src/protocols/lender/open-term/utils/OpenTermStakingCore.sol";
 import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
+import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
 
 contract OpenTermStaking is
     Initializable,
@@ -29,7 +23,8 @@ contract OpenTermStaking is
     using OpenTermStakingLibs for uint64;
     using OpenTermStakingLibs for uint128;
     using OpenTermStakingLibs for address;
-    using OpenTermStakingLibs for OpenTermStakingLibs.AssetInfo[];
+    using OpenTermStakingLibs for OpenTermStakingDefs.AssetInfo[];
+    using OpenTermStakingCore for OpenTermStakingDefs.AssetInfo[];
 
     /// @dev ERC20 token used for staking
     /// @notice stored in slot 0
@@ -65,7 +60,7 @@ contract OpenTermStaking is
     uint64 public _lastFeedTime;
     /// @dev list of all assets in the basket
     /// @notice dynamic array storage, initialized when deploying this contract
-    OpenTermStakingLibs.AssetInfo[] internal _assetsInfoBasket;
+    OpenTermStakingDefs.AssetInfo[] internal _assetsInfoBasket;
 
     /// @dev whitelist check modifier
     /// @param who_ The address to be checked against the whitelist
@@ -120,7 +115,7 @@ contract OpenTermStaking is
         uint256 limits_,
         string calldata name_,
         string calldata symbol_,
-        OpenTermStakingLibs.AssetInfo[] calldata assetsInfoBasket_
+        OpenTermStakingDefs.AssetInfo[] calldata assetsInfoBasket_
     ) public initializer {
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -367,7 +362,7 @@ contract OpenTermStaking is
     /// @param timestamp_ The timestamp to feed (non-normalized)
     /// @return dividends_ Whether there are dividends to distribute
     function feed(uint64 timestamp_) external whenNotPaused nonReentrant returns (bool dividends_) {
-        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingLibs.feed(
+        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
             timestamp_, false, _lastFeedTime, _totalInterestBearing, getTotalAssetValueInBasket(), _underlyingToken
         );
     }
@@ -382,7 +377,7 @@ contract OpenTermStaking is
         onlyRole(Roles.OPERATOR_ROLE)
         returns (bool dividends_)
     {
-        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingLibs.feed(
+        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
             timestamp_, true, _lastFeedTime, _totalInterestBearing, getTotalAssetValueInBasket(), _underlyingToken
         );
     }
@@ -392,12 +387,12 @@ contract OpenTermStaking is
     /// @dev only operator role can call this method
     /// @dev only influence future staking operations
     function updateStakeFeeRate(uint64 newStakeFeeRate_) external onlyRole(Roles.OPERATOR_ROLE) {
-        if (newStakeFeeRate_ > OpenTermStakingLibs.MAX_FEE_RATE) {
-            revert OpenTermStakingLibs.InvalidFeeRate(newStakeFeeRate_);
+        if (newStakeFeeRate_ > OpenTermStakingDefs.MAX_FEE_RATE) {
+            revert OpenTermStakingDefs.InvalidFeeRate(newStakeFeeRate_);
         }
         uint64 oldStakeFeeRate = _stakeFeeRate;
         _stakeFeeRate = newStakeFeeRate_;
-        emit OpenTermStakingLibs.StakeFeeRateUpdated(oldStakeFeeRate, newStakeFeeRate_);
+        emit OpenTermStakingDefs.StakeFeeRateUpdated(oldStakeFeeRate, newStakeFeeRate_);
     }
 
     /// @notice Method to update unstaking fee rate
@@ -405,12 +400,12 @@ contract OpenTermStaking is
     /// @dev only operator role can call this method
     /// @dev only influence future unstaking operations
     function updateUnstakeFeeRate(uint64 newUnstakeFeeRate_) external onlyRole(Roles.OPERATOR_ROLE) {
-        if (newUnstakeFeeRate_ > OpenTermStakingLibs.MAX_FEE_RATE) {
-            revert OpenTermStakingLibs.InvalidFeeRate(newUnstakeFeeRate_);
+        if (newUnstakeFeeRate_ > OpenTermStakingDefs.MAX_FEE_RATE) {
+            revert OpenTermStakingDefs.InvalidFeeRate(newUnstakeFeeRate_);
         }
         uint64 oldUnstakeFeeRate = _unstakeFeeRate;
         _unstakeFeeRate = newUnstakeFeeRate_;
-        emit OpenTermStakingLibs.UnstakeFeeRateUpdated(oldUnstakeFeeRate, newUnstakeFeeRate_);
+        emit OpenTermStakingDefs.UnstakeFeeRateUpdated(oldUnstakeFeeRate, newUnstakeFeeRate_);
     }
 
     /// @notice Method to update the dust balance limit
@@ -420,13 +415,13 @@ contract OpenTermStaking is
     function updateDustBalance(uint128 newDustBalance_) external onlyRole(Roles.OPERATOR_ROLE) {
         /// @dev New limit should not be compatible with current remaining balance
         if (_maxSupply - _totalInterestBearing < newDustBalance_) {
-            revert OpenTermStakingLibs.InvalidValue("dustBalance");
+            revert OpenTermStakingDefs.InvalidValue("dustBalance");
         }
 
         uint128 oldDustBalance = _dustBalance;
         _dustBalance = newDustBalance_;
 
-        emit OpenTermStakingLibs.DustBalanceUpdated(oldDustBalance, newDustBalance_);
+        emit OpenTermStakingDefs.DustBalanceUpdated(oldDustBalance, newDustBalance_);
     }
 
     /// @notice Method to update the maximum supply limit
@@ -436,18 +431,18 @@ contract OpenTermStaking is
     function updateMaxSupply(uint128 newMaxSupply_) external onlyRole(Roles.OPERATOR_ROLE) {
         /// @dev New limit should not be lower than current total interest bearing
         if (newMaxSupply_ < _totalInterestBearing) {
-            revert OpenTermStakingLibs.InvalidValue("newMaxSupply");
+            revert OpenTermStakingDefs.InvalidValue("newMaxSupply");
         }
 
         /// @dev New limit should not be compatible with current dust balance
         if (newMaxSupply_ - _totalInterestBearing < _dustBalance) {
-            revert OpenTermStakingLibs.InvalidValue("newMaxSupply");
+            revert OpenTermStakingDefs.InvalidValue("newMaxSupply");
         }
 
         uint128 oldMaxSupply = _maxSupply;
         _maxSupply = newMaxSupply_;
 
-        emit OpenTermStakingLibs.MaxSupplyUpdated(oldMaxSupply, newMaxSupply_);
+        emit OpenTermStakingDefs.MaxSupplyUpdated(oldMaxSupply, newMaxSupply_);
     }
 
     /// @notice Pause staking and unstaking operations
@@ -464,7 +459,7 @@ contract OpenTermStaking is
     /// @param newAssetInfo_ The array of new asset information to be added into the basket
     /// @dev only operator role can call this method
     /// @dev only influence future staking operations
-    function addNewAssetIntoBasket(OpenTermStakingLibs.AssetInfo[] calldata newAssetInfo_)
+    function addNewAssetIntoBasket(OpenTermStakingDefs.AssetInfo[] calldata newAssetInfo_)
         external
         onlyRole(Roles.OPERATOR_ROLE)
     {
@@ -484,11 +479,11 @@ contract OpenTermStaking is
         totalValue_ = _assetsInfoBasket.totalAssetValueInBasket(_exchanger);
     }
 
-    function assetsInfoBasket() external view returns (OpenTermStakingLibs.AssetInfo[] memory) {
+    function assetsInfoBasket() external view returns (OpenTermStakingDefs.AssetInfo[] memory) {
         return _assetsInfoBasket;
     }
 
-    function assetInfoAt(uint256 index_) external view returns (OpenTermStakingLibs.AssetInfo memory) {
+    function assetInfoAt(uint256 index_) external view returns (OpenTermStakingDefs.AssetInfo memory) {
         return _assetsInfoBasket[index_];
     }
 
