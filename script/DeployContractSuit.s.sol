@@ -15,6 +15,7 @@ import {ThresholdWalletLibs} from "src/wallet/threshold/utils/ThresholdWalletLib
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
+import {TimePowerLoanDefs} from "src/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
 import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
@@ -213,13 +214,13 @@ contract DeployContractSuit is Script {
                 openTermAssetsInfoBasket
             )
         );
-        TimePowerLoan.TrustedVault[] memory timePowerLoanTrustedVaults = new TimePowerLoan.TrustedVault[](2);
-        timePowerLoanTrustedVaults[0] = TimePowerLoan.TrustedVault({
+        TimePowerLoanDefs.TrustedVault[] memory timePowerLoanTrustedVaults = new TimePowerLoanDefs.TrustedVault[](2);
+        timePowerLoanTrustedVaults[0] = TimePowerLoanDefs.TrustedVault({
             vault: address(_vault1),
             minimumPercentage: _vault1MinimumPercentageInALoan,
             maximumPercentage: _vault1MaximumPercentageInALoan
         });
-        timePowerLoanTrustedVaults[1] = TimePowerLoan.TrustedVault({
+        timePowerLoanTrustedVaults[1] = TimePowerLoanDefs.TrustedVault({
             vault: address(_vault2),
             minimumPercentage: _vault2MinimumPercentageInALoan,
             maximumPercentage: _vault2MaximumPercentageInALoan
@@ -439,7 +440,7 @@ contract DeployContractSuit is Script {
         /**
          * vaults that are allowed to lend to borrowers
          */
-        TimePowerLoan.TrustedVault[] memory trustedVaults_
+        TimePowerLoanDefs.TrustedVault[] memory trustedVaults_
     ) public returns (address) {
         return address(
             new TransparentUpgradeableProxy(

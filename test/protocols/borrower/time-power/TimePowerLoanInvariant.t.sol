@@ -6,6 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
+import {TimePowerLoanDefs} from "src/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
 import {TimePowerLoanHandler} from "test/protocols/borrower/time-power/handler/TimePowerLoanHandler.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -46,10 +47,12 @@ contract TimePowerLoanInvariant is Test {
         uint256 totalDebtOfBorrowers = 0;
         uint256 totalDebtOfVaults = 0;
         for (uint64 i = 0; i < totalBorrowers; i++) {
-            totalDebtOfBorrowers += _timePowerLoan.totalDebtOfBorrower(_timePowerLoan.getBorrowerAtIndex(i));
+            (address borrower,,) = _timePowerLoan._trustedBorrowers(i);
+            totalDebtOfBorrowers += _timePowerLoan.totalDebtOfBorrower(borrower);
         }
         for (uint64 j = 0; j < totalVaults; j++) {
-            totalDebtOfVaults += _timePowerLoan.totalDebtOfVault(_timePowerLoan.getVaultAtIndex(j));
+            (address vault,,) = _timePowerLoan._trustedVaults(j);
+            totalDebtOfVaults += _timePowerLoan.totalDebtOfVault(vault);
         }
         console.log("Total Debt of Borrowers: ", totalDebtOfBorrowers);
         console.log("Total Debt of Vaults   : ", totalDebtOfVaults);
@@ -67,23 +70,23 @@ contract TimePowerLoanInvariant is Test {
         uint256[] memory loans_debts_tranches_amount = new uint256[](3);
         uint64 index;
         for (index = 0; index < loans_debts_tranches_number[0]; index++) {
-            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(index);
+            TimePowerLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(index);
             loans_debts_tranches_amount[0] += uint256(loanInfo.normalizedPrincipal).mulDiv(
-                _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
+                _timePowerLoan._accumulatedInterestRates(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
             );
         }
         for (index = 0; index < loans_debts_tranches_number[1]; index++) {
-            TimePowerLoan.DebtInfo memory debtInfo = _timePowerLoan.getDebtInfoAtIndex(index);
-            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(debtInfo.loanIndex);
+            TimePowerLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(index);
+            TimePowerLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(debtInfo.loanIndex);
             loans_debts_tranches_amount[1] += uint256(debtInfo.normalizedPrincipal).mulDiv(
-                _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
+                _timePowerLoan._accumulatedInterestRates(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
             );
         }
         for (index = 0; index < loans_debts_tranches_number[2]; index++) {
-            TimePowerLoan.TrancheInfo memory trancheInfo = _timePowerLoan.getTrancheInfoAtIndex(index);
-            TimePowerLoan.LoanInfo memory loanInfo = _timePowerLoan.getLoanInfoAtIndex(trancheInfo.loanIndex);
+            TimePowerLoanDefs.TrancheInfo memory trancheInfo = _getTrancheInfoAtIndex(index);
+            TimePowerLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(trancheInfo.loanIndex);
             loans_debts_tranches_amount[2] += uint256(trancheInfo.normalizedPrincipal).mulDiv(
-                _timePowerLoan.getAccumulatedInterestRateAtIndex(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
+                _timePowerLoan._accumulatedInterestRates(loanInfo.interestRateIndex), 1e18, Math.Rounding.Ceil
             );
         }
         console.log("Total Amount of Loans   : ", loans_debts_tranches_amount[0]);
@@ -225,5 +228,49 @@ contract TimePowerLoanInvariant is Test {
 
     function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ >= b_ ? a_ - b_ : b_ - a_;
+    }
+
+    function _getLoanInfoAtIndex(uint256 loanIndex_)
+        internal
+        view
+        returns (TimePowerLoanDefs.LoanInfo memory loanInfo_)
+    {
+        (
+            loanInfo_.ceilingLimit,
+            loanInfo_.remainingLimit,
+            loanInfo_.normalizedPrincipal,
+            loanInfo_.interestRateIndex,
+            loanInfo_.borrowerIndex,
+            loanInfo_.status
+        ) = _timePowerLoan._allLoans(loanIndex_);
+    }
+
+    function _getDebtInfoAtIndex(uint256 debtIndex_)
+        internal
+        view
+        returns (TimePowerLoanDefs.DebtInfo memory debtInfo_)
+    {
+        (
+            debtInfo_.startTime,
+            debtInfo_.maturityTime,
+            debtInfo_.principal,
+            debtInfo_.normalizedPrincipal,
+            debtInfo_.loanIndex,
+            debtInfo_.status
+        ) = _timePowerLoan._allDebts(debtIndex_);
+    }
+
+    function _getTrancheInfoAtIndex(uint256 trancheIndex_)
+        internal
+        view
+        returns (TimePowerLoanDefs.TrancheInfo memory trancheInfo_)
+    {
+        (
+            trancheInfo_.vaultIndex,
+            trancheInfo_.debtIndex,
+            trancheInfo_.loanIndex,
+            trancheInfo_.borrowerIndex,
+            trancheInfo_.normalizedPrincipal
+        ) = _timePowerLoan._allTranches(trancheIndex_);
     }
 }
