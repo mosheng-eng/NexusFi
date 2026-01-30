@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 import {Test, console, stdStorage, StdStorage} from "forge-std/Test.sol";
 
 import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
+import {TimeLinearLoanDefs} from "src/protocols/borrower/time-linear/utils/TimeLinearLoanDefs.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {Roles} from "src/common/Roles.sol";
@@ -31,7 +32,7 @@ contract TimeLinearLoanTest is Test {
     Blacklist internal _blacklist;
     DepositAsset internal _depositToken;
 
-    TimeLinearLoan.TrustedVault[] internal _trustedVaults;
+    TimeLinearLoanDefs.TrustedVault[] internal _trustedVaults;
     uint64[] internal _secondInterestRates;
 
     address internal _owner = makeAddr("owner");
@@ -145,7 +146,7 @@ contract TimeLinearLoanTest is Test {
         _secondInterestRates.push(11098427194);
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@OpenTerm", "MMF@OpenTerm")),
                 minimumPercentage: 10 * 10 ** 4, // 10%
                 maximumPercentage: 40 * 10 ** 4 // 40%
@@ -153,7 +154,7 @@ contract TimeLinearLoanTest is Test {
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@OpenTerm", "RWA@OpenTerm")),
                 minimumPercentage: 30 * 10 ** 4, // 30%
                 maximumPercentage: 60 * 10 ** 4 // 60%
@@ -161,7 +162,7 @@ contract TimeLinearLoanTest is Test {
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@FixedTerm", "MMF@FixedTerm")),
                 minimumPercentage: 50 * 10 ** 4, // 50%
                 maximumPercentage: 80 * 10 ** 4 // 80%
@@ -169,7 +170,7 @@ contract TimeLinearLoanTest is Test {
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@FixedTerm", "RWA@FixedTerm")),
                 minimumPercentage: 70 * 10 ** 4, // 70%
                 maximumPercentage: 100 * 10 ** 4 // 100%
@@ -229,12 +230,12 @@ contract TimeLinearLoanTest is Test {
 
     function testJoin() public {
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedBorrowerAdded(_whitelistedUser1, 0);
+        emit TimeLinearLoanDefs.TrustedBorrowerAdded(_whitelistedUser1, 0);
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.join();
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedBorrowerAdded(_whitelistedUser2, 1);
+        emit TimeLinearLoanDefs.TrustedBorrowerAdded(_whitelistedUser2, 1);
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.join();
 
@@ -247,11 +248,11 @@ contract TimeLinearLoanTest is Test {
 
     function testDuplicateBorrowerJoin() public {
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedBorrowerAdded(_whitelistedUser1, 0);
+        emit TimeLinearLoanDefs.TrustedBorrowerAdded(_whitelistedUser1, 0);
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.join();
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.BorrowerAlreadyExists.selector, _whitelistedUser1, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.BorrowerAlreadyExists.selector, _whitelistedUser1, 0));
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.join();
     }
@@ -289,11 +290,11 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.AgreeJoinRequest(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.AgreeJoinRequest(_whitelistedUser1, 1_000_000 * 10 ** 6);
         _timeLinearLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.AgreeJoinRequest(_whitelistedUser2, 2_000_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.AgreeJoinRequest(_whitelistedUser2, 2_000_000 * 10 ** 6);
         _timeLinearLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
 
         vm.stopPrank();
@@ -320,10 +321,12 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.AgreeJoinRequest(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.AgreeJoinRequest(_whitelistedUser1, 1_000_000 * 10 ** 6);
         _timeLinearLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.UpdateCeilingLimitDirectly.selector, _whitelistedUser1));
+        vm.expectRevert(
+            abi.encodeWithSelector(TimeLinearLoanDefs.UpdateCeilingLimitDirectly.selector, _whitelistedUser1)
+        );
         _timeLinearLoan.agree(_whitelistedUser1, 2_000_000 * 10 ** 6);
 
         vm.stopPrank();
@@ -374,7 +377,7 @@ contract TimeLinearLoanTest is Test {
 
         address someone = makeAddr("someone");
         _whitelist.add(someone);
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedBorrower.selector, someone));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         _timeLinearLoan.agree(someone, 3_000_000 * 10 ** 6);
 
         vm.stopPrank();
@@ -388,7 +391,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.AgreeJoinRequestShouldHaveNonZeroCeilingLimit.selector, _whitelistedUser1
+                TimeLinearLoanDefs.AgreeJoinRequestShouldHaveNonZeroCeilingLimit.selector, _whitelistedUser1
             )
         );
         _timeLinearLoan.agree(_whitelistedUser1, 0);
@@ -411,12 +414,12 @@ contract TimeLinearLoanTest is Test {
         vm.stopPrank();
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ReceiveLoanRequest(_whitelistedUser1, 0, 500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.ReceiveLoanRequest(_whitelistedUser1, 0, 500_000 * 10 ** 6);
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.request(500_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ReceiveLoanRequest(_whitelistedUser2, 1, 1_500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.ReceiveLoanRequest(_whitelistedUser2, 1, 1_500_000 * 10 ** 6);
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.request(1_500_000 * 10 ** 6);
     }
@@ -479,7 +482,7 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _whitelist.add(someone);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedBorrower.selector, someone));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         vm.prank(someone);
         _timeLinearLoan.request(300_000 * 10 ** 6);
     }
@@ -501,7 +504,7 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.request(500_000 * 10 ** 6);
 
         uint64 borrwoerIndex = _timeLinearLoan._borrowerToIndex(_whitelistedUser2);
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidBorrower.selector, borrwoerIndex));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidBorrower.selector, borrwoerIndex));
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.request(1_500_000 * 10 ** 6);
     }
@@ -525,7 +528,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.LoanCeilingLimitExceedsBorrowerRemainingLimit.selector,
+                TimeLinearLoanDefs.LoanCeilingLimitExceedsBorrowerRemainingLimit.selector,
                 2_500_000 * 10 ** 6,
                 2_000_000 * 10 ** 6
             )
@@ -557,11 +560,11 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser1, 0, 500_000 * 10 ** 6, 1);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser1, 0, 500_000 * 10 ** 6, 1);
         _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 1);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser2, 1, 1_500_000 * 10 ** 6, 3);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser2, 1, 1_500_000 * 10 ** 6, 3);
         _timeLinearLoan.approve(1, 1_500_000 * 10 ** 6, 3);
 
         vm.stopPrank();
@@ -609,12 +612,12 @@ contract TimeLinearLoanTest is Test {
 
         vm.startPrank(_owner);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 2));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 2));
         _timeLinearLoan.approve(2, 500_000 * 10 ** 6, 1);
 
         _timeLinearLoan.approve(1, 1_500_000 * 10 ** 6, 3);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotPendingLoan.selector, 1));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotPendingLoan.selector, 1));
         _timeLinearLoan.approve(1, 1_500_000 * 10 ** 6, 3);
 
         vm.stopPrank();
@@ -642,13 +645,12 @@ contract TimeLinearLoanTest is Test {
 
         vm.startPrank(_owner);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidInterestRate.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidInterestRate.selector, 100));
         _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 100);
 
-        stdstore.target(address(_timeLinearLoan)).sig(TimeLinearLoan.getSecondInterestRateAtIndex.selector).with_key(
-            uint256(3)
-        ).checked_write(uint256(0));
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidInterestRate.selector, 3));
+        stdstore.target(address(_timeLinearLoan)).sig("_secondInterestRates(uint256)").with_key(uint256(3))
+            .checked_write(uint256(0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidInterestRate.selector, 3));
         _timeLinearLoan.approve(1, 1_500_000 * 10 ** 6, 3);
 
         vm.stopPrank();
@@ -677,13 +679,13 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser1, 0, 1_000_000 * 10 ** 6, 1);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser1, 0, 1_000_000 * 10 ** 6, 1);
         _timeLinearLoan.approve(0, 1_000_000 * 10 ** 6, 1);
         (uint128 ceilingLimit1,,,,) = _timeLinearLoan._allLoans(0);
         assertEq(ceilingLimit1, 500_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser2, 1, 2_000_000 * 10 ** 6, 3);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser2, 1, 2_000_000 * 10 ** 6, 3);
         _timeLinearLoan.approve(1, 2_000_000 * 10 ** 6, 3);
         (uint128 ceilingLimit2,,,,) = _timeLinearLoan._allLoans(1);
         assertEq(ceilingLimit2, 1_500_000 * 10 ** 6);
@@ -714,13 +716,13 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser1, 0, 400_000 * 10 ** 6, 1);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser1, 0, 400_000 * 10 ** 6, 1);
         _timeLinearLoan.approve(0, 400_000 * 10 ** 6, 1);
         (uint128 ceilingLimit1,,,,) = _timeLinearLoan._allLoans(0);
         assertEq(ceilingLimit1, 400_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, 3);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, 3);
         _timeLinearLoan.approve(1, 1_000_000 * 10 ** 6, 3);
         (uint128 ceilingLimit2,,,,) = _timeLinearLoan._allLoans(1);
         assertEq(ceilingLimit2, 1_000_000 * 10 ** 6);
@@ -754,12 +756,12 @@ contract TimeLinearLoanTest is Test {
         vm.stopPrank();
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Borrowed(_whitelistedUser1, 0, 300_000 * 10 ** 6, true, 0);
+        emit TimeLinearLoanDefs.Borrowed(_whitelistedUser1, 0, 300_000 * 10 ** 6, true, 0);
         vm.prank(_whitelistedUser1);
         (bool isAllSatisfied1,) = _timeLinearLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
         assertTrue(isAllSatisfied1);
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Borrowed(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, true, 1);
+        emit TimeLinearLoanDefs.Borrowed(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, true, 1);
         vm.prank(_whitelistedUser2);
         (bool isAllSatisfied2,) = _timeLinearLoan.borrow(1, 1_000_000 * 10 ** 6, _currentTime + 60 days);
         assertTrue(isAllSatisfied2);
@@ -817,11 +819,11 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.request(500_000 * 10 ** 6);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.borrow(100, 300_000 * 10 ** 6, _currentTime + 30 days);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 0));
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
     }
@@ -839,12 +841,12 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 1);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.borrow(100, 300_000 * 10 ** 6, _currentTime + 30 days);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TimeLinearLoan.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
+            abi.encodeWithSelector(TimeLinearLoanDefs.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
         );
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
@@ -863,13 +865,15 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 1);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.borrow(100, 300_000 * 10 ** 6, _currentTime + 30 days);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.MaturityTimeShouldAfterBlockTimestamp.selector, _currentTime - 1 minutes, _currentTime
+                TimeLinearLoanDefs.MaturityTimeShouldAfterBlockTimestamp.selector,
+                _currentTime - 1 minutes,
+                _currentTime
             )
         );
         vm.prank(_whitelistedUser1);
@@ -889,13 +893,16 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 1);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.borrow(100, 300_000 * 10 ** 6, _currentTime + 30 days);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.BorrowAmountOverLoanRemainingLimit.selector, 500_000 * 10 ** 6 + 1, 500_000 * 10 ** 6, 0
+                TimeLinearLoanDefs.BorrowAmountOverLoanRemainingLimit.selector,
+                500_000 * 10 ** 6 + 1,
+                500_000 * 10 ** 6,
+                0
             )
         );
         vm.prank(_whitelistedUser1);
@@ -918,7 +925,7 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 1);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Borrowed(_whitelistedUser1, 0, 50_000 * 10 ** 6, false, 0);
+        emit TimeLinearLoanDefs.Borrowed(_whitelistedUser1, 0, 50_000 * 10 ** 6, false, 0);
         vm.prank(_whitelistedUser1);
         (bool isAllSatisfied,) = _timeLinearLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
         assertFalse(isAllSatisfied);
@@ -961,11 +968,11 @@ contract TimeLinearLoanTest is Test {
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), 300_000 * 10 ** 6 * 2);
         _timeLinearLoan.repay(0, 300_000 * 10 ** 6 * 2);
         vm.stopPrank();
-        TimeLinearLoan.DebtInfo memory debtInfo1 = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo1 = _getDebtInfoAtIndex(0);
         assertEq(uint256(debtInfo1.netRemainingDebt), 0);
         assertEq(uint256(debtInfo1.netRemainingInterest), 0);
         assertEq(uint256(debtInfo1.interestBearingAmount), 0);
-        assertEq(uint8(TimeLinearLoan.DebtStatus.REPAID), uint8(debtInfo1.status));
+        assertEq(uint8(TimeLinearLoanDefs.DebtStatus.REPAID), uint8(debtInfo1.status));
 
         vm.warp(_currentTime + 40 days);
 
@@ -973,11 +980,11 @@ contract TimeLinearLoanTest is Test {
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), 1_000_000 * 10 ** 6 * 2);
         _timeLinearLoan.repay(1, 1_000_000 * 10 ** 6 * 2);
         vm.stopPrank();
-        TimeLinearLoan.DebtInfo memory debtInfo2 = _timeLinearLoan.getDebtInfoAtIndex(1);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo2 = _getDebtInfoAtIndex(1);
         assertEq(uint256(debtInfo2.netRemainingDebt), 0);
         assertEq(uint256(debtInfo2.netRemainingInterest), 0);
         assertEq(uint256(debtInfo2.interestBearingAmount), 0);
-        assertEq(uint8(TimeLinearLoan.DebtStatus.REPAID), uint8(debtInfo2.status));
+        assertEq(uint8(TimeLinearLoanDefs.DebtStatus.REPAID), uint8(debtInfo2.status));
     }
 
     function testBlacklistedBorrowerRepay() public {
@@ -1063,11 +1070,11 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 25 days);
 
         vm.startPrank(_whitelistedUser1);
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidDebt.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidDebt.selector, 100));
         _timeLinearLoan.repay(100, 300_000 * 10 ** 6 * 2);
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), 300_000 * 10 ** 6 * 2);
         _timeLinearLoan.repay(0, 300_000 * 10 ** 6 * 2);
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidDebt.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidDebt.selector, 0));
         _timeLinearLoan.repay(0, 300_000 * 10 ** 6 * 2);
         vm.stopPrank();
     }
@@ -1093,7 +1100,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 25 days);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TimeLinearLoan.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
+            abi.encodeWithSelector(TimeLinearLoanDefs.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
         );
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.repay(0, 2 * 300_000 * 10 ** 6);
@@ -1105,7 +1112,7 @@ contract TimeLinearLoanTest is Test {
         );
 
         vm.prank(_whitelistedUser1);
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         _timeLinearLoan.repay(0, 2 * 300_000 * 10 ** 6);
     }
 
@@ -1130,7 +1137,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days);
 
         uint256 totalDebt = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(0);
         uint256 repayAmount = ((totalDebt - uint256(debtInfo.principal)) + totalDebt) / 2;
 
         vm.startPrank(_whitelistedUser1);
@@ -1163,7 +1170,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days);
 
         uint256 totalDebt = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(0);
         uint256 repayAmount = (totalDebt - uint256(debtInfo.principal)) / 2;
 
         vm.startPrank(_whitelistedUser1);
@@ -1196,7 +1203,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1208,7 +1215,7 @@ contract TimeLinearLoanTest is Test {
         assertEq(totalDebtAfterRepay, totalDebtBeforeRepay - repayAmount);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 17);
+        emit TimeLinearLoanDefs.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 17);
         vm.prank(_owner);
         uint128 totalDebtAfterDefaulted = _timeLinearLoan.defaulted(_whitelistedUser1, 0, 17);
 
@@ -1237,7 +1244,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1277,7 +1284,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days - 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1286,11 +1293,11 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidDebt.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidDebt.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser1, 100, 17);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotMaturedDebt.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotMaturedDebt.selector, 0));
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser1, 0, 17);
     }
@@ -1316,7 +1323,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1325,13 +1332,14 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidInterestRate.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidInterestRate.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser1, 0, 100);
 
-        stdstore.target(address(_timeLinearLoan)).sig(TimeLinearLoan.getSecondInterestRateAtIndex.selector).with_key(17)
-            .checked_write(uint256(0));
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidInterestRate.selector, 17));
+        stdstore.target(address(_timeLinearLoan)).sig("_secondInterestRates(uint256)").with_key(17).checked_write(
+            uint256(0)
+        );
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidInterestRate.selector, 17));
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser1, 0, 17);
     }
@@ -1357,7 +1365,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1367,7 +1375,7 @@ contract TimeLinearLoanTest is Test {
         vm.stopPrank();
 
         vm.expectRevert(
-            abi.encodeWithSelector(TimeLinearLoan.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
+            abi.encodeWithSelector(TimeLinearLoanDefs.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
         );
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser2, 0, 17);
@@ -1378,7 +1386,7 @@ contract TimeLinearLoanTest is Test {
             bytes32(0x0000000068de22ef000000006905afef0000000068de22ef0000000000000064)
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser1, 0, 17);
     }
@@ -1404,7 +1412,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1416,7 +1424,7 @@ contract TimeLinearLoanTest is Test {
         uint256 totalDebtAfterRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 1);
+        emit TimeLinearLoanDefs.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 1);
         vm.prank(_owner);
         _timeLinearLoan.defaulted(_whitelistedUser1, 0, 1);
     }
@@ -1442,7 +1450,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1458,7 +1466,7 @@ contract TimeLinearLoanTest is Test {
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), remainingDebt);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Recovery(_whitelistedUser1, 0, remainingDebt, 0);
+        emit TimeLinearLoanDefs.Recovery(_whitelistedUser1, 0, remainingDebt, 0);
         vm.prank(_owner);
         _timeLinearLoan.recovery(_whitelistedUser1, 0, remainingDebt);
     }
@@ -1484,7 +1492,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1530,7 +1538,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days - 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1542,11 +1550,11 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_whitelistedUser1);
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), remainingDebt);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidDebt.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidDebt.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.recovery(_whitelistedUser1, 100, remainingDebt);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotDefaultedDebt.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotDefaultedDebt.selector, 0));
         vm.prank(_owner);
         _timeLinearLoan.recovery(_whitelistedUser1, 0, remainingDebt);
     }
@@ -1572,7 +1580,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1588,7 +1596,7 @@ contract TimeLinearLoanTest is Test {
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), remainingDebt);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TimeLinearLoan.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
+            abi.encodeWithSelector(TimeLinearLoanDefs.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
         );
         vm.prank(_owner);
         _timeLinearLoan.recovery(_whitelistedUser2, 0, remainingDebt);
@@ -1599,7 +1607,7 @@ contract TimeLinearLoanTest is Test {
             bytes32(0x0000000068de22ef000000006905afef0000000068de22ef0000000000000064)
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.recovery(_whitelistedUser1, 0, remainingDebt);
     }
@@ -1625,7 +1633,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1642,7 +1650,7 @@ contract TimeLinearLoanTest is Test {
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), recoveryAmount);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Recovery(_whitelistedUser1, 0, recoveryAmount, remainingDebt - recoveryAmount);
+        emit TimeLinearLoanDefs.Recovery(_whitelistedUser1, 0, recoveryAmount, remainingDebt - recoveryAmount);
         vm.prank(_owner);
         _timeLinearLoan.recovery(_whitelistedUser1, 0, recoveryAmount);
     }
@@ -1668,7 +1676,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1690,7 +1698,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
         /// @dev precision loss in interest calculations with dividing
-        emit TimeLinearLoan.Closed(_whitelistedUser1, 0, remainingDebtAtRecovery);
+        emit TimeLinearLoanDefs.Closed(_whitelistedUser1, 0, remainingDebtAtRecovery);
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser1, 0);
     }
@@ -1716,7 +1724,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1767,7 +1775,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days - 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1776,11 +1784,11 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.repay(0, uint128(repayAmount));
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidDebt.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidDebt.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser1, 100);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotDefaultedDebt.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotDefaultedDebt.selector, 0));
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser1, 0);
     }
@@ -1806,7 +1814,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -1827,7 +1835,7 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.recovery(_whitelistedUser1, 0, remainingDebtAtDefaulted);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TimeLinearLoan.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
+            abi.encodeWithSelector(TimeLinearLoanDefs.NotLoanOwner.selector, 0, _whitelistedUser1, _whitelistedUser2)
         );
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser2, 0);
@@ -1838,7 +1846,7 @@ contract TimeLinearLoanTest is Test {
             bytes32(0x0000000068de22ef000000006905afef0000000068de22ef0000000000000064)
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser1, 0);
     }
@@ -1927,11 +1935,11 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.BorrowerCeilingLimitUpdated(1_000_000 * 10 ** 6, 1_500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.BorrowerCeilingLimitUpdated(1_000_000 * 10 ** 6, 1_500_000 * 10 ** 6);
         _timeLinearLoan.updateBorrowerLimit(_whitelistedUser1, 1_500_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.BorrowerCeilingLimitUpdated(2_000_000 * 10 ** 6, 2_500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.BorrowerCeilingLimitUpdated(2_000_000 * 10 ** 6, 2_500_000 * 10 ** 6);
         _timeLinearLoan.updateBorrowerLimit(_whitelistedUser2, 2_500_000 * 10 ** 6);
 
         vm.stopPrank();
@@ -1999,7 +2007,7 @@ contract TimeLinearLoanTest is Test {
 
         address someone = makeAddr("someone");
         _whitelist.add(someone);
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedBorrower.selector, someone));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         _timeLinearLoan.updateBorrowerLimit(someone, 3_000_000 * 10 ** 6);
 
         vm.stopPrank();
@@ -2030,7 +2038,7 @@ contract TimeLinearLoanTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.CeilingLimitBelowRemainingLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
+                TimeLinearLoanDefs.CeilingLimitBelowRemainingLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
             )
         );
         vm.prank(_owner);
@@ -2057,7 +2065,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.CeilingLimitBelowUsedLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
+                TimeLinearLoanDefs.CeilingLimitBelowUsedLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
             )
         );
         vm.prank(_owner);
@@ -2085,7 +2093,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 15 days);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.LoanCeilingLimitUpdated(800_000 * 10 ** 6, 500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.LoanCeilingLimitUpdated(800_000 * 10 ** 6, 500_000 * 10 ** 6);
         vm.prank(_owner);
         _timeLinearLoan.updateLoanLimit(0, 800_000 * 10 ** 6);
     }
@@ -2140,7 +2148,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.warp(_currentTime + 15 days);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanLimit(100, 800_000 * 10 ** 6);
 
@@ -2150,7 +2158,7 @@ contract TimeLinearLoanTest is Test {
             0x0000000000000000000000000000000300000000000000000000000000000001
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 0));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanLimit(0, 800_000 * 10 ** 6);
     }
@@ -2201,7 +2209,7 @@ contract TimeLinearLoanTest is Test {
         stdstore.target(address(_timeLinearLoan)).sig("_borrowerToIndex(address)").with_key(someone).checked_write(
             uint256(1)
         );
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedBorrower.selector, someone));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanLimit(0, 800_000 * 10 ** 6);
     }
@@ -2233,7 +2241,7 @@ contract TimeLinearLoanTest is Test {
         );
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.CeilingLimitBelowRemainingLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
+                TimeLinearLoanDefs.CeilingLimitBelowRemainingLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
             )
         );
         vm.prank(_owner);
@@ -2262,7 +2270,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.CeilingLimitBelowUsedLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
+                TimeLinearLoanDefs.CeilingLimitBelowUsedLimit.selector, 500_000 * 10 ** 6 - 1, 500_000 * 10 ** 6
             )
         );
         vm.prank(_owner);
@@ -2291,7 +2299,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                TimeLinearLoan.LoanCeilingLimitExceedsBorrowerRemainingLimit.selector,
+                TimeLinearLoanDefs.LoanCeilingLimitExceedsBorrowerRemainingLimit.selector,
                 1_000_000 * 10 ** 6 + 1,
                 500_000 * 10 ** 6
             )
@@ -2321,7 +2329,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 15 days);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.LoanInterestRateUpdated(0, 1, 17);
+        emit TimeLinearLoanDefs.LoanInterestRateUpdated(0, 1, 17);
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(0, 17);
     }
@@ -2376,7 +2384,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.warp(_currentTime + 15 days);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(100, 17);
 
@@ -2386,7 +2394,7 @@ contract TimeLinearLoanTest is Test {
             0x0000000000000000000000000000000300000000000000000000000000000001
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidLoan.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidLoan.selector, 0));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(0, 17);
     }
@@ -2411,14 +2419,13 @@ contract TimeLinearLoanTest is Test {
 
         vm.warp(_currentTime + 15 days);
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidInterestRate.selector, 100));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidInterestRate.selector, 100));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(0, 100);
 
-        stdstore.target(address(_timeLinearLoan)).sig(TimeLinearLoan.getSecondInterestRateAtIndex.selector).with_key(
-            uint256(17)
-        ).checked_write(uint256(0));
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidInterestRate.selector, 17));
+        stdstore.target(address(_timeLinearLoan)).sig("_secondInterestRates(uint256)").with_key(uint256(17))
+            .checked_write(uint256(0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidInterestRate.selector, 17));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(0, 17);
     }
@@ -2469,7 +2476,7 @@ contract TimeLinearLoanTest is Test {
         stdstore.target(address(_timeLinearLoan)).sig("_borrowerToIndex(address)").with_key(someone).checked_write(
             uint256(1)
         );
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedBorrower.selector, someone));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(0, 17);
     }
@@ -2495,7 +2502,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days + 1 seconds);
 
         uint256 totalDebtBeforeRepay = _timeLinearLoan.totalDebtOfBorrower(_whitelistedUser1);
-        TimeLinearLoan.DebtInfo memory debtInfoBeforeRepay = _timeLinearLoan.getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfoBeforeRepay = _getDebtInfoAtIndex(0);
         uint256 repayAmount =
             ((totalDebtBeforeRepay - uint256(debtInfoBeforeRepay.principal)) + totalDebtBeforeRepay) / 2;
 
@@ -2508,7 +2515,7 @@ contract TimeLinearLoanTest is Test {
         assertEq(totalDebtAfterRepay, totalDebtBeforeRepay - repayAmount);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 10);
+        emit TimeLinearLoanDefs.Defaulted(_whitelistedUser1, 0, uint128(totalDebtAfterRepay), 10);
         vm.prank(_owner);
         uint128 totalDebtAfterDefaulted = _timeLinearLoan.defaulted(_whitelistedUser1, 0, 10);
 
@@ -2517,21 +2524,21 @@ contract TimeLinearLoanTest is Test {
 
         vm.warp(_currentTime + 50 days);
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.LoanInterestRateUpdated(0, 10, 17);
+        emit TimeLinearLoanDefs.LoanInterestRateUpdated(0, 10, 17);
         vm.prank(_owner);
         _timeLinearLoan.updateLoanInterestRate(0, 17);
     }
 
     function testUpdateTrustedVaults() public {
-        TimeLinearLoan.TrustedVault memory newTrustedVault = TimeLinearLoan.TrustedVault({
+        TimeLinearLoanDefs.TrustedVault memory newTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@OpenTerm", "MMF@OpenTerm")),
             minimumPercentage: 10 * 10 ** 4, // 10%
             maximumPercentage: 40 * 10 ** 4 // 40%
         });
 
-        TimeLinearLoan.TrustedVault memory tempTrustedVault;
+        TimeLinearLoanDefs.TrustedVault memory tempTrustedVault;
 
-        tempTrustedVault = TimeLinearLoan.TrustedVault({
+        tempTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: newTrustedVault.vault,
             minimumPercentage: newTrustedVault.minimumPercentage, // 10%
             maximumPercentage: newTrustedVault.maximumPercentage // 40%
@@ -2541,7 +2548,7 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.updateTrustedVaults(tempTrustedVault, 1);
 
-        tempTrustedVault = TimeLinearLoan.TrustedVault({
+        tempTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: newTrustedVault.vault,
             minimumPercentage: newTrustedVault.minimumPercentage, // 10%
             maximumPercentage: newTrustedVault.maximumPercentage // 40%
@@ -2557,7 +2564,7 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.updateTrustedVaults(tempTrustedVault, 1);
 
-        tempTrustedVault = TimeLinearLoan.TrustedVault({
+        tempTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: newTrustedVault.vault,
             minimumPercentage: newTrustedVault.minimumPercentage, // 10%
             maximumPercentage: newTrustedVault.maximumPercentage // 40%
@@ -2567,7 +2574,7 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.updateTrustedVaults(tempTrustedVault, 1);
 
-        tempTrustedVault = TimeLinearLoan.TrustedVault({
+        tempTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: newTrustedVault.vault,
             minimumPercentage: newTrustedVault.minimumPercentage, // 10%
             maximumPercentage: newTrustedVault.maximumPercentage // 40%
@@ -2579,9 +2586,10 @@ contract TimeLinearLoanTest is Test {
         vm.prank(_owner);
         _timeLinearLoan.updateTrustedVaults(tempTrustedVault, 1);
 
-        tempTrustedVault = _timeLinearLoan.getVaultInfoAtIndex(1);
+        (tempTrustedVault.vault, tempTrustedVault.minimumPercentage, tempTrustedVault.maximumPercentage) =
+            _timeLinearLoan._trustedVaults(1);
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedVaultUpdated(
+        emit TimeLinearLoanDefs.TrustedVaultUpdated(
             tempTrustedVault.vault,
             tempTrustedVault.minimumPercentage,
             tempTrustedVault.maximumPercentage,
@@ -2595,7 +2603,7 @@ contract TimeLinearLoanTest is Test {
     }
 
     function testNotOperatorUpdateTrustedVaults() public {
-        TimeLinearLoan.TrustedVault memory newTrustedVault = TimeLinearLoan.TrustedVault({
+        TimeLinearLoanDefs.TrustedVault memory newTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@OpenTerm", "MMF@OpenTerm")),
             minimumPercentage: 10 * 10 ** 4, // 10%
             maximumPercentage: 40 * 10 ** 4 // 40%
@@ -2612,14 +2620,14 @@ contract TimeLinearLoanTest is Test {
     }
 
     function testUpdateTrustedVaultsWhenVaultsNotExist() public {
-        TimeLinearLoan.TrustedVault memory newTrustedVault = TimeLinearLoan.TrustedVault({
+        TimeLinearLoanDefs.TrustedVault memory newTrustedVault = TimeLinearLoanDefs.TrustedVault({
             vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@OpenTerm", "MMF@OpenTerm")),
             minimumPercentage: 10 * 10 ** 4, // 10%
             maximumPercentage: 40 * 10 ** 4 // 40%
         });
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedVaultAdded(
+        emit TimeLinearLoanDefs.TrustedVaultAdded(
             newTrustedVault.vault, newTrustedVault.minimumPercentage, newTrustedVault.maximumPercentage, 4
         );
         vm.prank(_owner);
@@ -2646,7 +2654,7 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days);
 
         address someone = makeAddr("someone");
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedBorrower.selector, someone));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         _timeLinearLoan.totalDebtOfBorrower(someone);
     }
 
@@ -2677,261 +2685,8 @@ contract TimeLinearLoanTest is Test {
         vm.warp(_currentTime + 30 days);
 
         address mockVault = makeAddr("mockVault");
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotTrustedVault.selector, mockVault));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedVault.selector, mockVault));
         _timeLinearLoan.totalDebtOfVault(mockVault);
-    }
-
-    function testGetSecondInterestRateAtIndex() public view {
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(0), 317097920);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(1), 951293760);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(2), 1585489599);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(3), 2219685439);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(4), 2853881279);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(5), 3488077118);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(6), 4122272958);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(7), 4756468798);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(8), 5390664637);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(9), 6024860477);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(10), 6659056317);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(11), 7293252156);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(12), 7927447996);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(13), 8561643836);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(14), 9195839675);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(15), 9830035515);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(16), 10464231355);
-        assertEq(_timeLinearLoan.getSecondInterestRateAtIndex(17), 11098427194);
-    }
-
-    function testGetTrancheInfoAtIndex() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        TimeLinearLoan.TrancheInfo memory trancheInfo = _timeLinearLoan.getTrancheInfoAtIndex(0);
-        assertEq(trancheInfo.debtIndex, 0);
-        assertEq(trancheInfo.loanIndex, 0);
-        assertEq(trancheInfo.borrowerIndex, 0);
-        assertGt(trancheInfo.principal, 0);
-    }
-
-    function testGetDebtInfoAtIndex() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-        _timeLinearLoan.pile(0);
-
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(0);
-        assertEq(debtInfo.loanIndex, 0);
-        assertGt(debtInfo.principal, 0);
-        assertGt(debtInfo.netRemainingDebt, 0);
-        assertGt(debtInfo.netRemainingInterest, 0);
-        assertGt(debtInfo.interestBearingAmount, 0);
-        assertEq(debtInfo.principal, debtInfo.interestBearingAmount);
-        assertEq(uint8(debtInfo.status), uint8(TimeLinearLoan.DebtStatus.ACTIVE));
-    }
-
-    function testGetLoanInfoAtIndex() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(0);
-        assertEq(loanInfo.borrowerIndex, 0);
-        assertEq(uint8(loanInfo.status), uint8(TimeLinearLoan.LoanStatus.APPROVED));
-    }
-
-    function testGetBorrowerInfoAtIndex() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo = _timeLinearLoan.getBorrowerInfoAtIndex(0);
-        assertEq(borrowerInfo.borrower, _whitelistedUser1);
-        assertGt(borrowerInfo.ceilingLimit, 0);
-        assertGt(borrowerInfo.remainingLimit, 0);
-    }
-
-    function testGetBorrowerAtIndex() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        assertEq(_timeLinearLoan.getBorrowerAtIndex(0), _whitelistedUser1);
-    }
-
-    function testGetVaultInfoAtIndex() public view {
-        TimeLinearLoan.TrustedVault memory vaultInfo = _timeLinearLoan.getVaultInfoAtIndex(0);
-        assertEq(vaultInfo.vault, _trustedVaults[0].vault);
-    }
-
-    function testGetVaultAtIndex() public view {
-        assertEq(_timeLinearLoan.getVaultAtIndex(0), _trustedVaults[0].vault);
-    }
-
-    function testGetTranchesOfDebt() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory tranchesIndexOfDebt = _timeLinearLoan.getTranchesOfDebt(0);
-        assertGt(tranchesIndexOfDebt.length, 0);
-        for (uint256 i = 0; i < tranchesIndexOfDebt.length; ++i) {
-            assertGt(_timeLinearLoan.getTrancheInfoAtIndex(tranchesIndexOfDebt[i]).principal, 0);
-        }
-    }
-
-    function testGetTranchesOfLoan() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory tranchesIndexOfLoan = _timeLinearLoan.getTranchesOfLoan(0);
-        assertGt(tranchesIndexOfLoan.length, 0);
-        for (uint256 i = 0; i < tranchesIndexOfLoan.length; ++i) {
-            assertGt(_timeLinearLoan.getTrancheInfoAtIndex(tranchesIndexOfLoan[i]).principal, 0);
-        }
-    }
-
-    function testGetTranchesOfBorrower() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory tranchesIndexOfBorrower = _timeLinearLoan.getTranchesOfBorrower(0);
-        assertGt(tranchesIndexOfBorrower.length, 0);
-        for (uint256 i = 0; i < tranchesIndexOfBorrower.length; ++i) {
-            assertGt(_timeLinearLoan.getTrancheInfoAtIndex(tranchesIndexOfBorrower[i]).principal, 0);
-        }
-    }
-
-    function testGetTranchesOfVault() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory tranchesIndexOfVault = _timeLinearLoan.getTranchesOfVault(0);
-        assertGt(tranchesIndexOfVault.length, 0);
-        for (uint256 i = 0; i < tranchesIndexOfVault.length; ++i) {
-            assertGt(_timeLinearLoan.getTrancheInfoAtIndex(tranchesIndexOfVault[i]).principal, 0);
-        }
-    }
-
-    function testGetDebtsOfLoan() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory debtsIndexOfLoan = _timeLinearLoan.getDebtsOfLoan(0);
-        assertGt(debtsIndexOfLoan.length, 0);
-        for (uint256 i = 0; i < debtsIndexOfLoan.length; ++i) {
-            _timeLinearLoan.pile(debtsIndexOfLoan[i]);
-            TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(debtsIndexOfLoan[i]);
-            assertEq(debtInfo.loanIndex, 0);
-            assertGt(debtInfo.principal, 0);
-            assertGt(debtInfo.netRemainingDebt, 0);
-            assertGt(debtInfo.netRemainingInterest, 0);
-            assertGt(debtInfo.interestBearingAmount, 0);
-            assertEq(debtInfo.principal, debtInfo.interestBearingAmount);
-            assertEq(uint8(debtInfo.status), uint8(TimeLinearLoan.DebtStatus.ACTIVE));
-        }
-    }
-
-    function testGetDebtsOfBorrower() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory debtsIndexOfBorrower = _timeLinearLoan.getDebtsOfBorrower(0);
-        assertGt(debtsIndexOfBorrower.length, 0);
-        for (uint256 i = 0; i < debtsIndexOfBorrower.length; ++i) {
-            _timeLinearLoan.pile(debtsIndexOfBorrower[i]);
-            TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(debtsIndexOfBorrower[i]);
-            assertEq(debtInfo.loanIndex, 0);
-            assertGt(debtInfo.principal, 0);
-            assertGt(debtInfo.netRemainingDebt, 0);
-            assertGt(debtInfo.netRemainingInterest, 0);
-            assertGt(debtInfo.interestBearingAmount, 0);
-            assertEq(debtInfo.principal, debtInfo.interestBearingAmount);
-            assertEq(uint8(debtInfo.status), uint8(TimeLinearLoan.DebtStatus.ACTIVE));
-        }
-    }
-
-    function testGetLoansOfBorrower() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint64[] memory loansIndexOfBorrower = _timeLinearLoan.getLoansOfBorrower(0);
-        assertGt(loansIndexOfBorrower.length, 0);
-        for (uint256 i = 0; i < loansIndexOfBorrower.length; ++i) {
-            TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(loansIndexOfBorrower[i]);
-            assertEq(uint8(loanInfo.status), uint8(TimeLinearLoan.LoanStatus.APPROVED));
-        }
-    }
-
-    function testGetTotalTrustedBorrowers() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        assertEq(_timeLinearLoan.getTotalTrustedBorrowers(), 2);
-    }
-
-    function testGetTotalTrustedVaults() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        assertEq(_timeLinearLoan.getTotalTrustedVaults(), 4);
-    }
-
-    function testGetTotalLoans() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint256 totalLoans = _timeLinearLoan.getTotalLoans();
-        assertEq(totalLoans, 2);
-    }
-
-    function testGetTotalDebts() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint256 totalDebts = _timeLinearLoan.getTotalDebts();
-        assertEq(totalDebts, 2);
-    }
-
-    function testGetTotalTranches() public {
-        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
-        _prepareDebt();
-
-        vm.warp(_currentTime + 30 days);
-
-        uint256 totalTranches = _timeLinearLoan.getTotalTranches();
-        assertGt(totalTranches, 2);
-    }
-
-    function testGetTotalInterestRates() public view {
-        uint256 totalInterestRates = _timeLinearLoan.getTotalInterestRates();
-        assertEq(totalInterestRates, 18);
     }
 
     function testFuzzBorrowAndRepay(
@@ -3063,7 +2818,7 @@ contract TimeLinearLoanTest is Test {
     function testOnlyValidTranche() public {
         MockTimeLinearLoan mockTimeLinearLoan = new MockTimeLinearLoan();
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidTranche.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidTranche.selector, 0));
         mockTimeLinearLoan.mockOnlyValidTranche(0);
     }
 
@@ -3083,13 +2838,16 @@ contract TimeLinearLoanTest is Test {
             )
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidVault.selector, 4));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidVault.selector, 4));
         mockTimeLinearLoan.mockOnlyValidVault(4);
 
-        stdstore.enable_packed_slots().target(address(mockTimeLinearLoan)).sig(TimeLinearLoan.getVaultAtIndex.selector)
-            .with_key(uint64(0)).checked_write(address(0x00));
+        vm.store(
+            address(mockTimeLinearLoan),
+            0x8d1108e10bcb7c27dddfc02ed9d693a074039d026cf4ea4240b40f7d581ac802,
+            0x000000061a800000000186a00000000000000000000000000000000000000000
+        );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidVault.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidVault.selector, 0));
         mockTimeLinearLoan.mockOnlyValidVault(0);
 
         vm.store(
@@ -3098,7 +2856,7 @@ contract TimeLinearLoanTest is Test {
             0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a
         );
 
-        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoan.NotValidVault.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotValidVault.selector, 0));
         mockTimeLinearLoan.mockOnlyValidVault(0);
     }
 
@@ -3181,12 +2939,15 @@ contract TimeLinearLoanTest is Test {
             logic,
             _owner,
             abi.encodeWithSelector(
-                TimeLinearLoan.initialize.selector, addrs, _secondInterestRates, new TimeLinearLoan.TrustedVault[](0)
+                TimeLinearLoan.initialize.selector,
+                addrs,
+                _secondInterestRates,
+                new TimeLinearLoanDefs.TrustedVault[](0)
             )
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(0x00),
                 minimumPercentage: 40 * 10 ** 4, // 40%
                 maximumPercentage: 10 * 10 ** 4 // 10%
@@ -3238,17 +2999,17 @@ contract TimeLinearLoanTest is Test {
         _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedBorrowerAdded(_whitelistedUser1, 0);
+        emit TimeLinearLoanDefs.TrustedBorrowerAdded(_whitelistedUser1, 0);
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.join();
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.TrustedBorrowerAdded(_whitelistedUser2, 1);
+        emit TimeLinearLoanDefs.TrustedBorrowerAdded(_whitelistedUser2, 1);
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.join();
 
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo1 = _timeLinearLoan.getBorrowerInfoAtIndex(0);
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo2 = _timeLinearLoan.getBorrowerInfoAtIndex(1);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo1 = _getBorrowerInfoAtIndex(0);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo2 = _getBorrowerInfoAtIndex(1);
 
         assertEq(borrowerInfo1.borrower, _whitelistedUser1);
         assertEq(borrowerInfo2.borrower, _whitelistedUser2);
@@ -3263,17 +3024,17 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.AgreeJoinRequest(_whitelistedUser1, 2_000_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.AgreeJoinRequest(_whitelistedUser1, 2_000_000 * 10 ** 6);
         _timeLinearLoan.agree(_whitelistedUser1, 2_000_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.AgreeJoinRequest(_whitelistedUser2, 4_000_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.AgreeJoinRequest(_whitelistedUser2, 4_000_000 * 10 ** 6);
         _timeLinearLoan.agree(_whitelistedUser2, 4_000_000 * 10 ** 6);
 
         vm.stopPrank();
 
-        borrowerInfo1 = _timeLinearLoan.getBorrowerInfoAtIndex(0);
-        borrowerInfo2 = _timeLinearLoan.getBorrowerInfoAtIndex(1);
+        borrowerInfo1 = _getBorrowerInfoAtIndex(0);
+        borrowerInfo2 = _getBorrowerInfoAtIndex(1);
 
         assertEq(borrowerInfo1.borrower, _whitelistedUser1);
         assertEq(borrowerInfo2.borrower, _whitelistedUser2);
@@ -3286,17 +3047,17 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.pile();
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ReceiveLoanRequest(_whitelistedUser1, 0, 1_500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.ReceiveLoanRequest(_whitelistedUser1, 0, 1_500_000 * 10 ** 6);
         vm.prank(_whitelistedUser1);
         _timeLinearLoan.request(1_500_000 * 10 ** 6);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ReceiveLoanRequest(_whitelistedUser2, 1, 3_500_000 * 10 ** 6);
+        emit TimeLinearLoanDefs.ReceiveLoanRequest(_whitelistedUser2, 1, 3_500_000 * 10 ** 6);
         vm.prank(_whitelistedUser2);
         _timeLinearLoan.request(3_500_000 * 10 ** 6);
 
-        TimeLinearLoan.LoanInfo memory loanInfo1 = _timeLinearLoan.getLoanInfoAtIndex(0);
-        TimeLinearLoan.LoanInfo memory loanInfo2 = _timeLinearLoan.getLoanInfoAtIndex(1);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo1 = _getLoanInfoAtIndex(0);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo2 = _getLoanInfoAtIndex(1);
 
         assertEq(loanInfo1.ceilingLimit, 1_500_000 * 10 ** 6);
         assertEq(loanInfo2.ceilingLimit, 3_500_000 * 10 ** 6);
@@ -3306,8 +3067,8 @@ contract TimeLinearLoanTest is Test {
         assertEq(loanInfo2.interestRateIndex, 0);
         assertEq(loanInfo1.borrowerIndex, 0);
         assertEq(loanInfo2.borrowerIndex, 1);
-        assertEq(uint8(loanInfo1.status), uint8(TimeLinearLoan.LoanStatus.PENDING));
-        assertEq(uint8(loanInfo2.status), uint8(TimeLinearLoan.LoanStatus.PENDING));
+        assertEq(uint8(loanInfo1.status), uint8(TimeLinearLoanDefs.LoanStatus.PENDING));
+        assertEq(uint8(loanInfo2.status), uint8(TimeLinearLoanDefs.LoanStatus.PENDING));
 
         vm.warp(_currentTime += 1 days);
         _timeLinearLoan.pile();
@@ -3315,17 +3076,17 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_owner);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser1, 0, 1_000_000 * 10 ** 6, 1);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser1, 0, 1_000_000 * 10 ** 6, 1);
         _timeLinearLoan.approve(0, 1_000_000 * 10 ** 6, 1);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.ApproveLoanRequest(_whitelistedUser2, 1, 3_000_000 * 10 ** 6, 3);
+        emit TimeLinearLoanDefs.ApproveLoanRequest(_whitelistedUser2, 1, 3_000_000 * 10 ** 6, 3);
         _timeLinearLoan.approve(1, 3_000_000 * 10 ** 6, 3);
 
         vm.stopPrank();
 
-        loanInfo1 = _timeLinearLoan.getLoanInfoAtIndex(0);
-        loanInfo2 = _timeLinearLoan.getLoanInfoAtIndex(1);
+        loanInfo1 = _getLoanInfoAtIndex(0);
+        loanInfo2 = _getLoanInfoAtIndex(1);
 
         assertEq(loanInfo1.ceilingLimit, 1_000_000 * 10 ** 6);
         assertEq(loanInfo2.ceilingLimit, 3_000_000 * 10 ** 6);
@@ -3335,26 +3096,26 @@ contract TimeLinearLoanTest is Test {
         assertEq(loanInfo2.interestRateIndex, 3);
         assertEq(loanInfo1.borrowerIndex, 0);
         assertEq(loanInfo2.borrowerIndex, 1);
-        assertEq(uint8(loanInfo1.status), uint8(TimeLinearLoan.LoanStatus.APPROVED));
-        assertEq(uint8(loanInfo2.status), uint8(TimeLinearLoan.LoanStatus.APPROVED));
+        assertEq(uint8(loanInfo1.status), uint8(TimeLinearLoanDefs.LoanStatus.APPROVED));
+        assertEq(uint8(loanInfo2.status), uint8(TimeLinearLoanDefs.LoanStatus.APPROVED));
 
         vm.warp(_currentTime += 1 days);
         _timeLinearLoan.pile();
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Borrowed(_whitelistedUser1, 0, 500_000 * 10 ** 6, true, 0);
+        emit TimeLinearLoanDefs.Borrowed(_whitelistedUser1, 0, 500_000 * 10 ** 6, true, 0);
         vm.prank(_whitelistedUser1);
         (bool isAllSatisfied1,) = _timeLinearLoan.borrow(0, 500_000 * 10 ** 6, _currentTime + 30 days);
         assertTrue(isAllSatisfied1);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Borrowed(_whitelistedUser2, 1, 1_500_000 * 10 ** 6, true, 1);
+        emit TimeLinearLoanDefs.Borrowed(_whitelistedUser2, 1, 1_500_000 * 10 ** 6, true, 1);
         vm.prank(_whitelistedUser2);
         (bool isAllSatisfied2,) = _timeLinearLoan.borrow(1, 1_500_000 * 10 ** 6, _currentTime + 60 days);
         assertTrue(isAllSatisfied2);
 
-        TimeLinearLoan.DebtInfo memory debtInfo1 = _timeLinearLoan.getDebtInfoAtIndex(0);
-        TimeLinearLoan.DebtInfo memory debtInfo2 = _timeLinearLoan.getDebtInfoAtIndex(1);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo1 = _getDebtInfoAtIndex(0);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo2 = _getDebtInfoAtIndex(1);
 
         assertEq(debtInfo1.startTime, uint64(block.timestamp));
         assertEq(debtInfo2.startTime, uint64(block.timestamp));
@@ -3364,8 +3125,8 @@ contract TimeLinearLoanTest is Test {
         assertEq(debtInfo2.principal, 1_500_000 * 10 ** 6);
         assertEq(debtInfo1.loanIndex, 0);
         assertEq(debtInfo2.loanIndex, 1);
-        assertEq(uint8(debtInfo1.status), uint8(TimeLinearLoan.DebtStatus.ACTIVE));
-        assertEq(uint8(debtInfo2.status), uint8(TimeLinearLoan.DebtStatus.ACTIVE));
+        assertEq(uint8(debtInfo1.status), uint8(TimeLinearLoanDefs.DebtStatus.ACTIVE));
+        assertEq(uint8(debtInfo2.status), uint8(TimeLinearLoanDefs.DebtStatus.ACTIVE));
 
         vm.warp(_currentTime += 25 days);
         _timeLinearLoan.pile();
@@ -3373,18 +3134,18 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_whitelistedUser1);
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), 300_000 * 10 ** 6);
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Repaid(_whitelistedUser1, 0, 300_000 * 10 ** 6, false);
+        emit TimeLinearLoanDefs.Repaid(_whitelistedUser1, 0, 300_000 * 10 ** 6, false);
         _timeLinearLoan.repay(0, 300_000 * 10 ** 6);
         vm.stopPrank();
 
         vm.warp(_currentTime += (5 days + 1 seconds));
         _timeLinearLoan.pile();
 
-        debtInfo1 = _timeLinearLoan.getDebtInfoAtIndex(0);
-        loanInfo1 = _timeLinearLoan.getLoanInfoAtIndex(debtInfo1.loanIndex);
+        debtInfo1 = _getDebtInfoAtIndex(0);
+        loanInfo1 = _getLoanInfoAtIndex(debtInfo1.loanIndex);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Defaulted(_whitelistedUser1, 0, debtInfo1.netRemainingDebt, 17);
+        emit TimeLinearLoanDefs.Defaulted(_whitelistedUser1, 0, debtInfo1.netRemainingDebt, 17);
         vm.prank(_owner);
         uint128 remainingDebt = _timeLinearLoan.defaulted(_whitelistedUser1, 0, 17);
 
@@ -3399,7 +3160,7 @@ contract TimeLinearLoanTest is Test {
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
         /// @dev precision loss in interest calculations with dividing
-        emit TimeLinearLoan.Closed(_whitelistedUser1, 0, remainingDebt);
+        emit TimeLinearLoanDefs.Closed(_whitelistedUser1, 0, remainingDebt);
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser1, 0);
 
@@ -3409,30 +3170,71 @@ contract TimeLinearLoanTest is Test {
         vm.startPrank(_whitelistedUser2);
         IERC20(address(_depositToken)).approve(address(_timeLinearLoan), 1_000_000 * 10 ** 6);
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Repaid(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, false);
+        emit TimeLinearLoanDefs.Repaid(_whitelistedUser2, 1, 1_000_000 * 10 ** 6, false);
         _timeLinearLoan.repay(1, 1_000_000 * 10 ** 6);
         vm.stopPrank();
 
         vm.warp(_currentTime += 20 days);
         _timeLinearLoan.pile();
 
-        debtInfo2 = _timeLinearLoan.getDebtInfoAtIndex(1);
-        loanInfo2 = _timeLinearLoan.getLoanInfoAtIndex(debtInfo2.loanIndex);
+        debtInfo2 = _getDebtInfoAtIndex(1);
+        loanInfo2 = _getLoanInfoAtIndex(debtInfo2.loanIndex);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
-        emit TimeLinearLoan.Defaulted(_whitelistedUser2, 1, debtInfo2.netRemainingDebt, 17);
+        emit TimeLinearLoanDefs.Defaulted(_whitelistedUser2, 1, debtInfo2.netRemainingDebt, 17);
         vm.prank(_owner);
         remainingDebt = _timeLinearLoan.defaulted(_whitelistedUser2, 1, 17);
 
         vm.expectEmit(false, false, false, true, address(_timeLinearLoan));
         /// @dev precision loss in interest calculations with dividing
-        emit TimeLinearLoan.Closed(_whitelistedUser2, 1, remainingDebt);
+        emit TimeLinearLoanDefs.Closed(_whitelistedUser2, 1, remainingDebt);
         vm.prank(_owner);
         _timeLinearLoan.close(_whitelistedUser2, 1);
     }
 
     function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
         return a_ >= b_ ? a_ - b_ : b_ - a_;
+    }
+
+    function _getLoanInfoAtIndex(uint256 loanIndex_)
+        internal
+        view
+        returns (TimeLinearLoanDefs.LoanInfo memory loanInfo_)
+    {
+        (
+            loanInfo_.ceilingLimit,
+            loanInfo_.remainingLimit,
+            loanInfo_.interestRateIndex,
+            loanInfo_.borrowerIndex,
+            loanInfo_.status
+        ) = _timeLinearLoan._allLoans(loanIndex_);
+    }
+
+    function _getBorrowerInfoAtIndex(uint256 borrowerIndex_)
+        internal
+        view
+        returns (TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo_)
+    {
+        (borrowerInfo_.borrower, borrowerInfo_.ceilingLimit, borrowerInfo_.remainingLimit) =
+            _timeLinearLoan._trustedBorrowers(borrowerIndex_);
+    }
+
+    function _getDebtInfoAtIndex(uint256 debtIndex_)
+        internal
+        view
+        returns (TimeLinearLoanDefs.DebtInfo memory debtInfo_)
+    {
+        (
+            debtInfo_.loanIndex,
+            debtInfo_.startTime,
+            debtInfo_.maturityTime,
+            debtInfo_.lastUpdateTime,
+            debtInfo_.principal,
+            debtInfo_.netRemainingDebt,
+            debtInfo_.interestBearingAmount,
+            debtInfo_.netRemainingInterest,
+            debtInfo_.status
+        ) = _timeLinearLoan._allDebts(debtIndex_);
     }
 
     function _prepareFund(uint256 fundForEachVault_) internal {

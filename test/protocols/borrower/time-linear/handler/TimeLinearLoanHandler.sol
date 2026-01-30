@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
 
 import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
+import {TimeLinearLoanDefs} from "src/protocols/borrower/time-linear/utils/TimeLinearLoanDefs.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {Roles} from "src/common/Roles.sol";
@@ -81,7 +82,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
     Blacklist internal _blacklist;
     DepositAsset internal _depositToken;
 
-    TimeLinearLoan.TrustedVault[] internal _trustedVaults;
+    TimeLinearLoanDefs.TrustedVault[] internal _trustedVaults;
     uint64[] internal _secondInterestRates;
     address internal _loanToken;
 
@@ -171,7 +172,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         _secondInterestRates.push(11098427194);
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@OpenTerm", "MMF@OpenTerm")),
                 minimumPercentage: 10 * 10 ** 4, // 10%
                 maximumPercentage: 40 * 10 ** 4 // 40%
@@ -179,7 +180,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@OpenTerm", "RWA@OpenTerm")),
                 minimumPercentage: 30 * 10 ** 4, // 30%
                 maximumPercentage: 60 * 10 ** 4 // 60%
@@ -187,7 +188,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@FixedTerm", "MMF@FixedTerm")),
                 minimumPercentage: 50 * 10 ** 4, // 50%
                 maximumPercentage: 80 * 10 ** 4 // 80%
@@ -195,7 +196,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         );
 
         _trustedVaults.push(
-            TimeLinearLoan.TrustedVault({
+            TimeLinearLoanDefs.TrustedVault({
                 vault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@FixedTerm", "RWA@FixedTerm")),
                 minimumPercentage: 70 * 10 ** 4, // 70%
                 maximumPercentage: 100 * 10 ** 4 // 100%
@@ -279,6 +280,47 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
             vm.stopPrank();
         }
+    }
+
+    function _getDebtInfoAtIndex(uint256 debtIndex_)
+        internal
+        view
+        returns (TimeLinearLoanDefs.DebtInfo memory debtInfo_)
+    {
+        (
+            debtInfo_.loanIndex,
+            debtInfo_.startTime,
+            debtInfo_.maturityTime,
+            debtInfo_.lastUpdateTime,
+            debtInfo_.principal,
+            debtInfo_.netRemainingDebt,
+            debtInfo_.interestBearingAmount,
+            debtInfo_.netRemainingInterest,
+            debtInfo_.status
+        ) = _timeLinearLoan._allDebts(debtIndex_);
+    }
+
+    function _getLoanInfoAtIndex(uint256 loanIndex_)
+        internal
+        view
+        returns (TimeLinearLoanDefs.LoanInfo memory loanInfo_)
+    {
+        (
+            loanInfo_.ceilingLimit,
+            loanInfo_.remainingLimit,
+            loanInfo_.interestRateIndex,
+            loanInfo_.borrowerIndex,
+            loanInfo_.status
+        ) = _timeLinearLoan._allLoans(loanIndex_);
+    }
+
+    function _getBorrowerInfoAtIndex(uint256 borrowerIndex_)
+        internal
+        view
+        returns (TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo_)
+    {
+        (borrowerInfo_.borrower, borrowerInfo_.ceilingLimit, borrowerInfo_.remainingLimit) =
+            _timeLinearLoan._trustedBorrowers(borrowerIndex_);
     }
 
     constructor() {
@@ -454,7 +496,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         uint256 totalBorrowers = _timeLinearLoan.getTotalTrustedBorrowers();
         isDuplicate = false;
         for (uint256 i = 0; i < totalBorrowers; ++i) {
-            TimeLinearLoan.TrustedBorrower memory borrowerInfo = _timeLinearLoan.getBorrowerInfoAtIndex(uint64(i));
+            TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(uint64(i));
             if (borrowerInfo.borrower == someone_) {
                 isDuplicate = true;
                 break;
@@ -550,7 +592,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         borrowerIndex_ = uint64(bound(borrowerIndex_, 0, totalBorrowers - 1));
 
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo = _timeLinearLoan.getBorrowerInfoAtIndex(borrowerIndex_);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(borrowerIndex_);
 
         if (borrowerInfo.ceilingLimit == 0 || borrowerInfo.remainingLimit == 0) {
             _handlerExitCount[HandlerType.REQUEST_NO_LIMIT] += 1;
@@ -613,9 +655,9 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         loanIndex_ = uint64(bound(loanIndex_, 0, totalLoans - 1));
 
-        TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(loanIndex_);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(loanIndex_);
 
-        if (loanInfo.status != TimeLinearLoan.LoanStatus.APPROVED || loanInfo.remainingLimit == 0) {
+        if (loanInfo.status != TimeLinearLoanDefs.LoanStatus.APPROVED || loanInfo.remainingLimit == 0) {
             _handlerExitCount[HandlerType.BORROW_NO_LIMIT] += 1;
             return type(uint64).max;
         }
@@ -624,8 +666,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         maturityTime_ = uint64(bound(maturityTime_, 3 days, 360 days));
 
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo =
-            _timeLinearLoan.getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
 
         vm.prank(borrowerInfo.borrower);
         (, debtIndex_) = _timeLinearLoan.borrow(loanIndex_, debtAmount_, uint64(block.timestamp + maturityTime_));
@@ -670,8 +711,8 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         _timeLinearLoan.pile();
 
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(debtIndex_);
-        TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(debtInfo.loanIndex);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(debtIndex_);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(debtInfo.loanIndex);
 
         if (vm.envOr("REPAY_HANDLER_LOG", false)) {
             console.log(
@@ -692,7 +733,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
             );
         }
 
-        if (debtInfo.status != TimeLinearLoan.DebtStatus.ACTIVE /*|| debtInfo.normalizedPrincipal == 0 */ ) {
+        if (debtInfo.status != TimeLinearLoanDefs.DebtStatus.ACTIVE /*|| debtInfo.normalizedPrincipal == 0 */ ) {
             _handlerExitCount[HandlerType.REPAY_STATUS] += 1;
             return;
         }
@@ -702,8 +743,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         repayAmount_ =
             uint128(bound(repayAmount_, debtInfo.netRemainingDebt * threshold_ / PRECISION, debtInfo.netRemainingDebt));
 
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo =
-            _timeLinearLoan.getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
 
         vm.prank(borrowerInfo.borrower);
         _depositToken.approve(address(_timeLinearLoan), repayAmount_);
@@ -748,17 +788,16 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         debtIndex_ = uint64(bound(debtIndex_, 0, totalDebts - 1));
 
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(debtIndex_);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(debtIndex_);
 
-        if (debtInfo.status != TimeLinearLoan.DebtStatus.ACTIVE || debtInfo.maturityTime > block.timestamp) {
+        if (debtInfo.status != TimeLinearLoanDefs.DebtStatus.ACTIVE || debtInfo.maturityTime > block.timestamp) {
             _handlerExitCount[HandlerType.DEFAULT_STATUS] += 1;
             return;
         }
 
-        TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(debtInfo.loanIndex);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(debtInfo.loanIndex);
 
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo =
-            _timeLinearLoan.getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
 
         defaultInterestRateIndex_ =
             uint64(bound(defaultInterestRateIndex_, loanInfo.interestRateIndex, _secondInterestRates.length - 1));
@@ -797,14 +836,14 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         debtIndex_ = uint64(bound(debtIndex_, 0, totalDebts - 1));
 
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(debtIndex_);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(debtIndex_);
 
-        if (debtInfo.status != TimeLinearLoan.DebtStatus.DEFAULTED || debtInfo.maturityTime > block.timestamp) {
+        if (debtInfo.status != TimeLinearLoanDefs.DebtStatus.DEFAULTED || debtInfo.maturityTime > block.timestamp) {
             _handlerExitCount[HandlerType.RECOVERY_STATUS] += 1;
             return;
         }
 
-        TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(debtInfo.loanIndex);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(debtInfo.loanIndex);
 
         threshold_ = bound(threshold_, 1, PRECISION);
 
@@ -812,8 +851,7 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
             bound(recoveryAmount_, debtInfo.netRemainingDebt * threshold_ / PRECISION, debtInfo.netRemainingDebt)
         );
 
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo =
-            _timeLinearLoan.getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
 
         vm.prank(borrowerInfo.borrower);
         _depositToken.approve(address(_timeLinearLoan), recoveryAmount_);
@@ -855,16 +893,15 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
 
         debtIndex_ = uint64(bound(debtIndex_, 0, totalDebts - 1));
 
-        TimeLinearLoan.DebtInfo memory debtInfo = _timeLinearLoan.getDebtInfoAtIndex(debtIndex_);
+        TimeLinearLoanDefs.DebtInfo memory debtInfo = _getDebtInfoAtIndex(debtIndex_);
 
-        if (debtInfo.status != TimeLinearLoan.DebtStatus.DEFAULTED || debtInfo.maturityTime > block.timestamp) {
+        if (debtInfo.status != TimeLinearLoanDefs.DebtStatus.DEFAULTED || debtInfo.maturityTime > block.timestamp) {
             _handlerExitCount[HandlerType.CLOSE_STATUS] += 1;
             return;
         }
 
-        TimeLinearLoan.LoanInfo memory loanInfo = _timeLinearLoan.getLoanInfoAtIndex(debtInfo.loanIndex);
-        TimeLinearLoan.TrustedBorrower memory borrowerInfo =
-            _timeLinearLoan.getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
+        TimeLinearLoanDefs.LoanInfo memory loanInfo = _getLoanInfoAtIndex(debtInfo.loanIndex);
+        TimeLinearLoanDefs.TrustedBorrower memory borrowerInfo = _getBorrowerInfoAtIndex(loanInfo.borrowerIndex);
 
         vm.prank(_owner);
         _timeLinearLoan.close(borrowerInfo.borrower, debtIndex_);

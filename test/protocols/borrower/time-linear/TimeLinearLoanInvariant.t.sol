@@ -46,10 +46,12 @@ contract TimeLinearLoanInvariant is Test {
         uint256 totalDebtOfBorrowers = 0;
         uint256 totalDebtOfVaults = 0;
         for (uint64 i = 0; i < totalBorrowers; i++) {
-            totalDebtOfBorrowers += _timeLinearLoan.totalDebtOfBorrower(_timeLinearLoan.getBorrowerAtIndex(i));
+            (address borrower,,) = _timeLinearLoan._trustedBorrowers(i);
+            totalDebtOfBorrowers += _timeLinearLoan.totalDebtOfBorrower(borrower);
         }
         for (uint64 j = 0; j < totalVaults; j++) {
-            totalDebtOfVaults += _timeLinearLoan.totalDebtOfVault(_timeLinearLoan.getVaultAtIndex(j));
+            (address vault,,) = _timeLinearLoan._trustedVaults(j);
+            totalDebtOfVaults += _timeLinearLoan.totalDebtOfVault(vault);
         }
         console.log("Total Debt of Borrowers: ", totalDebtOfBorrowers);
         console.log("Total Debt of Vaults   : ", totalDebtOfVaults);

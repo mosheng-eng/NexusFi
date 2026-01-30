@@ -8,18 +8,19 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
+import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
+import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
+import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {MultisigWallet} from "src/wallet/multisig/MultisigWallet.sol";
 import {MultisigWalletLibs} from "src/wallet/multisig/utils/MultisigWalletLibs.sol";
 import {ThresholdWallet} from "src/wallet/threshold/ThresholdWallet.sol";
 import {ThresholdWalletLibs} from "src/wallet/threshold/utils/ThresholdWalletLibs.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
-import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
 import {TimePowerLoanDefs} from "src/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
+import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
+import {TimeLinearLoanDefs} from "src/protocols/borrower/time-linear/utils/TimeLinearLoanDefs.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
-import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
 import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
@@ -232,13 +233,13 @@ contract DeployContractSuit is Script {
                 timePowerLoanTrustedVaults
             )
         );
-        TimeLinearLoan.TrustedVault[] memory timeLinearLoanTrustedVaults = new TimeLinearLoan.TrustedVault[](2);
-        timeLinearLoanTrustedVaults[0] = TimeLinearLoan.TrustedVault({
+        TimeLinearLoanDefs.TrustedVault[] memory timeLinearLoanTrustedVaults = new TimeLinearLoanDefs.TrustedVault[](2);
+        timeLinearLoanTrustedVaults[0] = TimeLinearLoanDefs.TrustedVault({
             vault: address(_vault1),
             minimumPercentage: _vault1MinimumPercentageInALoan,
             maximumPercentage: _vault1MaximumPercentageInALoan
         });
-        timeLinearLoanTrustedVaults[1] = TimeLinearLoan.TrustedVault({
+        timeLinearLoanTrustedVaults[1] = TimeLinearLoanDefs.TrustedVault({
             vault: address(_vault2),
             minimumPercentage: _vault2MinimumPercentageInALoan,
             maximumPercentage: _vault2MaximumPercentageInALoan
@@ -466,7 +467,7 @@ contract DeployContractSuit is Script {
         /**
          * vaults that are allowed to lend to borrowers
          */
-        TimeLinearLoan.TrustedVault[] memory trustedVaults_
+        TimeLinearLoanDefs.TrustedVault[] memory trustedVaults_
     ) public returns (address) {
         return address(
             new TransparentUpgradeableProxy(
