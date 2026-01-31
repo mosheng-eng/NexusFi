@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Roles} from "src/common/Roles.sol";
@@ -15,7 +15,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract WhitelistTest is Test {
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     Whitelist internal _whitelist;
 
     address internal _owner = makeAddr("owner");

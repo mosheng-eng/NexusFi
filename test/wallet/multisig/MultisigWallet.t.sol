@@ -11,7 +11,7 @@ import {MultisigWalletLibs} from "src/wallet/multisig/utils/MultisigWalletLibs.s
 import {BLS} from "src/wallet/utils/BLS.sol";
 import {BLSTool} from "src/wallet/utils/BLSTool.sol";
 import {BLSHelper} from "src/wallet/utils/BLSHelper.sol";
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {Errors} from "src/common/Errors.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";
@@ -31,7 +31,7 @@ contract MultisigWalletTest is Test {
     using BLSTool for BLS.G2Point[];
     using Bytes for bytes;
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
 
     DepositAsset internal _depositAsset = new DepositAsset("Deposit Asset", "DPT");
 

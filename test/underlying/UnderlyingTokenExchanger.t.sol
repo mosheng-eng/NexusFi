@@ -13,7 +13,7 @@ import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
 import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 
@@ -24,7 +24,7 @@ import {Vm} from "forge-std/Vm.sol";
 contract UnderlyingTokenExchangerTest is Test {
     using stdStorage for StdStorage;
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     UnderlyingTokenExchanger internal _exchanger;
     Whitelist internal _whitelist;
     DepositAsset internal _depositToken;

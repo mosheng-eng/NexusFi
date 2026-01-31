@@ -30,7 +30,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract DeployContractSuit is Script {
+contract DeployContractSuite is Script {
     address internal _owner;
     string internal _underlyingTokenName;
     string internal _underlyingTokenSymbol;

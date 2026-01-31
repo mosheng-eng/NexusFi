@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 
 import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
 import {TimePowerLoanDefs} from "src/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
@@ -77,7 +77,7 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
     uint64 internal _currentTime = 1759301999; // 2025-10-01 14:59:59 UTC+8
     uint64 internal _currentBlock = 100;
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     Whitelist internal _whitelist;
     Blacklist internal _blacklist;
     DepositAsset internal _depositToken;

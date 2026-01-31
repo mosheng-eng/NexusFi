@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {IBlacklist} from "src/blacklist/IBlacklist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {Roles} from "src/common/Roles.sol";
@@ -15,7 +15,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract BlacklistTest is Test {
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     Blacklist internal _blacklist;
 
     address internal _owner = makeAddr("owner");

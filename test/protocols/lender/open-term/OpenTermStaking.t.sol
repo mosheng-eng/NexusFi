@@ -21,7 +21,7 @@ import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.
 import {AssetVault} from "test/mock/AssetVault.sol";
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -32,7 +32,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 contract OpenTermStakingTest is Test {
     using stdStorage for StdStorage;
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     OpenTermStaking internal _openTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;

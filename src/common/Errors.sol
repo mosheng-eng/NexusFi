@@ -19,4 +19,8 @@ library Errors {
     /// @param balance The current balance.
     /// @param transfer The amount to be transferred.
     error InsufficientBalance(uint256 balance, uint256 transfer);
+    /// @dev Reverted when allowance is not enough for a transfer.
+    /// @param allowance The current allowance.
+    /// @param required The required allowance for the transfer.
+    error InsufficientAllowance(uint256 allowance, uint256 required);
 }

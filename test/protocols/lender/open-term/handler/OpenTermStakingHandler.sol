@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
 import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
@@ -23,7 +23,7 @@ import {console} from "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBase {
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     OpenTermStaking internal _openTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;

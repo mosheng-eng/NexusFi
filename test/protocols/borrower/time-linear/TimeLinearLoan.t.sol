@@ -13,7 +13,7 @@ import {Errors} from "src/common/Errors.sol";
 import {IWhitelist} from "src/whitelist/IWhitelist.sol";
 import {IBlacklist} from "src/blacklist/IBlacklist.sol";
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 import {AssetVault} from "test/mock/AssetVault.sol";
@@ -27,7 +27,7 @@ contract TimeLinearLoanTest is Test {
     using stdStorage for StdStorage;
     using Math for uint256;
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     Whitelist internal _whitelist;
     Blacklist internal _blacklist;
     DepositAsset internal _depositToken;

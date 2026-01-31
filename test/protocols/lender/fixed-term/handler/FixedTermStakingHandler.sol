@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
 import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
@@ -22,7 +22,7 @@ import {StdAssertions} from "forge-std/StdAssertions.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBase {
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     FixedTermStaking internal _fixedTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;

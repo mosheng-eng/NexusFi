@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 
 import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
 import {IVaultBorrower} from "src/vault/IVaultBorrower.sol";
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 import {Errors} from "src/common/Errors.sol";
 
@@ -32,7 +32,7 @@ contract ValueInflationVaultTest is Test {
     uint64 internal _startTime = 1759301999; // 2025-10-01 14:59:59 UTC+8
     uint64 internal _currentTime = _startTime - 1 days; // 2025-09-30 14:59:59 UTC+8
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     ValueInflationVault internal _valueInflationVault;
     DepositAsset internal _depositToken;
 

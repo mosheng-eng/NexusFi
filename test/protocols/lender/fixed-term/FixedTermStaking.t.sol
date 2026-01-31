@@ -21,7 +21,7 @@ import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.
 import {AssetVault} from "test/mock/AssetVault.sol";
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
@@ -39,7 +39,7 @@ contract FixedTermStakingTest is Test {
     using stdStorage for StdStorage;
     using FixedTermStakingLibs for uint64;
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
     FixedTermStaking internal _fixedTermStaking;
     UnderlyingToken internal _underlyingToken;
     Whitelist internal _whitelist;

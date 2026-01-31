@@ -7,7 +7,7 @@ import {ThresholdWalletLibs} from "src/wallet/threshold/utils/ThresholdWalletLib
 import {BLS} from "src/wallet/utils/BLS.sol";
 import {BLSTool} from "src/wallet/utils/BLSTool.sol";
 import {BLSHelper} from "src/wallet/utils/BLSHelper.sol";
-import {DeployContractSuit} from "script/DeployContractSuit.s.sol";
+import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {Errors} from "src/common/Errors.sol";
 
 import {DepositAsset} from "test/mock/DepositAsset.sol";
@@ -38,7 +38,7 @@ contract ThresholdWalletTest is Test {
     /// @notice Error thrown when the signers' count does not match the threshold derived from public keys
     error SignersShouldMatchThresholdFromPublicKeys();
 
-    DeployContractSuit internal _deployer = new DeployContractSuit();
+    DeployContractSuite internal _deployer = new DeployContractSuite();
 
     ThresholdWallet internal _thresholdWallet;
 
