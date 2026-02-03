@@ -3,6 +3,7 @@
 pragma solidity ^0.8.24;
 
 import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/Test.sol";
 
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
@@ -30,42 +31,38 @@ contract DeployContractLogic is Script {
      * 10 - MultisigWallet
      * 11 - ThresholdWallet
      */
-    function run(uint256 logicIndex_) external returns (address) {
-        if (logicIndex_ == 1) {
-            Whitelist whitelist = new Whitelist();
-            return address(whitelist);
-        } else if (logicIndex_ == 2) {
-            Blacklist blacklist = new Blacklist();
-            return address(blacklist);
-        } else if (logicIndex_ == 3) {
-            UnderlyingToken underlyingToken = new UnderlyingToken();
-            return address(underlyingToken);
-        } else if (logicIndex_ == 4) {
-            UnderlyingTokenExchanger exchanger = new UnderlyingTokenExchanger();
-            return address(exchanger);
-        } else if (logicIndex_ == 5) {
-            FixedTermStaking fixedTermStaking = new FixedTermStaking();
-            return address(fixedTermStaking);
-        } else if (logicIndex_ == 6) {
-            OpenTermStaking openTermStaking = new OpenTermStaking();
-            return address(openTermStaking);
-        } else if (logicIndex_ == 7) {
-            ValueInflationVault vault = new ValueInflationVault();
-            return address(vault);
-        } else if (logicIndex_ == 8) {
-            TimePowerLoan timePowerLoan = new TimePowerLoan();
-            return address(timePowerLoan);
-        } else if (logicIndex_ == 9) {
-            TimeLinearLoan timeLinearLoan = new TimeLinearLoan();
-            return address(timeLinearLoan);
-        } else if (logicIndex_ == 10) {
-            MultisigWallet multisigWallet = new MultisigWallet();
-            return address(multisigWallet);
-        } else if (logicIndex_ == 11) {
-            ThresholdWallet thresholdWallet = new ThresholdWallet();
-            return address(thresholdWallet);
+    function run() external returns (address logic_) {
+        uint256 logicIndex = vm.envUint("LOGIC_INDEX");
+        console.log(logicIndex);
+
+        vm.startBroadcast();
+
+        if (logicIndex == 1) {
+            logic_ = address(new Whitelist());
+        } else if (logicIndex == 2) {
+            logic_ = address(new Blacklist());
+        } else if (logicIndex == 3) {
+            logic_ = address(new UnderlyingToken());
+        } else if (logicIndex == 4) {
+            logic_ = address(new UnderlyingTokenExchanger());
+        } else if (logicIndex == 5) {
+            logic_ = address(new FixedTermStaking());
+        } else if (logicIndex == 6) {
+            logic_ = address(new OpenTermStaking());
+        } else if (logicIndex == 7) {
+            logic_ = address(new ValueInflationVault());
+        } else if (logicIndex == 8) {
+            logic_ = address(new TimePowerLoan());
+        } else if (logicIndex == 9) {
+            logic_ = address(new TimeLinearLoan());
+        } else if (logicIndex == 10) {
+            logic_ = address(new MultisigWallet());
+        } else if (logicIndex == 11) {
+            logic_ = address(new ThresholdWallet());
         } else {
             revert("Invalid logic index");
         }
+
+        vm.stopBroadcast();
     }
 }

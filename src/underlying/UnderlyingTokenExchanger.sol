@@ -232,21 +232,6 @@ contract UnderlyingTokenExchanger is Initializable, AccessControlUpgradeable, Re
         }
     }
 
-    function apporveDepositTokenForInvestment(address investmentManager_, uint128 amount_)
-        external
-        onlyInitialized
-        onlyRole(Roles.OPERATOR_ROLE)
-    {
-        if (investmentManager_ == address(0)) {
-            revert Errors.ZeroAddress("investmentManager");
-        }
-        if (amount_ == 0) {
-            revert Errors.InvalidValue("amount");
-        }
-
-        IERC20(_token1).safeIncreaseAllowance(investmentManager_, amount_);
-    }
-
     function extractDepositTokenForInvestment(uint128 amount_)
         external
         onlyInitialized
@@ -259,10 +244,6 @@ contract UnderlyingTokenExchanger is Initializable, AccessControlUpgradeable, Re
         uint256 balance = IERC20(_token1).balanceOf(address(this));
         if (balance < amount_) {
             revert Errors.InsufficientBalance(balance, amount_);
-        }
-        uint256 allowance = IERC20(_token1).allowance(address(this), msg.sender);
-        if (allowance < amount_) {
-            revert Errors.InsufficientAllowance(allowance, amount_);
         }
 
         IERC20(_token1).safeTransfer(msg.sender, amount_);

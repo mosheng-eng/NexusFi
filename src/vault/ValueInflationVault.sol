@@ -187,8 +187,8 @@ contract ValueInflationVault is
             _addTrustedLender(trustedLenders_[i]);
         }
 
+        _grantRole(Roles.OWNER_ROLE, addr_[0]);
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
-        _grantRole(Roles.OPERATOR_ROLE, addr_[0]);
     }
 
     function deposit(uint256 assets, address receiver)

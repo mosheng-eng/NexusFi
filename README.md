@@ -260,7 +260,31 @@ If you want to verify your contracts while deploying process, you can run the fo
 ```
 forge script script/DeployContractSuit.s.sol:DeployContractSuit --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize --verify --etherscan-api-key YourEtherscanAPIKey  
 ```
-If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.
+If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  
 
 #### Main Network
 TOD
+
+### Upgrade
+1. config **[.env](https://github.com/mosheng-eng/NexusFi/blob/master/.env)** file  
+```
+$ export LOGIC_INDEX=4 # set the logic index to deploy
+```
+Following list is logic contract indexes.  
+  * 1 - Whitelist
+  * 2 - Blacklist
+  * 3 - UnderlyingToken
+  * 4 - UnderlyingTokenExchanger
+  * 5 - FixedTermStaking
+  * 6 - OpenTermStaking
+  * 7 - ValueInflationVault
+  * 8 - TimePowerLoan
+  * 9 - TimeLinearLoan
+  * 10 - MultisigWallet
+  * 11 - ThresholdWallet
+2. run logic contract deployment script 
+```
+$ forge script script/DeployContractLogic.s.sol:DeployContractLogic --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --verify --etherscan-api-key YourEtherscanAPIKey --optimize
+```
+If you don't have an API key, you can visit **[ZAN](https://zan.top)** and get a free one.  
+If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  

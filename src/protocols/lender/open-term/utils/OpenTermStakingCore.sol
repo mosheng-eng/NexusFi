@@ -280,7 +280,7 @@ library OpenTermStakingCore {
         bool force_,
         uint64 lastFeedTime_,
         uint128 totalInterestBearing_,
-        uint128 totalAssetValueInBasket_,
+        int128 interest_,
         address underlyingToken_
     ) public returns (bool dividends_, uint64 updatedLastFeedTime_, uint128 updatedTotalInterestBearing_) {
         uint64 normalizedTimestamp = timestamp_.normalizeTimestamp();
@@ -290,26 +290,23 @@ library OpenTermStakingCore {
             (normalizedTimestamp == lastFeedTime_ && force_)
                 || (normalizedTimestamp == lastFeedTime_ + 1 days && block.timestamp >= normalizedTimestamp)
         ) {
-            /// @dev Calculate interest earned or lost since last feed time
-            int128 interest = int128(totalAssetValueInBasket_) - int128(totalInterestBearing_);
-
             updatedLastFeedTime_ = normalizedTimestamp;
             dividends_ = true;
 
-            if (interest < 0) {
+            if (interest_ < 0) {
                 /// @dev Vaults value decreased, pool lost money
-                interest = -interest;
+                interest_ = -interest_;
 
-                if (totalInterestBearing_ < uint128(interest)) {
+                if (totalInterestBearing_ < uint128(interest_)) {
                     /// @dev Lost all principal and interest bearing
                     /// @dev This is impossible to happen in mathmatical sense
                     /// @dev Because both totalAssetValueInBasket and totalInterestBearing are uint128 values
                     /// @dev The absolute value of interest is never larger than totalInterestBearing
-                    interest = int128(totalInterestBearing_);
+                    interest_ = int128(totalInterestBearing_);
                     updatedTotalInterestBearing_ = 0;
                 } else {
                     /// @dev Just lost part of principal and interest bearing
-                    updatedTotalInterestBearing_ = totalInterestBearing_ - uint128(interest);
+                    updatedTotalInterestBearing_ = totalInterestBearing_ - uint128(interest_);
                 }
 
                 /// @dev Check pool reserve before burning underlying tokens
@@ -317,21 +314,21 @@ library OpenTermStakingCore {
                 uint128 openTermStakingHoldUnderlyingTokenBalance =
                     uint128(IERC20(underlyingToken_).balanceOf(address(this)));
 
-                if (uint128(interest) > openTermStakingHoldUnderlyingTokenBalance) {
+                if (uint128(interest_) > openTermStakingHoldUnderlyingTokenBalance) {
                     /// @dev Not enough underlying tokens to burn, just burn what we have
                     /// @dev This should never happen under normal circumstances
                     /// @dev unless there are bad guys attack the pool or vault and steal underlying tokens
                     /// @dev In such case, protocol should contribute all fees collected to compensate the loss
-                    interest = int128(openTermStakingHoldUnderlyingTokenBalance);
+                    interest_ = int128(openTermStakingHoldUnderlyingTokenBalance);
                 }
 
-                if (interest > 0) {
-                    UnderlyingToken(underlyingToken_).burn(uint256(uint128(interest)));
+                if (interest_ > 0) {
+                    UnderlyingToken(underlyingToken_).burn(uint256(uint128(interest_)));
                 }
-            } else if (interest > 0) {
+            } else if (interest_ > 0) {
                 /// @dev Vaults value increased, pool earned money
-                updatedTotalInterestBearing_ = totalInterestBearing_ + uint128(interest);
-                UnderlyingToken(underlyingToken_).mint(address(this), uint256(uint128(interest)));
+                updatedTotalInterestBearing_ = totalInterestBearing_ + uint128(interest_);
+                UnderlyingToken(underlyingToken_).mint(address(this), uint256(uint128(interest_)));
             } else {
                 /// @dev No change in vaults value
                 dividends_ = false;

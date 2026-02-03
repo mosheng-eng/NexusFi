@@ -783,17 +783,10 @@ contract OpenTermStakingTest is Test {
     function testInvalidFeed() public {
         console.log("case 1: zero principal feed");
         vm.warp((_currentTime += 1 days) + 1 minutes);
-        _depositToken.mint(address(_openTermStaking), 1);
-        vm.startPrank(address(_openTermStaking));
-        _depositToken.approve(_assetsInfoBasket[0].targetVault, 1);
-        IERC4626(_assetsInfoBasket[0].targetVault).deposit(1, address(_openTermStaking));
-        vm.stopPrank();
         assertFalse(_openTermStaking.feed(_currentTime));
 
         console.log("case 2: negative interest feed");
         vm.warp((_currentTime += 1 days) + 1 minutes);
-        _depositToken.mint(_assetsInfoBasket[0].targetVault, 1_000 * 10 ** 6);
-        _depositToken.mint(_assetsInfoBasket[1].targetVault, 1_000 * 10 ** 6);
         vm.startPrank(_whitelistedUser1);
         _depositToken.approve(address(_exchanger), 300_000 * 10 ** 6);
         _exchanger.exchange(300_000 * 10 ** 6, true);
@@ -801,8 +794,14 @@ contract OpenTermStakingTest is Test {
         _underlyingToken.approve(address(_openTermStaking), 300_000 * 10 ** 6);
         _openTermStaking.stake(300_000 * 10 ** 6);
         vm.stopPrank();
+        // Vaults earn some profits
+        // Then stakers also share the profits
+        _depositToken.mint(_assetsInfoBasket[0].targetVault, 1_000 * 10 ** 6);
+        _depositToken.mint(_assetsInfoBasket[1].targetVault, 1_000 * 10 ** 6);
         assertTrue(_openTermStaking.feed(_currentTime));
         vm.warp((_currentTime += 1 days) + 1 minutes);
+        // Vaults lose some assets
+        // Then stakers also suffer the loss
         _depositToken.burn(_assetsInfoBasket[0].targetVault, 500 * 10 ** 6);
         _depositToken.burn(_assetsInfoBasket[1].targetVault, 500 * 10 ** 6);
         assertTrue(_openTermStaking.feed(_currentTime));

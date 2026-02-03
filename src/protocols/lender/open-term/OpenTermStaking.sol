@@ -58,6 +58,9 @@ contract OpenTermStaking is
     /// @dev timestamp of oracle latest report
     /// @notice stored in slot 5
     uint64 public _lastFeedTime;
+    /// @dev record of the last total asset value in basket, used for interest calculation
+    /// @notice stored in slot 6
+    uint128 public _lastTotalAssetValueInBasket;
     /// @dev list of all assets in the basket
     /// @notice dynamic array storage, initialized when deploying this contract
     OpenTermStakingDefs.AssetInfo[] internal _assetsInfoBasket;
@@ -192,6 +195,7 @@ contract OpenTermStaking is
             ]
         );
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalInterestBearing = results[2];
             _totalFee = results[3];
         }
@@ -243,6 +247,7 @@ contract OpenTermStaking is
             ]
         );
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalInterestBearing = results[2];
             _totalFee = results[3];
         }
@@ -298,6 +303,7 @@ contract OpenTermStaking is
             ]
         );
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalInterestBearing = results[2];
             _totalFee = results[3];
         }
@@ -351,6 +357,7 @@ contract OpenTermStaking is
             ]
         );
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalInterestBearing = results[2];
             _totalFee = results[3];
         }
@@ -362,9 +369,16 @@ contract OpenTermStaking is
     /// @param timestamp_ The timestamp to feed (non-normalized)
     /// @return dividends_ Whether there are dividends to distribute
     function feed(uint64 timestamp_) external whenNotPaused nonReentrant returns (bool dividends_) {
+        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
         (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
-            timestamp_, false, _lastFeedTime, _totalInterestBearing, getTotalAssetValueInBasket(), _underlyingToken
+            timestamp_,
+            false,
+            _lastFeedTime,
+            _totalInterestBearing,
+            int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
+            _underlyingToken
         );
+        _lastTotalAssetValueInBasket = totalAssetValueInBasket;
     }
 
     /// @notice only operator role can call this method
@@ -377,9 +391,16 @@ contract OpenTermStaking is
         onlyRole(Roles.OPERATOR_ROLE)
         returns (bool dividends_)
     {
+        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
         (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
-            timestamp_, true, _lastFeedTime, _totalInterestBearing, getTotalAssetValueInBasket(), _underlyingToken
+            timestamp_,
+            true,
+            _lastFeedTime,
+            _totalInterestBearing,
+            int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
+            _underlyingToken
         );
+        _lastTotalAssetValueInBasket = totalAssetValueInBasket;
     }
 
     /// @notice Method to update staking fee rate
