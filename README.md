@@ -253,12 +253,12 @@ $ export NEXUSFI_THRESHOLD_WALLET_M=2 # m-n parameters
 ```
 2.run deployment script
 ```
-$ forge script script/DeployContractSuit.s.sol:DeployContractSuit --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize  
+$ forge script script/DeployContractSuite.s.sol:DeployContractSuite --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize  
 ```
 If you don't have an API key, you can visit **[ZAN](https://zan.top)** and get a free one.  
 If you want to verify your contracts while deploying process, you can run the following script.
 ```
-forge script script/DeployContractSuit.s.sol:DeployContractSuit --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize --verify --etherscan-api-key YourEtherscanAPIKey  
+forge script script/DeployContractSuite.s.sol:DeployContractSuite --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize --verify --etherscan-api-key YourEtherscanAPIKey  
 ```
 If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  
 
