@@ -161,6 +161,8 @@ contract OpenTermStaking is
         onlyInitialized
         returns (uint128, uint128)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 sharesAmount_,
          * uint128 stakedAmount_,
@@ -215,6 +217,8 @@ contract OpenTermStaking is
         onlyInitialized
         returns (uint128, uint128)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 sharesAmount_,
          * uint128 unstakedAmount_,
@@ -269,6 +273,8 @@ contract OpenTermStaking is
         onlyInitialized
         returns (uint128, uint128)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 sharesAmount_,
          * uint128 stakedAmount_,
@@ -325,6 +331,8 @@ contract OpenTermStaking is
         onlyInitialized
         returns (uint128, uint128)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 sharesAmount_,
          * uint128 unstakedAmount_,
@@ -369,38 +377,20 @@ contract OpenTermStaking is
     /// @param timestamp_ The timestamp to feed (non-normalized)
     /// @return dividends_ Whether there are dividends to distribute
     function feed(uint64 timestamp_) external whenNotPaused nonReentrant returns (bool dividends_) {
-        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
-        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
-            timestamp_,
-            false,
-            _lastFeedTime,
-            _totalInterestBearing,
-            int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
-            _underlyingToken
-        );
-        _lastTotalAssetValueInBasket = totalAssetValueInBasket;
+        dividends_ = _feed(timestamp_, false);
     }
 
     /// @notice only operator role can call this method
     /// @param timestamp_ The timestamp to feed (non-normalized)
     /// @return dividends_ Whether there are dividends to distribute
     function feedForce(uint64 timestamp_)
-        external
+        public
         whenNotPaused
         nonReentrant
         onlyRole(Roles.OPERATOR_ROLE)
         returns (bool dividends_)
     {
-        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
-        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
-            timestamp_,
-            true,
-            _lastFeedTime,
-            _totalInterestBearing,
-            int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
-            _underlyingToken
-        );
-        _lastTotalAssetValueInBasket = totalAssetValueInBasket;
+        dividends_ = _feed(timestamp_, true);
     }
 
     /// @notice Method to update staking fee rate
@@ -506,6 +496,19 @@ contract OpenTermStaking is
 
     function assetInfoAt(uint256 index_) external view returns (OpenTermStakingDefs.AssetInfo memory) {
         return _assetsInfoBasket[index_];
+    }
+
+    function _feed(uint64 timestamp_, bool force_) internal returns (bool dividends_) {
+        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
+        (dividends_, _lastFeedTime, _totalInterestBearing) = OpenTermStakingCore.feed(
+            timestamp_,
+            force_,
+            _lastFeedTime,
+            _totalInterestBearing,
+            int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
+            _underlyingToken
+        );
+        _lastTotalAssetValueInBasket = totalAssetValueInBasket;
     }
 
     uint256[50] private __gap;

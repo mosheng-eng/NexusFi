@@ -75,6 +75,9 @@ contract FixedTermStaking is
     /// @dev fee rate for unstaking operations
     /// @notice stored in slot 6
     uint64 public _unstakeFeeRate;
+    /// @dev record of the last total asset value in basket, used for interest calculation
+    /// @notice stored in slot 7
+    uint128 public _lastTotalAssetValueInBasket;
     /// @dev tokenId => FixedTermStakingDefs.StakeInfo
     /// @notice mapping storage
     mapping(uint256 => FixedTermStakingDefs.StakeInfo) public _tokenId_stakeInfo;
@@ -187,6 +190,8 @@ contract FixedTermStaking is
         onlyInitialized
         returns (uint256 tokenId_)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 updatedTotalPrincipal_,
          * uint128 updatedRemainingBalance_,
@@ -227,6 +232,7 @@ contract FixedTermStaking is
             ]
         );
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalPrincipal = results[0];
             _remainingBalance = results[1];
             _totalFee = results[2];
@@ -246,6 +252,8 @@ contract FixedTermStaking is
         onlyInitialized
         returns (uint128 repayAmount_)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 repayAmount_,
          * uint128 updatedTotalPrincipal_,
@@ -287,6 +295,7 @@ contract FixedTermStaking is
         );
 
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalPrincipal = uint128(uint256(results[1]));
             _remainingBalance = uint128(uint256(results[2]));
             _totalFee = uint128(uint256(results[3]));
@@ -307,6 +316,8 @@ contract FixedTermStaking is
         onlyInitialized
         returns (uint256 tokenId_)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 updatedTotalPrincipal_,
          * uint128 updatedRemainingBalance_,
@@ -347,6 +358,7 @@ contract FixedTermStaking is
             ]
         );
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalPrincipal = results[0];
             _remainingBalance = results[1];
             _totalFee = results[2];
@@ -365,6 +377,8 @@ contract FixedTermStaking is
         onlyInitialized
         returns (uint128 repayAmount_)
     {
+        /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
+        _feed(_lastFeedTime - 1, true);
         /**
          * uint128 repayAmount_,
          * uint128 updatedTotalPrincipal_,
@@ -406,6 +420,7 @@ contract FixedTermStaking is
         );
 
         unchecked {
+            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
             _totalPrincipal = uint128(uint256(results[1]));
             _remainingBalance = uint128(uint256(results[2]));
             _totalFee = uint128(uint256(results[3]));
@@ -421,18 +436,7 @@ contract FixedTermStaking is
     /// @param timestamp_ The timestamp to feed (non-normalized)
     /// @return dividends_ Whether there are dividends to distribute
     function feed(uint64 timestamp_) external whenNotPaused nonReentrant returns (bool dividends_) {
-        (dividends_, _lastFeedTime, _totalInterest) = _accumulatedInterestRate.feed(
-            _startDate_principal,
-            _maturityDate_principal,
-            _timepoints,
-            timestamp_,
-            false,
-            _lastFeedTime,
-            _totalPrincipal,
-            getTotalAssetValueInBasket(),
-            _totalInterest,
-            _underlyingToken
-        );
+        dividends_ = _feed(timestamp_, false);
     }
 
     /// @notice only controller roles can force feeding at the same timestamp
@@ -445,18 +449,7 @@ contract FixedTermStaking is
         onlyRole(Roles.OPERATOR_ROLE)
         returns (bool dividends_)
     {
-        (dividends_, _lastFeedTime, _totalInterest) = _accumulatedInterestRate.feed(
-            _startDate_principal,
-            _maturityDate_principal,
-            _timepoints,
-            timestamp_,
-            true,
-            _lastFeedTime,
-            _totalPrincipal,
-            getTotalAssetValueInBasket(),
-            _totalInterest,
-            _underlyingToken
-        );
+        dividends_ = _feed(timestamp_, true);
     }
 
     /// @notice Method to update staking fee rate
@@ -579,6 +572,22 @@ contract FixedTermStaking is
 
     function assetsInfoBasket() external view returns (FixedTermStakingDefs.AssetInfo[] memory) {
         return _assetsInfoBasket;
+    }
+
+    function _feed(uint64 timestamp_, bool force_) internal returns (bool dividends_) {
+        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
+        (dividends_, _lastFeedTime, _totalInterest) = _accumulatedInterestRate.feed(
+            _startDate_principal,
+            _maturityDate_principal,
+            _timepoints,
+            timestamp_,
+            force_,
+            _lastFeedTime,
+            int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
+            _totalInterest,
+            _underlyingToken
+        );
+        _lastTotalAssetValueInBasket = totalAssetValueInBasket;
     }
 
     uint256[50] private __gap;

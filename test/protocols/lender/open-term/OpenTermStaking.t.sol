@@ -1146,12 +1146,23 @@ contract OpenTermStakingTest is Test {
 
         vm.stopPrank();
 
+        vm.recordLogs();
         if (stakeFrom_) {
             vm.prank(_owner);
             (sharesAmount_, stakedAmount__) = _openTermStaking.stakeFrom(amountToStake_, user_);
         } else {
             vm.prank(user_);
             (sharesAmount_, stakedAmount__) = _openTermStaking.stake(amountToStake_);
+        }
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        int128 interest = 0;
+        for (uint256 i = 0; i < logs.length; ++i) {
+            Vm.Log memory log = logs[i];
+            if (log.emitter == address(_openTermStaking)) {
+                if (log.topics[0] == bytes32(0x31c2847aa3d98da87597f960d85fb7b21db4729f513cdaea79b124afc35fe736)) {
+                    interest = int128(uint128(abi.decode(log.data, (uint256))));
+                }
+            }
         }
 
         uint128 userBalanceAfterStake = uint128(_underlyingToken.balanceOf(user_));
@@ -1161,7 +1172,8 @@ contract OpenTermStakingTest is Test {
         uint128 totalInterestBearing = _openTermStaking._totalInterestBearing();
 
         assertEq(userBalanceBeforeStake - userBalanceAfterStake, amountToStake_);
-        assertEq(poolBalanceAfterStake - poolBalanceBeforeStake, amountToStake_);
+        /// @dev considering feed interest before stake
+        assertEq(int128(poolBalanceAfterStake) - int128(poolBalanceBeforeStake), int128(amountToStake_) + interest);
         assertEq(int128(poolBalanceAfterStake), int128(totalFee) + int128(totalInterestBearing) - 1);
     }
 

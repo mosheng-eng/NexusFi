@@ -51,6 +51,11 @@ library FixedTermStakingDefs {
     /// @param tokenId the ID of the burned fixed-term NFT
     event Unstake(address indexed from, address indexed to, uint128 principal, int128 interest, uint256 tokenId);
 
+    /// @notice Event emitted when feed happens
+    /// @param normalizedTimeStamp the normalized time stamp when feed happens
+    /// @param interest the interest rate fed (per day, in 1e18 precision
+    event Feed(uint64 indexed normalizedTimeStamp, int128 interest);
+
     /// @notice Event emitted when update stake fee rate
     /// @param oldFeeRate the old stake fee rate
     /// @param newFeeRate the new stake fee rate
@@ -75,6 +80,11 @@ library FixedTermStakingDefs {
     /// @param oldDustBalance the old dust balance
     /// @param newDustBalance the new dust balance
     event DustBalanceUpdated(uint128 oldDustBalance, uint128 newDustBalance);
+
+    /// @notice Event emitted when underlying token is unpegged from deposit token in exchanger
+    /// @param unpreparedAssetAmount the amount of underlying tokens that could not be prepared due to vault withdraw limits
+    /// @dev this event indicates a risk that underlying token is unpegged from deposit token
+    event UnderlyingTokenUnpeggedRisk(uint128 unpreparedAssetAmount);
 
     /// @notice Error reverted when staking amount over staker's balance
     /// @param balance the staker's balance

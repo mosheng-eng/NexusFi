@@ -113,9 +113,8 @@ library FixedTermStakingLibs {
         mapping(uint64 => uint128) storage maturityDate_principal_,
         uint64 timestamp_
     ) public view returns (uint128 interestBearingPrincipal_) {
-        uint64 normalizedTimestamp = normalizeTimestamp(timestamp_);
         uint256[] memory timepoints = timepoints_;
-        uint256 idx = timepoints.upperBoundMemory(uint256(normalizedTimestamp));
+        uint256 idx = timepoints.upperBoundMemory(uint256(timestamp_));
         for (uint256 i = 0; i < idx; ++i) {
             interestBearingPrincipal_ = interestBearingPrincipal_ + startDate_principal_[uint64(timepoints[i])]
                 - maturityDate_principal_[uint64(timepoints[i])];

@@ -19,6 +19,11 @@ library OpenTermStakingDefs {
     /// @param fee the fee charged for unstaking in underlying tokens
     event Unstake(address indexed from, address indexed to, uint128 amount, uint128 shares, uint128 fee);
 
+    /// @notice Event emitted when feed happens
+    /// @param normalizedTimeStamp the normalized time stamp when feed happens
+    /// @param interest the interest rate fed (per day, in 1e18 precision
+    event Feed(uint64 indexed normalizedTimeStamp, int128 interest);
+
     /// @notice Event emitted when update stake fee rate
     /// @param oldFeeRate the old stake fee rate
     /// @param newFeeRate the new stake fee rate

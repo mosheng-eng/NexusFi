@@ -287,6 +287,9 @@ library OpenTermStakingCore {
 
         /// @dev Only allow to force feed at last feed time or normal feed at next day
         if (
+            /// @dev Duplicated feeds at the same day require force
+            /// @dev Normal feed at next day does not require force
+            /// @dev Advanced feed before next day is not allowed
             (normalizedTimestamp == lastFeedTime_ && force_)
                 || (normalizedTimestamp == lastFeedTime_ + 1 days && block.timestamp >= normalizedTimestamp)
         ) {
@@ -324,15 +327,19 @@ library OpenTermStakingCore {
 
                 if (interest_ > 0) {
                     UnderlyingToken(underlyingToken_).burn(uint256(uint128(interest_)));
+
+                    emit OpenTermStakingDefs.Feed(updatedLastFeedTime_, -interest_);
                 }
             } else if (interest_ > 0) {
                 /// @dev Vaults value increased, pool earned money
                 updatedTotalInterestBearing_ = totalInterestBearing_ + uint128(interest_);
                 UnderlyingToken(underlyingToken_).mint(address(this), uint256(uint128(interest_)));
+                emit OpenTermStakingDefs.Feed(updatedLastFeedTime_, interest_);
             } else {
                 /// @dev No change in vaults value
                 dividends_ = false;
                 updatedTotalInterestBearing_ = totalInterestBearing_;
+                emit OpenTermStakingDefs.Feed(updatedLastFeedTime_, 0);
             }
         }
         /// @dev Handle invalid feeding attempts

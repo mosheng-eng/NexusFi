@@ -321,6 +321,13 @@ library FixedTermStakingCore {
         stakeInfo.status = FixedTermStakingDefs.StakeStatus.CLOSED;
 
         uint256 assetNumberInBasket = assetsInfoBasket_.length;
+        /// @dev Keep track of unprepared asset amount due to vault withdraw limit
+        /// @dev This amount will be adjusted in the next asset withdraw
+        /// @dev If unprepared asset amount is not zero after all assets withdraw, it means protocol loss
+        /// @dev In such case, protocol should compensate the loss to exchanger later to make sure exchanger can repay user fully
+        /// @dev Or protocol can adjust rate between underlying token and deposit token in exchanger to make up the loss
+        /// @dev However, this means underlying token is unpegged from deposit token, which should be avoided if possible
+        uint128 unpreparedAssetAmount = 0;
         for (uint256 i = 0; i < assetNumberInBasket; i++) {
             FixedTermStakingDefs.AssetInfo memory assetInfo = assetsInfoBasket_[i];
             /// @dev When user unstake a fixed-term staking, protocol should withdraw corresponding amount from each vault
@@ -328,7 +335,7 @@ library FixedTermStakingCore {
             /// @dev We choose to only withdraw principal amount from each vaults by proportion, just like what we did when staking
             /// @dev No matter vaults value will decrease or increase later, protocol have settled with user immediately when user unstakes
             uint128 assetAmount = UnderlyingTokenExchanger(addrs_[4]).dryrunExchange(
-                (stakeInfo.principal * assetInfo.weight + FixedTermStakingDefs.PRECISION - 1)
+                ((uint128(uint256(results_[0])) + fee) * assetInfo.weight + FixedTermStakingDefs.PRECISION - 1)
                     / FixedTermStakingDefs.PRECISION,
                 false
             );
@@ -338,7 +345,17 @@ library FixedTermStakingCore {
             /// @dev This may happen when asset portfolio is modified, e.g. one asset's weight is increased significantly after this stake
             /// @dev In this case, protocol should follow the new strategy and be responsible for the loss or profit
             if (assetAmount > maxAssetAmount) {
+                unpreparedAssetAmount += (assetAmount - maxAssetAmount);
+
                 assetAmount = maxAssetAmount;
+            } else if (assetAmount + unpreparedAssetAmount > maxAssetAmount) {
+                unpreparedAssetAmount -= (maxAssetAmount - assetAmount);
+
+                assetAmount = maxAssetAmount;
+            } else {
+                assetAmount += unpreparedAssetAmount;
+
+                unpreparedAssetAmount = 0;
             }
             if (assetAmount > 0) {
                 /// @dev Withdraw asset from each vault where owner is this contract and receiver is the exchanger contract
@@ -350,6 +367,36 @@ library FixedTermStakingCore {
                     revert FixedTermStakingDefs.WithdrawFailed(assetAmount, 0, assetInfo.targetVault);
                 }
             }
+        }
+
+        /// @dev If there is still unprepared asset amount due to vault withdraw limits
+        /// @dev Try to withdraw the unprepared amount from other vaults again
+        if (unpreparedAssetAmount > 0) {
+            for (uint256 i = 0; i < assetNumberInBasket; i++) {
+                FixedTermStakingDefs.AssetInfo memory assetInfo = assetsInfoBasket_[i];
+                /// @dev Check the maximum withdrawable amount from the vault
+                uint128 maxAssetAmount = uint128(IERC4626(assetInfo.targetVault).maxWithdraw(address(this)));
+                if (maxAssetAmount >= unpreparedAssetAmount) {
+                    if (IERC4626(assetInfo.targetVault).withdraw(unpreparedAssetAmount, addrs_[4], address(this)) == 0)
+                    {
+                        revert FixedTermStakingDefs.WithdrawFailed(unpreparedAssetAmount, 0, assetInfo.targetVault);
+                    }
+                    unpreparedAssetAmount = 0;
+
+                    break;
+                } else if (maxAssetAmount > 0) {
+                    if (IERC4626(assetInfo.targetVault).withdraw(maxAssetAmount, addrs_[4], address(this)) == 0) {
+                        revert FixedTermStakingDefs.WithdrawFailed(maxAssetAmount, 0, assetInfo.targetVault);
+                    }
+                    unpreparedAssetAmount -= maxAssetAmount;
+                }
+            }
+        }
+
+        if (unpreparedAssetAmount > 0) {
+            /// @dev Emit event to warn off-chain monitoring system
+            /// @dev Protocl should top-up equivalent amount of asset tokens to exchanger to avoid unpegging risk
+            emit FixedTermStakingDefs.UnderlyingTokenUnpeggedRisk(unpreparedAssetAmount);
         }
 
         /// @dev After withdrawing from all vaults, we repay underlying tokens to user
@@ -369,36 +416,79 @@ library FixedTermStakingCore {
         uint64 timestamp_,
         bool force_,
         uint64 lastFeedTime_,
-        uint128 totalPrincipal_,
-        uint128 totalAssetValueInBasket_,
+        int128 interest_,
         int128 totalInterest_,
         address underlyingToken_
     ) public returns (bool dividends_, uint64 updatedLastFeedTime_, int128 updatedTotalInterest_) {
         uint64 normalizedTimestamp = timestamp_.normalizeTimestamp();
+        uint128 interestBearingPrincipal;
 
         /// @dev Only allow to force feed at last feed time or normal feed at next day
         if (
+            /// @dev Duplicated feeds at the same day require force
+            /// @dev Normal feed at next day does not require force
+            /// @dev Advanced feed before next day is not allowed
             (normalizedTimestamp == lastFeedTime_ && force_)
                 || (normalizedTimestamp == lastFeedTime_ + 1 days && block.timestamp >= normalizedTimestamp)
         ) {
             /// @dev Calculate interest bearing principal at normalizedTimestamp
             /// @dev Sum up all principals that started before or on normalizedTimestamp and not yet matured
-            uint128 interestBearingPrincipal = timepoints_.calculateInterestBearingPrincipal(
+            interestBearingPrincipal = timepoints_.calculateInterestBearingPrincipal(
                 startDate_principal_, maturityDate_principal_, normalizedTimestamp
             );
             if (interestBearingPrincipal == 0) {
-                updatedTotalInterest_ = totalInterest_;
+                accumulatedInterestRate_[normalizedTimestamp] = accumulatedInterestRate_[lastFeedTime_];
+
                 /// @dev Unnecessary to calculate interest rate when there is no interest bearing principal
                 /// @dev Because you can not divide interest by zero
                 /// @dev Thus unnecessary to calculate interest amount either
                 updatedLastFeedTime_ = normalizedTimestamp;
-                dividends_ = false;
+
+                if (interest_ < 0) {
+                    /// @dev Vaults value decreased, pool lost money
+                    interest_ = -interest_;
+
+                    /// @dev Check pool reserve before burning underlying tokens
+                    /// @dev This balance includes fees collected
+                    uint128 fixedTermStakingHoldUnderlyingTokenBalance =
+                        uint128(IERC20(underlyingToken_).balanceOf(address(this)));
+
+                    if (uint128(interest_) > fixedTermStakingHoldUnderlyingTokenBalance) {
+                        /// @dev Not enough underlying tokens to burn, just burn what we have
+                        /// @dev This should never happen under normal circumstances
+                        /// @dev unless there are bad guys attack the pool or vault and steal underlying tokens
+                        /// @dev In such case, protocol should contribute all fees collected to compensate the loss
+                        interest_ = int128(fixedTermStakingHoldUnderlyingTokenBalance);
+                    }
+
+                    if (interest_ > 0) {
+                        UnderlyingToken(underlyingToken_).burn(uint256(uint128(interest_)));
+
+                        emit FixedTermStakingDefs.Feed(updatedLastFeedTime_, -interest_);
+
+                        dividends_ = true;
+                    }
+                } else if (interest_ > 0) {
+                    /// @dev Vaults value increased, pool earned money
+                    UnderlyingToken(underlyingToken_).mint(address(this), uint256(uint128(interest_)));
+
+                    emit FixedTermStakingDefs.Feed(updatedLastFeedTime_, interest_);
+
+                    dividends_ = true;
+                } else {
+                    emit FixedTermStakingDefs.Feed(updatedLastFeedTime_, 0);
+
+                    dividends_ = false;
+                }
+
+                /// @dev Update total interest
+                updatedTotalInterest_ = totalInterest_ + interest_;
             } else {
                 /// @dev Calculate interest earned or lost since last feed time
-                int128 interest = int128(totalAssetValueInBasket_) - int128(totalPrincipal_) - int128(totalInterest_);
+                //int128 interest = int128(totalAssetValueInBasket_) - int128(totalPrincipal_) - int128(totalInterest_);
                 /// @dev Calculate interest rate per day in base points (1_000_000 = 100%)
                 int64 interestRate =
-                    int64(interest * int128(int64(FixedTermStakingDefs.PRECISION)) / int128(interestBearingPrincipal));
+                    int64(interest_ * int128(int64(FixedTermStakingDefs.PRECISION)) / int128(interestBearingPrincipal));
                 /// @dev Prevent malicious oracle feed to asset vaults which may cause unbelievable interest rate
                 if (
                     interestRate >= FixedTermStakingDefs.MAX_INTEREST_RATE_PER_DAY
@@ -412,36 +502,49 @@ library FixedTermStakingCore {
                 }
                 /// @dev Update accumulated interest rate at normalizedTimestamp
                 accumulatedInterestRate_[normalizedTimestamp] = accumulatedInterestRate_[lastFeedTime_] + interestRate;
-                /// @dev Update total interest
-                updatedTotalInterest_ = totalInterest_ + interest;
+
                 /// @dev Update last feed time
                 updatedLastFeedTime_ = normalizedTimestamp;
-                dividends_ = true;
 
-                if (interest < 0) {
+                if (interest_ < 0) {
                     /// @dev Vaults value decreased, pool lost money
-                    interest = -interest;
+                    interest_ = -interest_;
 
                     /// @dev Check pool reserve before burning underlying tokens
                     /// @dev This balance includes fees collected
                     uint128 fixedTermStakingHoldUnderlyingTokenBalance =
                         uint128(IERC20(underlyingToken_).balanceOf(address(this)));
 
-                    if (uint128(interest) > fixedTermStakingHoldUnderlyingTokenBalance) {
+                    if (uint128(interest_) > fixedTermStakingHoldUnderlyingTokenBalance) {
                         /// @dev Not enough underlying tokens to burn, just burn what we have
                         /// @dev This should never happen under normal circumstances
                         /// @dev unless there are bad guys attack the pool or vault and steal underlying tokens
                         /// @dev In such case, protocol should contribute all fees collected to compensate the loss
-                        interest = int128(fixedTermStakingHoldUnderlyingTokenBalance);
+                        interest_ = int128(fixedTermStakingHoldUnderlyingTokenBalance);
                     }
 
-                    if (interest > 0) {
-                        UnderlyingToken(underlyingToken_).burn(uint256(uint128(interest)));
+                    if (interest_ > 0) {
+                        UnderlyingToken(underlyingToken_).burn(uint256(uint128(interest_)));
+
+                        emit FixedTermStakingDefs.Feed(updatedLastFeedTime_, -interest_);
+
+                        dividends_ = true;
                     }
-                } else if (interest > 0) {
+                } else if (interest_ > 0) {
                     /// @dev Vaults value increased, pool earned money
-                    UnderlyingToken(underlyingToken_).mint(address(this), uint256(uint128(interest)));
+                    UnderlyingToken(underlyingToken_).mint(address(this), uint256(uint128(interest_)));
+
+                    emit FixedTermStakingDefs.Feed(updatedLastFeedTime_, interest_);
+
+                    dividends_ = true;
+                } else {
+                    emit FixedTermStakingDefs.Feed(updatedLastFeedTime_, 0);
+
+                    dividends_ = false;
                 }
+
+                /// @dev Update total interest
+                updatedTotalInterest_ = totalInterest_ + interest_;
             }
         }
         /// @dev Handle invalid feeding attempts
