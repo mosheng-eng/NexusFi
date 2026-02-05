@@ -7,6 +7,7 @@ import {IVaultBorrower} from "src/vault/IVaultBorrower.sol";
 import {DeployContractSuite} from "script/DeployContractSuite.s.sol";
 import {DepositAsset} from "test/mock/DepositAsset.sol";
 import {Errors} from "src/common/Errors.sol";
+import {Roles} from "src/common/Roles.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -85,6 +86,9 @@ contract ValueInflationVaultTest is Test {
         );
 
         vm.label(address(_valueInflationVault), "ValueInflationVault");
+
+        vm.prank(_owner);
+        _valueInflationVault.grantRole(Roles.OPERATOR_ROLE, _owner);
 
         _;
     }
