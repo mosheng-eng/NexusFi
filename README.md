@@ -251,7 +251,7 @@ $ export NEXUSFI_THRESHOLD_WALLET_MEMBER_IDS=0x000000000000000000000000000000000
 $ export NEXUSFI_THRESHOLD_WALLET_N=3 # m-n parameters
 $ export NEXUSFI_THRESHOLD_WALLET_M=2 # m-n parameters
 ```
-2.run deployment script
+2. run deployment script
 ```
 $ forge script script/DeployContractSuite.s.sol:DeployContractSuite --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize  
 ```
@@ -261,6 +261,79 @@ If you want to verify your contracts while deploying process, you can run the fo
 forge script script/DeployContractSuite.s.sol:DeployContractSuite --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize --verify --etherscan-api-key YourEtherscanAPIKey  
 ```
 If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  
+3. Following are test contracts already deployed on sepolia network.
+  * Whitelist Logic	                      
+    **[0x315E84B57D8c62e34e6c0839dD90b981027cE112](https://sepolia.etherscan.io/address/0x315e84b57d8c62e34e6c0839dd90b981027ce112)**	
+  * Whitelist Proxy	                      
+    **[0xB076e0cDD01833D3E17fD3399137F2636601e294](https://sepolia.etherscan.io/address/0xb076e0cdd01833d3e17fd3399137f2636601e294)**		
+  * Whitelist Proxy Admin	                
+    **[0x9c6619946815A02C2D958A3839Df06Fb57400e23](https://sepolia.etherscan.io/address/0x9c6619946815a02c2d958a3839df06fb57400e23)**		
+  * Blacklist Logic	                      
+    **[0x94A3388a2FC1af8F6896436D51EF0b9D40D11fff](https://sepolia.etherscan.io/address/0x94a3388a2fc1af8f6896436d51ef0b9d40d11fff)**		
+  * Blacklist Proxy	                      
+    **[0x9d160E956D15cFA1BfA4AD10FcE02e7dc3ADae7d](https://sepolia.etherscan.io/address/0x9d160e956d15cfa1bfa4ad10fce02e7dc3adae7d)**		
+  * Blacklist Proxy Admin	                
+    **[0x6ef6398820d3D96150ED1Caf8ecA8e1838Be4d22](https://sepolia.etherscan.io/address/0x6ef6398820d3d96150ed1caf8eca8e1838be4d22)**		
+  * UnderlyingToken Logic	                
+    **[0x8B6161502f587A2e2E3FB8f6ce152C579d7282cF](https://sepolia.etherscan.io/address/0x8b6161502f587a2e2e3fb8f6ce152c579d7282cf)**		
+  * UnderlyingToken Proxy	                
+    **[0xC1745Aa2a1Bdf61F81a0935aF7416442f979dd36](https://sepolia.etherscan.io/token/0xc1745aa2a1bdf61f81a0935af7416442f979dd36)**		
+  * UnderlyingToken Proxy Admin	          
+    **[0xdb442DefcC65FfBB9CbB7C74fc7b7bCE4e7146ea](https://sepolia.etherscan.io/address/0xdb442defcc65ffbb9cbb7c74fc7b7bce4e7146ea)**		
+  * UnderlyingTokenExchanger Logic	      
+    **[0xB0106207fB50134B10473859f8d40F98959966b8](https://sepolia.etherscan.io/address/0xb0106207fb50134b10473859f8d40f98959966b8)**		
+  * UnderlyingTokenExchanger Proxy	      
+    **[0x126E6a6c0bE46a4e728c5bA30608a75196D749E8](https://sepolia.etherscan.io/address/0x126e6a6c0be46a4e728c5ba30608a75196d749e8)**		
+  * UnderlyingTokenExchanger Proxy Admin	    
+    **[0xcBdA76B2eB841c9E68415332d38E1053FB8058c2](https://sepolia.etherscan.io/address/0xcbda76b2eb841c9e68415332d38e1053fb8058c2)**		
+  * MultisigWallet Logic	                
+    **[0x1455ab2CfCeC9e5412c8a69efEd81af32Db2dad6](https://sepolia.etherscan.io/address/0x1455ab2cfcec9e5412c8a69efed81af32db2dad6)**		
+  * MultisigWallet Proxy	                
+    **[0x743D5D8E20f6ede8888044d1e48CA68b4Ec94641](https://sepolia.etherscan.io/address/0x743d5d8e20f6ede8888044d1e48ca68b4ec94641)**		
+  * MultisigWallet Proxy Admin	          
+    **[0x5722B4d98e30D94d9d85A982c45473FD0b0EE87d](https://sepolia.etherscan.io/address/0x5722b4d98e30d94d9d85a982c45473fd0b0ee87d)**		
+  * ThresholdWallet Logic	                
+    **[0xA95D9B787F1f7af51F43dA8b0f634481F2619846](https://sepolia.etherscan.io/address/0xa95d9b787f1f7af51f43da8b0f634481f2619846)**		
+  * ThresholdWallet Proxy	                
+    **[0x39a5A9d44C7E78f18A1C1990aC2eb4Dd4461F615](https://sepolia.etherscan.io/address/0x39a5a9d44c7e78f18a1c1990ac2eb4dd4461f615)**		
+  * ThresholdWallet Proxy Admin	          
+    **[0xc25DdDA8AeCc127933ee131fa498E9a3aE65b251](https://sepolia.etherscan.io/address/0xc25ddda8aecc127933ee131fa498e9a3ae65b251)**		
+  * ValueInflationVault1 Logic	          
+    **[0xc8CF5608Dbdc29429B1fDC08892d076A2339cddA](https://sepolia.etherscan.io/address/0xc8cf5608dbdc29429b1fdc08892d076a2339cdda)**		
+  * ValueInflationVault1 Proxy	          
+    **[0x618008fc3601ad6944d358D6b4b71C1de7CB4480](https://sepolia.etherscan.io/token/0x618008fc3601ad6944d358d6b4b71c1de7cb4480)**		
+  * ValueInflationVault1 Proxy Admin	    
+    **[0x6825142069830fa198237AFEdfCbe8B3fBD403a0](https://sepolia.etherscan.io/address/0x6825142069830fa198237afedfcbe8b3fbd403a0)**		
+  * ValueInflationVault2 Logic	          
+    **[0x94A46898350926Dc65e2D13A0fA614c5DBb05743](https://sepolia.etherscan.io/address/0x94a46898350926dc65e2d13a0fa614c5dbb05743)**		
+  * ValueInflationVault2 Proxy	          
+    **[0x19bd578A5ecD1D23B08F57D4648203B780cB1BE9](https://sepolia.etherscan.io/token/0x19bd578a5ecd1d23b08f57d4648203b780cb1be9)**		
+  * ValueInflationVault2 Proxy Admin	    
+    **[0xe9423912bfC8f924346B596704EcB06d76F24732](https://sepolia.etherscan.io/address/0xe9423912bfc8f924346b596704ecb06d76f24732)**		
+  * FixedTermStaking Logic	              
+    **[0xab1Fa1004E19BC39b9ccbDD8fE3Fc4c1539B806C](https://sepolia.etherscan.io/address/0xab1fa1004e19bc39b9ccbdd8fe3fc4c1539b806c)**		
+  * FixedTermStaking Proxy	              
+    **[0x751aadf0E0e313CcE119eaD623F6Dd327e7969B8](https://sepolia.etherscan.io/token/0x751aadf0e0e313cce119ead623f6dd327e7969b8)**		
+  * FixedTermStaking Proxy Admin	        
+    **[0x435A18Dc03597D241344bd56a28118648abd3122](https://sepolia.etherscan.io/address/0x435a18dc03597d241344bd56a28118648abd3122)**		
+  * OpenTermStaking Logic	                
+    **[0x91019e9F22cbCa036139DC84362674a2D3f30b44](https://sepolia.etherscan.io/address/0x91019e9f22cbca036139dc84362674a2d3f30b44)**		
+  * OpenTermStaking Proxy	                
+    **[0x74518ED2668fA79FA0452325F5C26D5414c9856E](https://sepolia.etherscan.io/token/0x74518ed2668fa79fa0452325f5c26d5414c9856e)**		
+  * OpenTermStaking Proxy Admin	          
+    **[0x3B9EEF57Ab1Ab7650Fbba22Faf3ED9286A1d722f](https://sepolia.etherscan.io/address/0x3b9eef57ab1ab7650fbba22faf3ed9286a1d722f)**		
+  * TimePowerLoan Logic	                  
+    **[0xd25c804dC8a816e5E6516894988AAEda8DB6948B](https://sepolia.etherscan.io/address/0xd25c804dc8a816e5e6516894988aaeda8db6948b)**	
+  * TimePowerLoan Proxy	                  
+    **[0x66cA7998fB69A25Eb1Bef5AbC0f8e0a438EdFCE0](https://sepolia.etherscan.io/address/0x66ca7998fb69a25eb1bef5abc0f8e0a438edfce0)**		
+  * TimePowerLoan Proxy Admin	            
+    **[0xdE00433C7A94b275ecaBd22b0e76d26Ae46e8A82](https://sepolia.etherscan.io/address/0xde00433c7a94b275ecabd22b0e76d26ae46e8a82)**		
+  * TimeLinearLoan Logic	                
+    **[0x10B941541B6A79E6F9770B5B74A2660Ab42B512B](https://sepolia.etherscan.io/address/0x10b941541b6a79e6f9770b5b74a2660ab42b512b)**	
+  * TimeLinearLoan Proxy	                
+    **[0x005816411DA7C0ab39Dc737A4600eac292FD3536](https://sepolia.etherscan.io/address/0x005816411da7c0ab39dc737a4600eac292fd3536)**		
+  * TimeLinearLoan Proxy Admin	          
+    **[0x71F6E6c4DA815A66b80a8121902325655F26dF3e](https://sepolia.etherscan.io/address/0x71f6e6c4da815a66b80a8121902325655f26df3e)**		
 
 #### Main Network
 TOD
@@ -288,3 +361,8 @@ $ forge script script/DeployContractLogic.s.sol:DeployContractLogic --rpc-url ht
 ```
 If you don't have an API key, you can visit **[ZAN](https://zan.top)** and get a free one.  
 If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  
+3. open XXX proxy admin contract on sepolia etherscan.  
+For example, XXX = **[UnderlyingTokenExchanger Proxy Admin](https://sepolia.etherscan.io/address/0xcbda76b2eb841c9e68415332d38e1053fb8058c2)**.   
+Then you should connect your proxy admin owner's wallet and call upgradeAndCall function.  
+![Upgrade Example](doc/upgrade_example.png "Upgrade Example")
+
