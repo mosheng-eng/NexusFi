@@ -770,14 +770,14 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev get total debt of a vault
     /// @param vault_ the address of the vault
     /// @return totalDebt_ the total debt amount of the vault
-    function totalDebtOfVault(address vault_) public onlyTrustedVault(vault_) returns (uint256 totalDebt_) {
-        _accumulateInterest();
+    function totalDebtOfVault(address vault_) public view onlyTrustedVault(vault_) returns (uint256 totalDebt_) {
+        uint256[] memory accumulatedInterestRates = _dryrunAccumulatedInterest();
         uint64[] memory vaultTranches = _tranchesInfoGroupedByVault[_vaultToIndex[vault_]];
         for (uint256 i = 0; i < vaultTranches.length; i++) {
             TimePowerLoanDefs.TrancheInfo memory vaultTranche = _allTranches[vaultTranches[i]];
             TimePowerLoanDefs.LoanInfo memory trancheLoan = _allLoans[vaultTranche.loanIndex];
             totalDebt_ +=
-                (uint256(vaultTranche.normalizedPrincipal) * _accumulatedInterestRates[trancheLoan.interestRateIndex]);
+                (uint256(vaultTranche.normalizedPrincipal) * accumulatedInterestRates[trancheLoan.interestRateIndex]);
         }
         totalDebt_ = totalDebt_.mulDiv(
             TimePowerLoanDefs.FIXED18, TimePowerLoanDefs.FIXED18 * TimePowerLoanDefs.FIXED18, Math.Rounding.Ceil
@@ -855,6 +855,23 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             _lastAccumulateInterestTime = currentTime;
 
             emit TimePowerLoanDefs.AccumulatedInterestUpdated(currentTime);
+        }
+    }
+
+    function _dryrunAccumulatedInterest() internal view returns (uint256[] memory accumulatedInterestRates_) {
+        uint64 currentTime = uint64(block.timestamp);
+        if (currentTime > _lastAccumulateInterestTime) {
+            uint64 timePeriod = currentTime - _lastAccumulateInterestTime;
+            accumulatedInterestRates_ = new uint256[](_secondInterestRates.length);
+            for (uint256 i = 0; i < _secondInterestRates.length; i++) {
+                accumulatedInterestRates_[i] = _accumulatedInterestRates[i].mulDiv(
+                    _rpow(_secondInterestRates[i], timePeriod, TimePowerLoanDefs.FIXED18),
+                    TimePowerLoanDefs.FIXED18,
+                    Math.Rounding.Ceil
+                );
+            }
+        } else {
+            accumulatedInterestRates_ = _accumulatedInterestRates;
         }
     }
 

@@ -231,17 +231,17 @@ library TimePowerLoanCore {
             uint256 maximumLendAmount = amount_.mulDiv(
                 uint256(trustedVaults_[i].maximumPercentage), uint256(TimePowerLoanDefs.PRECISION), Math.Rounding.Ceil
             );
-            uint256 vaultTotalAssets = IERC4626(trustedVaults_[i].vault).totalAssets();
+            uint256 vaultRemainingBalance = IERC20(loanToken_).balanceOf(trustedVaults_[i].vault);
             uint256 vaultLendAmount;
 
             /// @dev vault cannot provide minimum lend amount for this debt
-            if (vaultTotalAssets < minimumLendAmount) {
+            if (vaultRemainingBalance < minimumLendAmount) {
                 vaultLendAmount = 0;
             }
             /// @dev vault can provide between minimum and maximum lend amount for this debt
             /// @dev vault provides all its assets
-            else if (vaultTotalAssets < maximumLendAmount) {
-                vaultLendAmount = vaultTotalAssets;
+            else if (vaultRemainingBalance < maximumLendAmount) {
+                vaultLendAmount = vaultRemainingBalance;
             }
             /// @dev vault can provide maximum lend amount for this debt
             else {
