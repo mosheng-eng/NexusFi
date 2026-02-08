@@ -92,6 +92,15 @@ library TimeLinearLoanDefs {
     /// @param blockTimestamp_ block timestamp
     error MaturityTimeShouldAfterBlockTimestamp(uint64 maturityTime_, uint64 blockTimestamp_);
 
+    /// @dev event emitted when debt is updated
+    /// @param debtIndex_ index of the debt
+    /// @param netRemainingDebt_ net remaining debt amount
+    /// @param netRemainingInterest_ net remaining interest amount
+    /// @param lastUpdateTime_ last update time of the debt
+    event DebtUpdated(
+        uint64 debtIndex_, uint128 netRemainingDebt_, uint128 netRemainingInterest_, uint64 lastUpdateTime_
+    );
+
     /// @dev event emitted when borrower ceiling limit is updated
     /// @param oldCeilingLimit_ old ceiling limit
     /// @param newCeilingLimit_ new ceiling limit

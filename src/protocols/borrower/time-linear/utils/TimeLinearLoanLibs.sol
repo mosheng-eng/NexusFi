@@ -87,6 +87,10 @@ library TimeLinearLoanLibs {
 
             if (!dryrun_) {
                 allDebts_[debtIndex_] = debtInfo;
+
+                emit TimeLinearLoanDefs.DebtUpdated(
+                    debtIndex_, debtInfo.netRemainingDebt, debtInfo.netRemainingInterest, debtInfo.lastUpdateTime
+                );
             }
         }
         remainingDebt_ = debtInfo.netRemainingDebt;
