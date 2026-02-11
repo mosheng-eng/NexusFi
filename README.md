@@ -261,7 +261,27 @@ If you want to verify your contracts while deploying process, you can run the fo
 forge script script/DeployContractSuite.s.sol:DeployContractSuite --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize --verify --etherscan-api-key YourEtherscanAPIKey  
 ```
 If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  
-3. Following are test contracts already deployed on sepolia network.
+3. config **[.env](https://github.com/mosheng-eng/NexusFi/blob/master/.env)** file.  
+> Note: all contract addresses are proxy address (not logic or proxy admin). You can find them in the outputs of deployment script.
+```
+$ export WHITELIST=0x7dE0576EBE59229e145B49370637fAfa9c4fFe69 # replace with your own whitelist proxy address
+$ export BLACKLIST=0x082f2645F4df9dFe3A5979567B7027a8CAb861eD # replace with your own blacklist proxy address
+$ export UNDERLYING_TOKEN=0x1b4A45315089bb5AC1163e5B0Ea885F354D4Fe75 # replace with your own underlying token proxy address
+$ export UNDERLYING_TOKEN_EXCHANGER=0x15335F44ea80755e4C3b1832549CD8cb29E20786 # replace with your own underlying token exchanger proxy address
+$ export VAULT_1=0x2749a9f58840F493ee74AfE25Ba39fFD0E3Be220 # replace with your own vault1 proxy address
+$ export VAULT_2=0x0305890de546BbAC1cB77cB42eE8B0eB77832Ed5 # replace with your own vault2 proxy address
+$ export FIXED_TERM_STAKING=0x50bAfD607BE003009cE4319938D3500a389028aE # replace with your own fixed term staking proxy address
+$ export OPEN_TERM_STAKING=0xe6B9E96DFC2D8B35A958012d0b9B1D37Ccdfd1eE # replace with your own open term staking proxy address
+$ export TIME_POWER_LOAN=0x8Ca01823e81B9b1B92FF1F398dFA1357D72B3aEC # replace with your own time power loan proxy address
+$ export TIME_LINEAR_LOAN=0x1522C047b4f6b356724dEb169B4df11b6A6fF6A3 # replace with your own time linear loan proxy address
+$ export MULTISIG_WALLET=0xf147AbBeecB5f796f077492b36c3149994c8F528 # replace with your own multisig wallet proxy address
+$ export THRESHOLD_WALLET=0xf9dC047C175E028C904f85E660106ce050F5557F # replace with your own threshold wallet proxy address
+```
+4. run contract dependency script  
+```
+$ forge script script/ContractDependency.s.sol:ContractDependencyScript --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize  
+```
+5. Following are test contracts already deployed on sepolia network.
 * Whitelist Logic	                      
     **[0xE878d42EF66fd75DcB12d29fB6C6aD484BEb658b](https://sepolia.etherscan.io/address/0xE878d42EF66fd75DcB12d29fB6C6aD484BEb658b)**
 * Whitelist Proxy	                      
@@ -336,7 +356,7 @@ If you don't have an etherscan API key, you can visit **[Etherscan](https://ethe
     **[0x7707ead2F5f2676aDe81305112EeE55b153C5506](https://sepolia.etherscan.io/address/0x7707ead2F5f2676aDe81305112EeE55b153C5506)**
 
 #### Main Network
-TOD
+> Note: the same with test network.
 
 ### Upgrade
 1. config **[.env](https://github.com/mosheng-eng/NexusFi/blob/master/.env)** file  
