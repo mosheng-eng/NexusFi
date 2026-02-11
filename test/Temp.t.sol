@@ -10,8 +10,11 @@ contract TempTest is Test {
     FixedTermStaking internal _fixedTermStaking;
 
     function setUp() public {
-        _investor = address(0xF265639351621C68867d089d95c14a1f0edBfB48);
-        _fixedTermStaking = FixedTermStaking(address(0x751aadf0E0e313CcE119eaD623F6Dd327e7969B8));
+        _investor = vm.envAddress("NEXUSFI_OWNER");
+        _fixedTermStaking = FixedTermStaking(vm.envAddress("FIXED_TERM_STAKING"));
+
+        vm.label(_investor, "Investor");
+        vm.label(address(_fixedTermStaking), "FixedTermStaking");
     }
 
     function testTemp() public {
