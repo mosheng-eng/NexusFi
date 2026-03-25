@@ -262,18 +262,15 @@ contract TimeLinearLoanTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IWhitelist.NotWhitelisted.selector, someone));
         vm.prank(someone);
         _timeLinearLoan.join();
-
-        address zeroAddr = address(0x00);
-        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
-        vm.prank(zeroAddr);
-        _timeLinearLoan.join();
     }
 
     function testBlacklistedBorrowerJoin() public {
         vm.expectRevert(abi.encodeWithSelector(IBlacklist.Blacklisted.selector, _blacklistedUser1));
         vm.prank(_blacklistedUser1);
         _timeLinearLoan.join();
+    }
 
+    function testZeroAddressBorrowerJoin() public {
         address zeroAddr = address(0x00);
         vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
         vm.prank(zeroAddr);
@@ -381,6 +378,12 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.agree(someone, 3_000_000 * 10 ** 6);
 
         vm.stopPrank();
+    }
+
+    function testAgreeZeroAddressBorrower() public {
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        vm.prank(_owner);
+        _timeLinearLoan.agree(address(0x00), 1_000_000 * 10 ** 6);
     }
 
     function testAgreeZeroCeilingLimit() public {
@@ -1851,74 +1854,41 @@ contract TimeLinearLoanTest is Test {
         _timeLinearLoan.close(_whitelistedUser1, 0);
     }
 
-    function testAddWhitelist() public {
-        address someone = makeAddr("someone");
-        vm.prank(_owner);
-        _timeLinearLoan.addWhitelist(someone);
-        assertTrue(_whitelist.isWhitelisted(someone));
-    }
+    function testPile() public {
+        _prepareFund(IERC20(address(_depositToken)).balanceOf(_owner) / (_trustedVaults.length * 2));
 
-    function testNotOperatorAddWhitelist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timeLinearLoan.addWhitelist(someone);
-    }
+        vm.prank(_whitelistedUser1);
+        _timeLinearLoan.join();
 
-    function testRemoveWhitelist() public {
-        vm.prank(_owner);
-        _timeLinearLoan.removeWhitelist(_whitelistedUser1);
-        assertFalse(_whitelist.isWhitelisted(_whitelistedUser1));
-    }
+        vm.prank(_whitelistedUser2);
+        _timeLinearLoan.join();
 
-    function testNotOperatorRemoveWhitelist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timeLinearLoan.removeWhitelist(someone);
-    }
+        vm.startPrank(_owner);
+        _timeLinearLoan.agree(_whitelistedUser1, 1_000_000 * 10 ** 6);
+        _timeLinearLoan.agree(_whitelistedUser2, 2_000_000 * 10 ** 6);
+        vm.stopPrank();
 
-    function testAddBlacklist() public {
-        address someone = makeAddr("someone");
-        vm.prank(_owner);
-        _timeLinearLoan.addBlacklist(someone);
-        assertTrue(_blacklist.isBlacklisted(someone));
-    }
+        vm.prank(_whitelistedUser1);
+        _timeLinearLoan.request(500_000 * 10 ** 6);
 
-    function testNotOperatorAddBlacklist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timeLinearLoan.addBlacklist(someone);
-    }
+        vm.prank(_whitelistedUser2);
+        _timeLinearLoan.request(1_500_000 * 10 ** 6);
 
-    function testRemoveBlacklist() public {
-        vm.prank(_owner);
-        _timeLinearLoan.removeBlacklist(_blacklistedUser1);
-        assertFalse(_blacklist.isBlacklisted(_blacklistedUser1));
-    }
+        vm.startPrank(_owner);
+        _timeLinearLoan.approve(0, 500_000 * 10 ** 6, 1);
+        _timeLinearLoan.approve(1, 1_500_000 * 10 ** 6, 3);
+        vm.stopPrank();
 
-    function testNotOperatorRemoveBlacklist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timeLinearLoan.removeBlacklist(someone);
+        vm.prank(_whitelistedUser1);
+        _timeLinearLoan.borrow(0, 300_000 * 10 ** 6, _currentTime + 30 days);
+
+        vm.prank(_whitelistedUser2);
+        _timeLinearLoan.borrow(1, 1_000_000 * 10 ** 6, _currentTime + 60 days);
+
+        vm.warp(_currentTime + 25 days);
+
+        _timeLinearLoan.pile(0);
+        _timeLinearLoan.pile(1);
     }
 
     function testUpdateBorrowerLimit() public {
@@ -2656,6 +2626,9 @@ contract TimeLinearLoanTest is Test {
         address someone = makeAddr("someone");
         vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedBorrower.selector, someone));
         _timeLinearLoan.totalDebtOfBorrower(someone);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "borrower"));
+        _timeLinearLoan.totalDebtOfBorrower(address(0x00));
     }
 
     function testTotalDebtOfVault() public {
@@ -2687,6 +2660,9 @@ contract TimeLinearLoanTest is Test {
         address mockVault = makeAddr("mockVault");
         vm.expectRevert(abi.encodeWithSelector(TimeLinearLoanDefs.NotTrustedVault.selector, mockVault));
         _timeLinearLoan.totalDebtOfVault(mockVault);
+
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector, "vault"));
+        _timeLinearLoan.totalDebtOfVault(address(0x00));
     }
 
     function testFuzzBorrowAndRepay(
@@ -2738,6 +2714,26 @@ contract TimeLinearLoanTest is Test {
         } else {
             assertLt(_abs(uint256(remainingDebt), totalDebtBeforeRepay - uint256(repayAmount_)), 10);
         }
+    }
+
+    function testGetTotalTrustedBorrowers() public {
+        assertEq(_timeLinearLoan.getTotalTrustedBorrowers(), 0);
+    }
+
+    function testGetTotalTrustedVaults() public {
+        assertEq(_timeLinearLoan.getTotalTrustedVaults(), 4);
+    }
+
+    function testGetTotalLoans() public {
+        assertEq(_timeLinearLoan.getTotalLoans(), 0);
+    }
+
+    function testGetTotalDebts() public {
+        assertEq(_timeLinearLoan.getTotalDebts(), 0);
+    }
+
+    function testGetTotalTranches() public {
+        assertEq(_timeLinearLoan.getTotalTranches(), 0);
     }
 
     function testOnlyInitialized() public {

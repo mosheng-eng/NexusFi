@@ -105,14 +105,16 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
         _assetsInfoBasket.push(
             FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
-                weight: 500_000 // 50%
+                weight: 500_000, // 50%
+                lastAssetValue: 0
             })
         );
 
         _assetsInfoBasket.push(
             FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
-                weight: 500_000 // 50%
+                weight: 500_000, // 50%
+                lastAssetValue: 0
             })
         );
 
@@ -188,7 +190,7 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
 
         uint256 userBalanceAfterStake = _underlyingToken.balanceOf(user_);
         uint256 stakingProtocolBalanceAfterStake = _underlyingToken.balanceOf(address(_fixedTermStaking));
-        uint256 totalAssetValueInBasket = _fixedTermStaking.getTotalAssetValueInBasket();
+        (uint256 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
         uint256 totalFee = _fixedTermStaking._totalFee();
         uint256 totalPrincipal = _fixedTermStaking._totalPrincipal();
         assertEq(userBalanceAfterStake, 0);

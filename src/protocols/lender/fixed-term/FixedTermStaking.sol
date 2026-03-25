@@ -14,6 +14,9 @@ import {FixedTermStakingCore} from "src/protocols/lender/fixed-term/utils/FixedT
 import {FixedTermStakingLibs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
 import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
+//import {console} from "forge-std/Test.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
 /// @title FixedTermStaking
 /// @author Mr.Silent
 /// @notice Fixed-term staking contract allowing users to stake ERC20 tokens for a fixed period in exchange for interest-bearing NFTs.
@@ -25,6 +28,9 @@ contract FixedTermStaking is
     PausableUpgradeable,
     FixedTermToken
 {
+    using Strings for uint256;
+    using Strings for int256;
+    using Strings for address;
     using Arrays for uint256[];
     using FixedTermStakingLibs for uint64;
     using FixedTermStakingLibs for address;
@@ -96,6 +102,32 @@ contract FixedTermStaking is
     /// @dev list of all assets in the basket
     /// @notice dynamic array storage, initialized when deploying this contract
     FixedTermStakingDefs.AssetInfo[] internal _assetsInfoBasket;
+    /// @dev vault address => normalized timestamp => interest difference of neighboring vaults at that timestamp
+    /// @dev vault at index 0 is neighbor of vault at index 1 and index len - 1
+    /// @dev vault at index len - 1 is neighbor of vault at index 0 and index len - 2
+    /// @notice mapping storage, used for interest collection from all vaults when unstaking
+    mapping(address => mapping(uint64 => int128)) public _dailyInterestDifferenceOfNeighboringVaults;
+
+    function _logDailyInterestDifferenceOfNeighboringVaults(uint64 normalizedTimestamp_) internal view {
+        uint256 len = _assetsInfoBasket.length;
+        for (uint256 i = 0; i < len; i++) {
+            FixedTermStakingDefs.AssetInfo memory assetInfo = _assetsInfoBasket[i];
+            int128 interestDifference =
+                _dailyInterestDifferenceOfNeighboringVaults[assetInfo.targetVault][normalizedTimestamp_];
+            /*
+            console.log(
+                string.concat(
+                    "vault : ",
+                    assetInfo.targetVault.toHexString(),
+                    " timestamp : ",
+                    uint256(normalizedTimestamp_).toString(),
+                    " interestDifference : ",
+                    int256(interestDifference).toStringSigned()
+                )
+            );
+            */
+        }
+    }
 
     /// @dev whitelist check modifier
     /// @param who_ The address to be checked against the whitelist
@@ -192,6 +224,7 @@ contract FixedTermStaking is
     {
         /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
         _feed(_lastFeedTime - 1, true);
+        _logDailyInterestDifferenceOfNeighboringVaults(_lastFeedTime);
         /**
          * uint128 updatedTotalPrincipal_,
          * uint128 updatedRemainingBalance_,
@@ -231,11 +264,16 @@ contract FixedTermStaking is
                 uint128(_lockPeriod)
             ]
         );
+        uint128[] memory valueOfEachVaults;
         unchecked {
-            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
+            (_lastTotalAssetValueInBasket, valueOfEachVaults) = getTotalAssetValueInBasket();
             _totalPrincipal = results[0];
             _remainingBalance = results[1];
             _totalFee = results[2];
+        }
+
+        for (uint256 i = 0; i < valueOfEachVaults.length; i++) {
+            _assetsInfoBasket[i].lastAssetValue = valueOfEachVaults[i];
         }
 
         delete _timepoints;
@@ -264,6 +302,10 @@ contract FixedTermStaking is
         int256[5] memory results = _tokenId_stakeInfo.unstake(
             _accumulatedInterestRate,
             _assetsInfoBasket,
+            _dailyInterestDifferenceOfNeighboringVaults,
+            _startDate_principal,
+            _maturityDate_principal,
+            _timepoints,
             /**
              * address from_,
              * address to_,
@@ -293,13 +335,17 @@ contract FixedTermStaking is
                 int256(_tokenId)
             ]
         );
-
+        uint128[] memory valueOfEachVaults;
         unchecked {
-            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
+            (_lastTotalAssetValueInBasket, valueOfEachVaults) = getTotalAssetValueInBasket();
             _totalPrincipal = uint128(uint256(results[1]));
             _remainingBalance = uint128(uint256(results[2]));
             _totalFee = uint128(uint256(results[3]));
             _totalInterest = int128(results[4]);
+        }
+
+        for (uint256 i = 0; i < valueOfEachVaults.length; i++) {
+            _assetsInfoBasket[i].lastAssetValue = valueOfEachVaults[i];
         }
 
         burn(tokenId_);
@@ -357,12 +403,18 @@ contract FixedTermStaking is
                 uint128(_lockPeriod)
             ]
         );
+        uint128[] memory valueOfEachVaults;
         unchecked {
-            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
+            (_lastTotalAssetValueInBasket, valueOfEachVaults) = getTotalAssetValueInBasket();
             _totalPrincipal = results[0];
             _remainingBalance = results[1];
             _totalFee = results[2];
         }
+
+        for (uint256 i = 0; i < valueOfEachVaults.length; i++) {
+            _assetsInfoBasket[i].lastAssetValue = valueOfEachVaults[i];
+        }
+
         delete _timepoints;
         _timepoints = timepoints;
         tokenId_ = mint(who_);
@@ -389,6 +441,10 @@ contract FixedTermStaking is
         int256[5] memory results = _tokenId_stakeInfo.unstake(
             _accumulatedInterestRate,
             _assetsInfoBasket,
+            _dailyInterestDifferenceOfNeighboringVaults,
+            _startDate_principal,
+            _maturityDate_principal,
+            _timepoints,
             /**
              * address from_,
              * address to_,
@@ -418,13 +474,17 @@ contract FixedTermStaking is
                 int256(_tokenId)
             ]
         );
-
+        uint128[] memory valueOfEachVaults;
         unchecked {
-            _lastTotalAssetValueInBasket = getTotalAssetValueInBasket();
+            (_lastTotalAssetValueInBasket, valueOfEachVaults) = getTotalAssetValueInBasket();
             _totalPrincipal = uint128(uint256(results[1]));
             _remainingBalance = uint128(uint256(results[2]));
             _totalFee = uint128(uint256(results[3]));
             _totalInterest = int128(results[4]);
+        }
+
+        for (uint256 i = 0; i < valueOfEachVaults.length; i++) {
+            _assetsInfoBasket[i].lastAssetValue = valueOfEachVaults[i];
         }
 
         burn(tokenId_);
@@ -437,6 +497,7 @@ contract FixedTermStaking is
     /// @return dividends_ Whether there are dividends to distribute
     function feed(uint64 timestamp_) external whenNotPaused nonReentrant returns (bool dividends_) {
         dividends_ = _feed(timestamp_, false);
+        _logDailyInterestDifferenceOfNeighboringVaults(_lastFeedTime);
     }
 
     /// @notice only controller roles can force feeding at the same timestamp
@@ -566,8 +627,12 @@ contract FixedTermStaking is
     }
 
     /// @param totalValue_ The total value of all assets in the basket, converted to the underlying token
-    function getTotalAssetValueInBasket() public view returns (uint128 totalValue_) {
-        totalValue_ = _assetsInfoBasket.totalAssetValueInBasket(_exchanger);
+    function getTotalAssetValueInBasket()
+        public
+        view
+        returns (uint128 totalValue_, uint128[] memory valueOfEachVaults_)
+    {
+        (totalValue_, valueOfEachVaults_) = _assetsInfoBasket.totalAssetValueInBasket(_exchanger);
     }
 
     function assetsInfoBasket() external view returns (FixedTermStakingDefs.AssetInfo[] memory) {
@@ -575,7 +640,7 @@ contract FixedTermStaking is
     }
 
     function _feed(uint64 timestamp_, bool force_) internal returns (bool dividends_) {
-        uint128 totalAssetValueInBasket = getTotalAssetValueInBasket();
+        (uint128 totalAssetValueInBasket, uint128[] memory valueOfEachVaults) = getTotalAssetValueInBasket();
         (dividends_, _lastFeedTime, _totalInterest) = _accumulatedInterestRate.feed(
             _startDate_principal,
             _maturityDate_principal,
@@ -586,6 +651,9 @@ contract FixedTermStaking is
             int128(totalAssetValueInBasket) - int128(_lastTotalAssetValueInBasket),
             _totalInterest,
             _underlyingToken
+        );
+        _assetsInfoBasket.updateInterestDifferenceOfNeighboringVaults(
+            _dailyInterestDifferenceOfNeighboringVaults, valueOfEachVaults, _lastFeedTime
         );
         _lastTotalAssetValueInBasket = totalAssetValueInBasket;
     }

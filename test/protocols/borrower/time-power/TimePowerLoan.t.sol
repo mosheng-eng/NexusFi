@@ -1894,76 +1894,6 @@ contract TimePowerLoanTest is Test {
         _timePowerLoan.close(_whitelistedUser1, 0);
     }
 
-    function testAddWhitelist() public {
-        address someone = makeAddr("someone");
-        vm.prank(_owner);
-        _timePowerLoan.addWhitelist(someone);
-        assertTrue(_whitelist.isWhitelisted(someone));
-    }
-
-    function testNotOperatorAddWhitelist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timePowerLoan.addWhitelist(someone);
-    }
-
-    function testRemoveWhitelist() public {
-        vm.prank(_owner);
-        _timePowerLoan.removeWhitelist(_whitelistedUser1);
-        assertFalse(_whitelist.isWhitelisted(_whitelistedUser1));
-    }
-
-    function testNotOperatorRemoveWhitelist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timePowerLoan.removeWhitelist(someone);
-    }
-
-    function testAddBlacklist() public {
-        address someone = makeAddr("someone");
-        vm.prank(_owner);
-        _timePowerLoan.addBlacklist(someone);
-        assertTrue(_blacklist.isBlacklisted(someone));
-    }
-
-    function testNotOperatorAddBlacklist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timePowerLoan.addBlacklist(someone);
-    }
-
-    function testRemoveBlacklist() public {
-        vm.prank(_owner);
-        _timePowerLoan.removeBlacklist(_blacklistedUser1);
-        assertFalse(_blacklist.isBlacklisted(_blacklistedUser1));
-    }
-
-    function testNotOperatorRemoveBlacklist() public {
-        address someone = makeAddr("someone");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, someone, Roles.OPERATOR_ROLE
-            )
-        );
-        vm.prank(someone);
-        _timePowerLoan.removeBlacklist(someone);
-    }
-
     function testUpdateBorrowerLimit() public {
         vm.prank(_whitelistedUser1);
         _timePowerLoan.join();
@@ -2840,6 +2770,26 @@ contract TimePowerLoanTest is Test {
         } else {
             assertLt(_abs(uint256(remainingDebt), totalDebtBeforeRepay - uint256(repayAmount_)), 10);
         }
+    }
+
+    function testGetTotalTrustedBorrowers() public {
+        assertEq(_timePowerLoan.getTotalTrustedBorrowers(), 0);
+    }
+
+    function testGetTotalTrustedVaults() public {
+        assertEq(_timePowerLoan.getTotalTrustedVaults(), 4);
+    }
+
+    function testGetTotalLoans() public {
+        assertEq(_timePowerLoan.getTotalLoans(), 0);
+    }
+
+    function testGetTotalDebts() public {
+        assertEq(_timePowerLoan.getTotalDebts(), 0);
+    }
+
+    function testGetTotalTranches() public {
+        assertEq(_timePowerLoan.getTotalTranches(), 0);
     }
 
     function testOnlyInitialized() public {

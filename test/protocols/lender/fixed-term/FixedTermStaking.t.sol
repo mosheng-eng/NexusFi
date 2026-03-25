@@ -110,14 +110,16 @@ contract FixedTermStakingTest is Test {
         _assetsInfoBasket.push(
             FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
-                weight: 500_000 // 50%
+                weight: 500_000, // 50%
+                lastAssetValue: 0
             })
         );
 
         _assetsInfoBasket.push(
             FixedTermStakingDefs.AssetInfo({
                 targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
-                weight: 500_000 // 50%
+                weight: 500_000, // 50%
+                lastAssetValue: 0
             })
         );
 
@@ -243,9 +245,10 @@ contract FixedTermStakingTest is Test {
             vm.warp((_currentTime += 1 days) + 1 minutes);
             _randomPriceFloating();
             if (_fixedTermStaking.feed(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertEq(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
                 timepoints[i] = _currentTime;
             }
@@ -284,9 +287,10 @@ contract FixedTermStakingTest is Test {
             _randomPriceFloating();
             vm.prank(_owner);
             if (_fixedTermStaking.feedForce(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertEq(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
@@ -311,9 +315,10 @@ contract FixedTermStakingTest is Test {
             _randomPriceFloating();
             vm.prank(_owner);
             if (_fixedTermStaking.feedForce(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertGe(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
@@ -515,68 +520,6 @@ contract FixedTermStakingTest is Test {
         _fixedTermStaking.stake(1_000 * 10 ** 6);
         vm.clearMockedCalls();
     }
-    /*
-    function testInvalidUnstake2() public {
-        console.log("check assertion after stake");
-        uint256 tokenId = _stake(_whitelistedUser1, 1_000_000 * 10 ** 6, true);
-        assertGe(
-            uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-            _fixedTermStaking.getTotalAssetValueInBasket()
-        );
-
-        console.log("check assertion after 365 feeds");
-        for (uint256 i = 0; i < 365; ++i) {
-            vm.warp((_currentTime += 1 days) + 1 minutes);
-            _randomPriceFloating();
-            vm.prank(_owner);
-            if (_fixedTermStaking.feedForce(_currentTime)) {
-                assertGe(
-                    uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
-                );
-            }
-        }
-
-        console.log("check assertion after unstake");
-        vm.prank(_whitelistedUser1);
-        _fixedTermStaking.approve(address(_fixedTermStaking), tokenId);
-        vm.prank(_whitelistedUser1);
-        _fixedTermStaking.unstake(tokenId);
-        assertGe(
-            uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-            _fixedTermStaking.getTotalAssetValueInBasket()
-        );
-
-        console.log("check assertion after feed post unstake");
-        vm.warp((_currentTime += 1 days) + 1 minutes);
-        _randomPriceFloating();
-        vm.prank(_owner);
-        if (_fixedTermStaking.feedForce(_currentTime)) {
-            assertGe(
-                uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                _fixedTermStaking.getTotalAssetValueInBasket()
-            );
-        }
-
-        console.log("stake again to check assertion");
-        tokenId = _stake(_whitelistedUser2, 1_000_000 * 10 ** 6, true);
-        assertGe(
-            uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-            _fixedTermStaking.getTotalAssetValueInBasket()
-        );
-
-        console.log("check assertion after feed post second stake");
-        vm.warp((_currentTime += 1 days) + 1 minutes);
-        _randomPriceFloating();
-        vm.prank(_owner);
-        if (_fixedTermStaking.feedForce(_currentTime)) {
-            assertGe(
-                uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                _fixedTermStaking.getTotalAssetValueInBasket()
-            );
-        }
-    }
-    */
 
     function testInvalidUnstake() public {
         console.log("case1: invalid tokenId");
@@ -584,36 +527,69 @@ contract FixedTermStakingTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 0));
         _fixedTermStaking.unstake(0);
 
-        console.log("case2: duplicate unstake");
+        vm.prank(_whitelistedUser1);
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "tokenId"));
+        vm.store(
+            address(_fixedTermStaking),
+            bytes32(0x4ec63b08e96ab700bfcbd7fae8e840edde8dd056fe07ad2bc9f7c74dbfee1ce8),
+            bytes32(0x000000000000000000000000000000000000000000000000000000000000ffff)
+        );
+        _fixedTermStaking.unstake(0);
+
+        vm.prank(_whitelistedUser1);
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "tokenId"));
+        vm.store(
+            address(_fixedTermStaking),
+            bytes32(0x0e813c0beedc78356bba263f9957b0bc3065850d245e721c9c694091df61ff41),
+            bytes32(0x000000000000000000000000000000000000000000000000000000000000ffff)
+        );
+        _fixedTermStaking.unstake(99);
+
         uint256 tokenId = _stake(_whitelistedUser1, 1_000_000 * 10 ** 6, true);
         for (uint256 i = 0; i < 365; ++i) {
             vm.warp((_currentTime += 1 days) + 1 minutes);
             _randomPriceFloating();
             vm.prank(_owner);
             if (_fixedTermStaking.feedForce(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertGe(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
-        vm.startPrank(_whitelistedUser1);
-        _fixedTermStaking.approve(address(_fixedTermStaking), tokenId);
-        _fixedTermStaking.unstake(tokenId);
-        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, tokenId));
-        _fixedTermStaking.unstake(tokenId);
-        vm.stopPrank();
 
-        console.log("case3: unstake not owned token");
+        console.log("case2: stake status is not existed");
+        vm.prank(_whitelistedUser1);
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.InvalidValue.selector, "tokenId"));
+        vm.store(
+            address(_fixedTermStaking),
+            bytes32(0x92e85d02570a8092d09a6e3a57665bc3815a2699a4074001bf1ccabf660f5a37),
+            bytes32(0x0000000000000000000000000000000000000000000000000000000000000000)
+        );
+        _fixedTermStaking.unstake(tokenId);
+
+        console.log("case3: stake status is closed");
+        vm.prank(_whitelistedUser1);
+        vm.expectRevert(abi.encodeWithSelector(FixedTermStakingDefs.AlreadyUnstaked.selector, tokenId));
+        vm.store(
+            address(_fixedTermStaking),
+            bytes32(0x92e85d02570a8092d09a6e3a57665bc3815a2699a4074001bf1ccabf660f5a37),
+            bytes32(0x0000000000000000000000000000000000000000000000000000000000000002)
+        );
+        _fixedTermStaking.unstake(tokenId);
+
+        console.log("case4: unstake not owned token");
         tokenId = _stake(_whitelistedUser2, 1_000_000 * 10 ** 6, true);
         for (uint256 i = 0; i < 360; ++i) {
             vm.warp((_currentTime += 1 days) + 1 minutes);
             _randomPriceFloating();
             vm.prank(_owner);
             if (_fixedTermStaking.feedForce(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertGe(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
@@ -621,7 +597,7 @@ contract FixedTermStakingTest is Test {
         vm.prank(_whitelistedUser1);
         _fixedTermStaking.unstake(tokenId);
 
-        console.log("case4: unstake not matured token");
+        console.log("case5: unstake not matured token");
         (,, uint64 maturityDate,) = _fixedTermStaking._tokenId_stakeInfo(tokenId);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -631,14 +607,15 @@ contract FixedTermStakingTest is Test {
         vm.prank(_whitelistedUser2);
         _fixedTermStaking.unstake(tokenId);
 
-        console.log("case5: waiting for feed at maturity date");
+        console.log("case6: waiting for feed at maturity date");
         for (uint256 i = 0; i < 6; ++i) {
             vm.warp((_currentTime += 1 days) + 1 minutes);
             _randomPriceFloating();
             if (i != 5 && _fixedTermStaking.feed(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertGe(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
@@ -646,7 +623,7 @@ contract FixedTermStakingTest is Test {
         vm.prank(_whitelistedUser2);
         _fixedTermStaking.unstake(tokenId);
 
-        console.log("case6: withdraw from vault failed");
+        console.log("case7: withdraw from vault failed");
         vm.prank(_whitelistedUser2);
         _fixedTermStaking.approve(address(_fixedTermStaking), tokenId);
         _fixedTermStaking.feed(_currentTime);
@@ -861,7 +838,8 @@ contract FixedTermStakingTest is Test {
             targetVault: address(
                 new AssetVault(IERC20(address(new DepositAsset("USD Token", "USDT"))), "MMF@mosUSD", "MMF@mosUSD")
             ),
-            weight: 500_000 // 50%
+            weight: 500_000, // 50%
+            lastAssetValue: 0
         });
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -919,12 +897,19 @@ contract FixedTermStakingTest is Test {
         vm.stopPrank();
         _fixedTermStaking.feed(_currentTime);
         vm.warp((_currentTime += 1 days) + 1 minutes);
+        _fixedTermStaking.feed(_currentTime);
+        vm.warp((_currentTime += 1 days) + 1 minutes);
         vm.startPrank(_owner);
         _depositToken.transfer(_assetsInfoBasket[0].targetVault, 1_000 * 10 ** 6);
         _depositToken.transfer(_assetsInfoBasket[1].targetVault, 1_000 * 10 ** 6);
         vm.stopPrank();
         vm.expectRevert(
-            abi.encodeWithSelector(FixedTermStakingDefs.UnbelievableInterestRate.selector, 2_002_001, 10_000, -10_000)
+            abi.encodeWithSelector(
+                FixedTermStakingDefs.UnbelievableInterestRate.selector,
+                2_002_001_995_995,
+                10_000_000_000,
+                -10_000_000_000
+            )
         );
         _fixedTermStaking.feed(_currentTime);
 
@@ -936,6 +921,8 @@ contract FixedTermStakingTest is Test {
         _underlyingToken.approve(address(_fixedTermStaking), 300_000 * 10 ** 6);
         _fixedTermStaking.stake(300_000 * 10 ** 6);
         vm.stopPrank();
+        assertFalse(_fixedTermStaking.feed(_currentTime));
+        vm.warp((_currentTime += 1 days) + 1 minutes);
         assertFalse(_fixedTermStaking.feed(_currentTime));
         vm.warp((_currentTime += 1 days) + 1 minutes);
         _depositToken.burn(_assetsInfoBasket[0].targetVault, 500 * 10 ** 6);
@@ -1012,11 +999,12 @@ contract FixedTermStakingTest is Test {
             /// @dev Feed
             if (_fixedTermStaking.feed(_currentTime)) {
                 console.log("Day", dates + 1, "fed, total staked:", stakeTimesToday);
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 /// @dev maybe only parts of principal are invested into vaults
                 /// @dev total asset value in basket should be less than or equal to total principal + total interest
                 assertGe(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
@@ -1044,9 +1032,10 @@ contract FixedTermStakingTest is Test {
             _randomPriceFloating();
             /// @dev Feed
             if (_fixedTermStaking.feed(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) = _fixedTermStaking.getTotalAssetValueInBasket();
                 assertGe(
                     uint256(uint128(int128(_fixedTermStaking._totalPrincipal()) + _fixedTermStaking._totalInterest())),
-                    _fixedTermStaking.getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
 
@@ -1063,6 +1052,247 @@ contract FixedTermStakingTest is Test {
                 console.log("APY (in million):", userBalanceAfterUnstake * 1_000_000 / cod.principal);
             }
         }
+    }
+
+    function testBothVaultsSufferLossesAndNotEnoughBalanceToPay(uint128 stakeAmount_, uint128 vaultLoss_) public {
+        stakeAmount_ = uint128(bound(stakeAmount_, 100 * 10 ** 6, 10_000_000 * 10 ** 6));
+        vaultLoss_ = uint128(bound(vaultLoss_, stakeAmount_ * 5 / (100 * 10), stakeAmount_ * 5 / (100 * 5)));
+        uint128[] memory vaultLosses = new uint128[](5);
+        vaultLosses[0] = vaultLoss_ / 2;
+        vaultLosses[1] = vaultLoss_ / 4;
+        vaultLosses[2] = vaultLoss_ / 8;
+        vaultLosses[3] = vaultLoss_ / 16;
+        vaultLosses[4] = vaultLoss_ / 32;
+
+        console.log(
+            string.concat(
+                "mmfVaultLoss_: ",
+                vm.toString(vaultLosses[0]),
+                " ",
+                "rwaVaultLoss_: ",
+                vm.toString(vaultLosses[1]),
+                " ",
+                "xyzVaultLoss_: ",
+                vm.toString(vaultLosses[2]),
+                " ",
+                "dmzVaultLoss3_: ",
+                vm.toString(vaultLosses[3]),
+                " ",
+                "abcVaultLoss4_: ",
+                vm.toString(vaultLosses[4])
+            )
+        );
+
+        (address sevenDaysStaking, address[] memory vaults) = _deploySevenDaysFixedTermStaking();
+
+        address someone = makeAddr("someone");
+        _fundUser(someone, stakeAmount_ * 2);
+        _whitelistUser(someone);
+        uint256 tokenId1 = _simplifiedSevenDaysStake(sevenDaysStaking, someone, stakeAmount_);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.burn(vaults[0], vaultLosses[0]);
+        _depositToken.burn(vaults[1], vaultLosses[1]);
+        _depositToken.burn(vaults[2], vaultLosses[2]);
+        _depositToken.burn(vaults[3], vaultLosses[3]);
+        _depositToken.burn(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        uint256 tokenId2 = _simplifiedSevenDaysStake(sevenDaysStaking, someone, stakeAmount_);
+
+        for (uint256 date = 1; date < 7; ++date) {
+            vm.warp((_currentTime += 1 days) + 1 minutes);
+            _depositToken.burn(vaults[0], vaultLosses[0]);
+            _depositToken.burn(vaults[1], vaultLosses[1]);
+            _depositToken.burn(vaults[2], vaultLosses[2]);
+            _depositToken.burn(vaults[3], vaultLosses[3]);
+            _depositToken.burn(vaults[4], vaultLosses[4]);
+            FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+        }
+
+        vm.startPrank(someone);
+        FixedTermStaking(sevenDaysStaking).approve(sevenDaysStaking, tokenId1);
+        FixedTermStaking(sevenDaysStaking).unstake(tokenId1);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.burn(vaults[0], vaultLosses[0]);
+        _depositToken.burn(vaults[1], vaultLosses[1]);
+        _depositToken.burn(vaults[2], vaultLosses[2]);
+        _depositToken.burn(vaults[3], vaultLosses[3]);
+        _depositToken.burn(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.burn(vaults[0], vaultLosses[0]);
+        _depositToken.burn(vaults[1], vaultLosses[1]);
+        _depositToken.burn(vaults[2], vaultLosses[2]);
+        _depositToken.burn(vaults[3], vaultLosses[3]);
+        _depositToken.burn(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        FixedTermStaking(sevenDaysStaking).approve(sevenDaysStaking, tokenId2);
+        FixedTermStaking(sevenDaysStaking).unstake(tokenId2);
+        vm.stopPrank();
+    }
+
+    function testBothVaultsEarnProfitsAndHasEnoughBalanceToPay(uint128 stakeAmount_, uint128 vaultLoss_) public {
+        stakeAmount_ = uint128(bound(stakeAmount_, 100 * 10 ** 6, 10_000_000 * 10 ** 6));
+        vaultLoss_ = uint128(bound(vaultLoss_, stakeAmount_ * 5 / (100 * 10), stakeAmount_ * 5 / (100 * 5)));
+        uint128[] memory vaultLosses = new uint128[](5);
+        vaultLosses[0] = vaultLoss_ / 2;
+        vaultLosses[1] = vaultLoss_ / 4;
+        vaultLosses[2] = vaultLoss_ / 8;
+        vaultLosses[3] = vaultLoss_ / 16;
+        vaultLosses[4] = vaultLoss_ / 32;
+
+        console.log(
+            string.concat(
+                "mmfVaultLoss_: ",
+                vm.toString(vaultLosses[0]),
+                " ",
+                "rwaVaultLoss_: ",
+                vm.toString(vaultLosses[1]),
+                " ",
+                "xyzVaultLoss_: ",
+                vm.toString(vaultLosses[2]),
+                " ",
+                "dmzVaultLoss3_: ",
+                vm.toString(vaultLosses[3]),
+                " ",
+                "abcVaultLoss4_: ",
+                vm.toString(vaultLosses[4])
+            )
+        );
+
+        (address sevenDaysStaking, address[] memory vaults) = _deploySevenDaysFixedTermStaking();
+
+        address someone = makeAddr("someone");
+        _fundUser(someone, stakeAmount_ * 2);
+        _whitelistUser(someone);
+        uint256 tokenId1 = _simplifiedSevenDaysStake(sevenDaysStaking, someone, stakeAmount_);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.mint(vaults[0], vaultLosses[0]);
+        _depositToken.mint(vaults[1], vaultLosses[1]);
+        _depositToken.mint(vaults[2], vaultLosses[2]);
+        _depositToken.mint(vaults[3], vaultLosses[3]);
+        _depositToken.mint(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        uint256 tokenId2 = _simplifiedSevenDaysStake(sevenDaysStaking, someone, stakeAmount_);
+
+        for (uint256 date = 1; date < 7; ++date) {
+            vm.warp((_currentTime += 1 days) + 1 minutes);
+            _depositToken.mint(vaults[0], vaultLosses[0]);
+            _depositToken.mint(vaults[1], vaultLosses[1]);
+            _depositToken.mint(vaults[2], vaultLosses[2]);
+            _depositToken.mint(vaults[3], vaultLosses[3]);
+            _depositToken.mint(vaults[4], vaultLosses[4]);
+            FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+        }
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.mint(vaults[0], vaultLosses[0]);
+        _depositToken.mint(vaults[1], vaultLosses[1]);
+        _depositToken.mint(vaults[2], vaultLosses[2]);
+        _depositToken.mint(vaults[3], vaultLosses[3]);
+        _depositToken.mint(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.mint(vaults[0], vaultLosses[0]);
+        _depositToken.mint(vaults[1], vaultLosses[1]);
+        _depositToken.mint(vaults[2], vaultLosses[2]);
+        _depositToken.mint(vaults[3], vaultLosses[3]);
+        _depositToken.mint(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        vm.startPrank(someone);
+        FixedTermStaking(sevenDaysStaking).approve(sevenDaysStaking, tokenId1);
+        FixedTermStaking(sevenDaysStaking).unstake(tokenId1);
+        FixedTermStaking(sevenDaysStaking).approve(sevenDaysStaking, tokenId2);
+        FixedTermStaking(sevenDaysStaking).unstake(tokenId2);
+        vm.stopPrank();
+    }
+
+    function testSomeVaultEarnsProfitAndSomeVaultSuffersLoss(uint128 stakeAmount_, uint128 vaultLoss_) public {
+        stakeAmount_ = uint128(bound(stakeAmount_, 100 * 10 ** 6, 10_000_000 * 10 ** 6));
+        vaultLoss_ = uint128(bound(vaultLoss_, stakeAmount_ * 5 / (100 * 10), stakeAmount_ * 5 / (100 * 5)));
+        uint128[] memory vaultLosses = new uint128[](5);
+        vaultLosses[0] = vaultLoss_ / 2;
+        vaultLosses[1] = vaultLoss_ / 4;
+        vaultLosses[2] = vaultLoss_ / 8;
+        vaultLosses[3] = vaultLoss_ / 16;
+        vaultLosses[4] = vaultLoss_ / 32;
+
+        console.log(
+            string.concat(
+                "mmfVaultLoss_: ",
+                vm.toString(vaultLosses[0]),
+                " ",
+                "rwaVaultLoss_: ",
+                vm.toString(vaultLosses[1]),
+                " ",
+                "xyzVaultLoss_: ",
+                vm.toString(vaultLosses[2]),
+                " ",
+                "dmzVaultLoss3_: ",
+                vm.toString(vaultLosses[3]),
+                " ",
+                "abcVaultLoss4_: ",
+                vm.toString(vaultLosses[4])
+            )
+        );
+
+        (address sevenDaysStaking, address[] memory vaults) = _deploySevenDaysFixedTermStaking();
+
+        address someone = makeAddr("someone");
+        _fundUser(someone, stakeAmount_ * 2);
+        _whitelistUser(someone);
+        uint256 tokenId1 = _simplifiedSevenDaysStake(sevenDaysStaking, someone, stakeAmount_);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.mint(vaults[0], vaultLosses[0]);
+        _depositToken.mint(vaults[1], vaultLosses[1]);
+        _depositToken.burn(vaults[2], vaultLosses[2]);
+        _depositToken.burn(vaults[3], vaultLosses[3]);
+        _depositToken.burn(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        uint256 tokenId2 = _simplifiedSevenDaysStake(sevenDaysStaking, someone, stakeAmount_);
+
+        for (uint256 date = 1; date < 7; ++date) {
+            vm.warp((_currentTime += 1 days) + 1 minutes);
+            _depositToken.mint(vaults[0], vaultLosses[0]);
+            _depositToken.mint(vaults[1], vaultLosses[1]);
+            _depositToken.burn(vaults[2], vaultLosses[2]);
+            _depositToken.burn(vaults[3], vaultLosses[3]);
+            _depositToken.burn(vaults[4], vaultLosses[4]);
+            FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+        }
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.mint(vaults[0], vaultLosses[0]);
+        _depositToken.mint(vaults[1], vaultLosses[1]);
+        _depositToken.burn(vaults[2], vaultLosses[2]);
+        _depositToken.burn(vaults[3], vaultLosses[3]);
+        _depositToken.burn(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        vm.warp((_currentTime += 1 days) + 1 minutes);
+        _depositToken.mint(vaults[0], vaultLosses[0]);
+        _depositToken.mint(vaults[1], vaultLosses[1]);
+        _depositToken.burn(vaults[2], vaultLosses[2]);
+        _depositToken.burn(vaults[3], vaultLosses[3]);
+        _depositToken.burn(vaults[4], vaultLosses[4]);
+        FixedTermStaking(sevenDaysStaking).feed(_currentTime);
+
+        vm.startPrank(someone);
+        FixedTermStaking(sevenDaysStaking).approve(sevenDaysStaking, tokenId1);
+        FixedTermStaking(sevenDaysStaking).unstake(tokenId1);
+        FixedTermStaking(sevenDaysStaking).approve(sevenDaysStaking, tokenId2);
+        FixedTermStaking(sevenDaysStaking).unstake(tokenId2);
+        vm.stopPrank();
     }
 
     function testBoringOpenTermStakingOnlyInitialized() public {
@@ -1243,21 +1473,25 @@ contract FixedTermStakingTest is Test {
         FixedTermStakingDefs.AssetInfo[] memory assetsIntoBasket = new FixedTermStakingDefs.AssetInfo[](2);
         assetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF@mosUSD", "MMF@mosUSD")),
-            weight: 250_000 // 25%
+            weight: 250_000, // 25%
+            lastAssetValue: 0
         });
         assetsIntoBasket[1] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA@mosUSD", "RWA@mosUSD")),
-            weight: 250_000 // 25%
+            weight: 250_000, // 25%
+            lastAssetValue: 0
         });
 
         FixedTermStakingDefs.AssetInfo[] memory newAssetsIntoBasket = new FixedTermStakingDefs.AssetInfo[](2);
         newAssetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
-            weight: 300_000 // 30%
+            weight: 300_000, // 30%
+            lastAssetValue: 0
         });
         newAssetsIntoBasket[1] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ETH@mosUSD", "ETH@mosUSD")),
-            weight: 300_000 // 30%
+            weight: 300_000, // 30%
+            lastAssetValue: 0
         });
 
         vm.startPrank(_owner);
@@ -1306,7 +1540,8 @@ contract FixedTermStakingTest is Test {
 
         newAssetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(0xdeadbeef)), "BTC@mosUSD", "BTC@mosUSD")),
-            weight: 200_000 // 20%
+            weight: 200_000, // 20%
+            lastAssetValue: 0
         });
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1320,7 +1555,8 @@ contract FixedTermStakingTest is Test {
 
         newAssetsIntoBasket[0] = FixedTermStakingDefs.AssetInfo({
             targetVault: address(new AssetVault(IERC20(address(_depositToken)), "BTC@mosUSD", "BTC@mosUSD")),
-            weight: 200_000 // 20%
+            weight: 200_000, // 20%
+            lastAssetValue: 0
         });
         vm.prank(_owner);
         fixedTermStaking.addNewAssetIntoBasket(newAssetsIntoBasket);
@@ -1370,6 +1606,84 @@ contract FixedTermStakingTest is Test {
         MockFixedTermToken directCallMockFixedTermToken = new MockFixedTermToken();
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidReceiver.selector, address(0x0)));
         directCallMockFixedTermToken.wrapperMint(address(0x0));
+    }
+
+    function _deploySevenDaysFixedTermStaking()
+        internal
+        returns (address sevenDaysStaking_, address[] memory vaults_)
+    {
+        FixedTermStakingDefs.AssetInfo[] memory assetsInfoBasket = new FixedTermStakingDefs.AssetInfo[](5);
+        assetsInfoBasket[0] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "MMF", "MMF")),
+            weight: 50_000, // 5%
+            lastAssetValue: 0
+        });
+        assetsInfoBasket[1] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "RWA", "RWA")),
+            weight: 100_000, // 10%
+            lastAssetValue: 0
+        });
+        assetsInfoBasket[2] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "XYZ", "XYZ")),
+            weight: 150_000, // 15%
+            lastAssetValue: 0
+        });
+        assetsInfoBasket[3] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "DMZ", "DMZ")),
+            weight: 200_000, // 20%
+            lastAssetValue: 0
+        });
+        assetsInfoBasket[4] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(new AssetVault(IERC20(address(_depositToken)), "ABC", "ABC")),
+            weight: 250_000, // 25%
+            lastAssetValue: 0
+        });
+
+        vm.startPrank(_owner);
+
+        sevenDaysStaking_ = _deployer.deployFixedTermStaking(
+            [_owner, address(_underlyingToken), address(_whitelist), address(_exchanger)],
+            (uint256(7 days) | (uint256(0) << 64) | (uint256(0) << 128) | (uint256(_startFeedTime) << 192)),
+            (uint256(_dustBalance) | (uint256(_maxSupply) << 128)),
+            "mosUSD7D+",
+            "mosUSD7D+",
+            assetsInfoBasket
+        );
+        vaults_ = new address[](5);
+        vaults_[0] = assetsInfoBasket[0].targetVault; // mmf
+        vaults_[1] = assetsInfoBasket[1].targetVault; // rwa
+        vaults_[2] = assetsInfoBasket[2].targetVault; // xyz
+        vaults_[3] = assetsInfoBasket[3].targetVault; // dmz
+        vaults_[4] = assetsInfoBasket[4].targetVault; // abc
+
+        FixedTermStaking(sevenDaysStaking_).grantRole(Roles.OPERATOR_ROLE, _owner);
+
+        _underlyingToken.grantRole(Roles.OPERATOR_ROLE, sevenDaysStaking_);
+
+        _exchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, sevenDaysStaking_);
+
+        vm.stopPrank();
+
+        vm.label(sevenDaysStaking_, "mosUSD7D+");
+        vm.label(vaults_[0], "MMF Vault");
+        vm.label(vaults_[1], "RWA Vault");
+        vm.label(vaults_[2], "XYZ Vault");
+        vm.label(vaults_[3], "DMZ Vault");
+        vm.label(vaults_[4], "ABC Vault");
+    }
+
+    function _simplifiedSevenDaysStake(address sevenDaysStaking_, address user_, uint128 amountToStake_)
+        internal
+        returns (uint256 tokenId_)
+    {
+        vm.startPrank(user_);
+
+        _depositToken.approve(address(_exchanger), amountToStake_);
+        amountToStake_ = _exchanger.exchange(amountToStake_, true);
+        _underlyingToken.approve(sevenDaysStaking_, uint256(amountToStake_));
+        tokenId_ = FixedTermStaking(sevenDaysStaking_).stake(amountToStake_);
+
+        vm.stopPrank();
     }
 
     function _fundUser(address user_, uint128 amount_) internal {
@@ -1526,6 +1840,10 @@ contract BoringFixedTermStaking is FixedTermStaking {
         int256[5] memory results = _tokenId_stakeInfo.unstake(
             _accumulatedInterestRate,
             _assetsInfoBasket,
+            _dailyInterestDifferenceOfNeighboringVaults,
+            _startDate_principal,
+            _maturityDate_principal,
+            _timepoints,
             /**
              * address from_,
              * address to_,

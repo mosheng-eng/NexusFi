@@ -111,21 +111,9 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
 
     /// @dev initialization check modifier
     modifier onlyInitialized() {
-        if (_whitelist == address(0)) {
-            revert Errors.Uninitialized("whitelist");
-        }
-        if (_blacklist == address(0)) {
-            revert Errors.Uninitialized("blacklist");
-        }
-        if (_loanToken == address(0)) {
-            revert Errors.Uninitialized("loanToken");
-        }
-        if (_secondInterestRates.length == 0) {
-            revert Errors.Uninitialized("secondInterestRates");
-        }
-        if (_trustedVaults.length == 0) {
-            revert Errors.Uninitialized("trustedVaults");
-        }
+        TimeLinearLoanLibs.onlyInitialized(
+            [_whitelist, _blacklist, _loanToken], [_secondInterestRates.length, _trustedVaults.length]
+        );
 
         _;
     }
@@ -588,54 +576,6 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
         returns (uint128 lossDebt_)
     {
         lossDebt_ = _allDebts.close(borrower_, debtIndex_, _allLoans, _secondInterestRates);
-    }
-
-    /// @dev adds an address to the whitelist
-    /// @param borrower_ the address to be added to the whitelist
-    function addWhitelist(address borrower_)
-        public
-        onlyInitialized
-        nonReentrant
-        whenNotPaused
-        onlyRole(Roles.OPERATOR_ROLE)
-    {
-        IWhitelist(_whitelist).add(borrower_);
-    }
-
-    /// @dev removes an address from the whitelist
-    /// @param borrower_ the address to be removed from the whitelist
-    function removeWhitelist(address borrower_)
-        public
-        onlyInitialized
-        nonReentrant
-        whenNotPaused
-        onlyRole(Roles.OPERATOR_ROLE)
-    {
-        IWhitelist(_whitelist).remove(borrower_);
-    }
-
-    /// @dev adds an address to the blacklist
-    /// @param borrower_ the address to be added to the blacklist
-    function addBlacklist(address borrower_)
-        public
-        onlyInitialized
-        nonReentrant
-        whenNotPaused
-        onlyRole(Roles.OPERATOR_ROLE)
-    {
-        IBlacklist(_blacklist).add(borrower_);
-    }
-
-    /// @dev removes an address from the blacklist
-    /// @param borrower_ the address to be removed from the blacklist
-    function removeBlacklist(address borrower_)
-        public
-        onlyInitialized
-        nonReentrant
-        whenNotPaused
-        onlyRole(Roles.OPERATOR_ROLE)
-    {
-        IBlacklist(_blacklist).remove(borrower_);
     }
 
     /// @dev update ceiling limit for a borrower

@@ -30,6 +30,8 @@ contract FixedTermStakingInvariant is Test {
             vm.warp(_currentTime + 1 minutes);
             _randomPriceFloating();
             if (_fixedTermStakingHandler.getFixedTermStaking().feed(_currentTime)) {
+                (uint128 totalAssetValueInBasket,) =
+                    _fixedTermStakingHandler.getFixedTermStaking().getTotalAssetValueInBasket();
                 assertEq(
                     uint256(
                         uint128(
@@ -37,7 +39,7 @@ contract FixedTermStakingInvariant is Test {
                                 + _fixedTermStakingHandler.getFixedTermStaking()._totalInterest()
                         )
                     ),
-                    _fixedTermStakingHandler.getFixedTermStaking().getTotalAssetValueInBasket()
+                    uint256(totalAssetValueInBasket)
                 );
             }
         }
@@ -71,7 +73,8 @@ contract FixedTermStakingInvariant is Test {
         console.log("Total Principal:", _fixedTermStakingHandler.getFixedTermStaking()._totalPrincipal());
         console.log("Total Interest:", _fixedTermStakingHandler.getFixedTermStaking()._totalInterest());
         console.log("Total Fee:", _fixedTermStakingHandler.getFixedTermStaking()._totalFee());
-        console.log("Total Asset Value:", _fixedTermStakingHandler.getFixedTermStaking().getTotalAssetValueInBasket());
+        (uint256 totalAssetValueInBasket,) = _fixedTermStakingHandler.getFixedTermStaking().getTotalAssetValueInBasket();
+        console.log("Total Asset Value:", totalAssetValueInBasket);
     }
 
     function _randomPriceFloating() internal {

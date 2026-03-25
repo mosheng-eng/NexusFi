@@ -240,24 +240,15 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
         console.log(_proxyAdmin);
     }
 
-    function _setDependencies() internal {
-        vm.startPrank(_owner);
-
-        _whitelist.grantRole(Roles.OPERATOR_ROLE, address(_timePowerLoan));
-        _blacklist.grantRole(Roles.OPERATOR_ROLE, address(_timePowerLoan));
-
-        vm.stopPrank();
-    }
-
     function _addWhitelist(address someone_) public {
         vm.prank(_owner);
-        _timePowerLoan.addWhitelist(someone_);
+        _whitelist.add(someone_);
         assertTrue(_whitelist.isWhitelisted(someone_));
     }
 
     function _addBlacklist(address someone_) public {
         vm.prank(_owner);
-        _timePowerLoan.addBlacklist(someone_);
+        _blacklist.add(someone_);
         assertTrue(_blacklist.isBlacklisted(someone_));
     }
 
@@ -327,7 +318,6 @@ contract TimePowerLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase 
         _deployBlacklist();
         _deployDepositToken();
         _deployTimePowerLoan();
-        _setDependencies();
         _prepareFund(type(uint128).max / 10);
         _oneDayPassed();
     }

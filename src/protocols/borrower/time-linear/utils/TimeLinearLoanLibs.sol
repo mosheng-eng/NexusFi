@@ -11,6 +11,36 @@ import {TimeLinearLoanDefs} from "src/protocols/borrower/time-linear/utils/TimeL
 library TimeLinearLoanLibs {
     using Math for uint256;
 
+    function onlyInitialized(
+        /**
+         * address _whitelist,
+         * address _blacklist,
+         * address _loanToken
+         */
+        address[3] memory addrs_,
+        /**
+         * uint256 _secondInterestRates.length,
+         * uint256 _trustedVaults.length
+         */
+        uint256[2] memory lens_
+    ) public pure {
+        if (addrs_[0] == address(0)) {
+            revert Errors.Uninitialized("whitelist");
+        }
+        if (addrs_[1] == address(0)) {
+            revert Errors.Uninitialized("blacklist");
+        }
+        if (addrs_[2] == address(0)) {
+            revert Errors.Uninitialized("loanToken");
+        }
+        if (lens_[0] == 0) {
+            revert Errors.Uninitialized("secondInterestRates");
+        }
+        if (lens_[1] == 0) {
+            revert Errors.Uninitialized("trustedVaults");
+        }
+    }
+
     function updateBorrowerLimit(
         TimeLinearLoanDefs.TrustedBorrower[] storage trustedBorrowers_,
         mapping(address => uint64) storage borrowerToIndex_,

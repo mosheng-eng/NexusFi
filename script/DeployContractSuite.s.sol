@@ -182,10 +182,16 @@ contract DeployContractSuite is Script {
             )
         );
         FixedTermStakingDefs.AssetInfo[] memory fixedTermAssetsInfoBasket = new FixedTermStakingDefs.AssetInfo[](2);
-        fixedTermAssetsInfoBasket[0] =
-            FixedTermStakingDefs.AssetInfo({targetVault: address(_vault1), weight: _vault1WeightInAStake});
-        fixedTermAssetsInfoBasket[1] =
-            FixedTermStakingDefs.AssetInfo({targetVault: address(_vault2), weight: _vault2WeightInAStake});
+        fixedTermAssetsInfoBasket[0] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(_vault1),
+            weight: _vault1WeightInAStake,
+            lastAssetValue: 0
+        });
+        fixedTermAssetsInfoBasket[1] = FixedTermStakingDefs.AssetInfo({
+            targetVault: address(_vault2),
+            weight: _vault2WeightInAStake,
+            lastAssetValue: 0
+        });
 
         _fixedTermStaking = FixedTermStaking(
             deployFixedTermStaking(

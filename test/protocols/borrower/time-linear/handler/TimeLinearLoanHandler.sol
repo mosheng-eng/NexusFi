@@ -240,24 +240,15 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         console.log(_proxyAdmin);
     }
 
-    function _setDependencies() internal {
-        vm.startPrank(_owner);
-
-        _whitelist.grantRole(Roles.OPERATOR_ROLE, address(_timeLinearLoan));
-        _blacklist.grantRole(Roles.OPERATOR_ROLE, address(_timeLinearLoan));
-
-        vm.stopPrank();
-    }
-
     function _addWhitelist(address someone_) public {
         vm.prank(_owner);
-        _timeLinearLoan.addWhitelist(someone_);
+        _whitelist.add(someone_);
         assertTrue(_whitelist.isWhitelisted(someone_));
     }
 
     function _addBlacklist(address someone_) public {
         vm.prank(_owner);
-        _timeLinearLoan.addBlacklist(someone_);
+        _blacklist.add(someone_);
         assertTrue(_blacklist.isBlacklisted(someone_));
     }
 
@@ -329,7 +320,6 @@ contract TimeLinearLoanHandler is StdCheats, StdUtils, StdAssertions, CommonBase
         _deployBlacklist();
         _deployDepositToken();
         _deployTimeLinearLoan();
-        _setDependencies();
         _prepareFund(type(uint128).max / 10);
         _oneDayPassed();
     }

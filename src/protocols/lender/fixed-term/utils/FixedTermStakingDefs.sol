@@ -34,6 +34,8 @@ library FixedTermStakingDefs {
         address targetVault;
         /// @dev weight of the asset in the basket, in million (1_000_000 = 100%)
         uint64 weight;
+        /// @dev the last asset value of the vault, valued in the DepositingToken (e.g. USDC), updated when feeding interest
+        uint128 lastAssetValue;
     }
 
     /// @notice Event emitted when stake happens
@@ -196,8 +198,8 @@ library FixedTermStakingDefs {
     uint64 public constant MAX_FEE_RATE = 50_000;
     /// @dev maximum interest rate per day (1%)
     /// @notice constant, not stored in storage
-    int64 public constant MAX_INTEREST_RATE_PER_DAY = 10_000;
+    int64 public constant MAX_INTEREST_RATE_PER_DAY = 10_000_000_000;
     /// @dev minimum interest rate per day (-1%)
     /// @notice constant, not stored in storage
-    int64 public constant MIN_INTEREST_RATE_PER_DAY = -10_000;
+    int64 public constant MIN_INTEREST_RATE_PER_DAY = -10_000_000_000;
 }

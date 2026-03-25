@@ -14,6 +14,8 @@ import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.
 import {FixedTermStakingLibs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
 import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
+//import {console} from "forge-std/Test.sol";
+
 library FixedTermStakingCore {
     using Arrays for uint256[];
     using FixedTermStakingLibs for uint64;
@@ -101,6 +103,8 @@ library FixedTermStakingCore {
                 );
             }
             assetsInfoBasket_.push(newAssetsInfoBasket_[i]);
+            assetsInfoBasket_[assetsInfoBasket_.length - 1].lastAssetValue = UnderlyingTokenExchanger(addrs_[3])
+                .dryrunExchange(uint128(IERC4626(newAssetsInfoBasket_[i].targetVault).maxWithdraw(address(this))), true);
         }
     }
 
@@ -224,6 +228,10 @@ library FixedTermStakingCore {
         mapping(uint256 => FixedTermStakingDefs.StakeInfo) storage tokenId_stakeInfo_,
         mapping(uint64 => int64) storage accumulatedInterestRate_,
         FixedTermStakingDefs.AssetInfo[] storage assetsInfoBasket_,
+        mapping(address => mapping(uint64 => int128)) storage dailyInterestDifferenceOfNeighboringVaults_,
+        mapping(uint64 => uint128) storage startDate_principal_,
+        mapping(uint64 => uint128) storage maturityDate_principal_,
+        uint256[] storage timepoints_,
         /**
          * address from_,
          * address to_,
@@ -295,8 +303,14 @@ library FixedTermStakingCore {
 
         int128 interest = int128(stakeInfo.principal)
             * (accumulatedInterestRateOnMaturityDate - accumulatedInterestRateOnStartDate)
-            / SafeCast.toInt128(int256(uint256(FixedTermStakingDefs.PRECISION)));
-
+            / SafeCast.toInt128(int256(uint256(FixedTermStakingDefs.PRECISION * FixedTermStakingDefs.PRECISION)));
+        interest = interest < 0 ? interest - 1 : interest;
+        /*
+        console.log("Interest:", interest);
+        console.log("Principal:", stakeInfo.principal);
+        console.log("accumulatedInterestRateOnMaturityDate:", accumulatedInterestRateOnMaturityDate);
+        console.log("accumulatedInterestRateOnStartDate:", accumulatedInterestRateOnStartDate);
+        */
         uint128 fee = int128(stakeInfo.principal) + interest < 0
             ? 0
             : (
@@ -319,59 +333,95 @@ library FixedTermStakingCore {
         }
 
         stakeInfo.status = FixedTermStakingDefs.StakeStatus.CLOSED;
-
+        /*
         uint256 assetNumberInBasket = assetsInfoBasket_.length;
+
+        int128[] memory sumOfInterestDifference = new int128[](assetNumberInBasket);
+        uint64 dateCounter = stakeInfo.startDate;
+        while (dateCounter <= stakeInfo.maturityDate) {
+            for (uint256 i = 0; i < assetNumberInBasket; i++) {
+                sumOfInterestDifference[i] +=
+                    dailyInterestDifferenceOfNeighboringVaults_[assetsInfoBasket_[i].targetVault][dateCounter];
+            }
+            dateCounter += uint64(1 days);
+        }
+        int128[] memory interestCollectedFromEachVaults =
+            FixedTermStakingLibs.collectInterestFromAllVaults(interest, sumOfInterestDifference);*/
+
         /// @dev Keep track of unprepared asset amount due to vault withdraw limit
         /// @dev This amount will be adjusted in the next asset withdraw
         /// @dev If unprepared asset amount is not zero after all assets withdraw, it means protocol loss
         /// @dev In such case, protocol should compensate the loss to exchanger later to make sure exchanger can repay user fully
         /// @dev Or protocol can adjust rate between underlying token and deposit token in exchanger to make up the loss
         /// @dev However, this means underlying token is unpegged from deposit token, which should be avoided if possible
-        uint128 unpreparedAssetAmount = 0;
-        for (uint256 i = 0; i < assetNumberInBasket; i++) {
+        uint128 unpreparedAssetAmount = _withdrawFromVault(
+            tokenId_stakeInfo_,
+            assetsInfoBasket_,
+            FixedTermStakingLibs.collectInterestFromAllVaults(
+                interest,
+                _sumOfInterestDifference(
+                    assetsInfoBasket_,
+                    stakeInfo,
+                    dailyInterestDifferenceOfNeighboringVaults_,
+                    startDate_principal_,
+                    maturityDate_principal_,
+                    timepoints_
+                )
+            ),
+            addrs_[4],
+            uint256(paras_[0])
+        );
+        /*for (uint256 i = 0; i < assetNumberInBasket; i++) {
             FixedTermStakingDefs.AssetInfo memory assetInfo = assetsInfoBasket_[i];
             /// @dev When user unstake a fixed-term staking, protocol should withdraw corresponding amount from each vault
             /// @dev The key issue is how much underlying token should be withdrawn from all vaults
             /// @dev We choose to only withdraw principal amount from each vaults by proportion, just like what we did when staking
             /// @dev No matter vaults value will decrease or increase later, protocol have settled with user immediately when user unstakes
+            /// @dev round up the asset amount to avoid under-withdraw and thus under-repay, which may cause bad user experience and even bad debt if loss happens in vaults after unstaking
             uint128 assetAmount = UnderlyingTokenExchanger(addrs_[4]).dryrunExchange(
-                ((uint128(uint256(results_[0])) + fee) * assetInfo.weight + FixedTermStakingDefs.PRECISION - 1)
-                    / FixedTermStakingDefs.PRECISION,
+                uint128(
+                    int128((stakeInfo.principal * assetInfo.weight) / FixedTermStakingDefs.PRECISION)
+                        + interestCollectedFromEachVaults[i]
+                ),
                 false
             );
+            console.log("asset amount:", assetAmount);
             /// @dev Check the maximum withdrawable amount from the vault
             uint128 maxAssetAmount = uint128(IERC4626(assetInfo.targetVault).maxWithdraw(address(this)));
             /// @dev Adjust the withdraw amount if it exceeds the maximum withdrawable amount
             /// @dev This may happen when asset portfolio is modified, e.g. one asset's weight is increased significantly after this stake
             /// @dev In this case, protocol should follow the new strategy and be responsible for the loss or profit
             if (assetAmount > maxAssetAmount) {
+                console.log("assetAmount > maxAssetAmount");
                 unpreparedAssetAmount += (assetAmount - maxAssetAmount);
-
                 assetAmount = maxAssetAmount;
+                console.log("unpreparedAssetAmount:", unpreparedAssetAmount);
             } else if (assetAmount + unpreparedAssetAmount > maxAssetAmount) {
+                console.log("assetAmount + unpreparedAssetAmount > maxAssetAmount");
                 unpreparedAssetAmount -= (maxAssetAmount - assetAmount);
-
                 assetAmount = maxAssetAmount;
+                console.log("unpreparedAssetAmount:", unpreparedAssetAmount);
             } else {
+                console.log("assetAmount + unpreparedAssetAmount <= maxAssetAmount");
                 assetAmount += unpreparedAssetAmount;
-
                 unpreparedAssetAmount = 0;
+                console.log("unpreparedAssetAmount:", unpreparedAssetAmount);
             }
             if (assetAmount > 0) {
                 /// @dev Withdraw asset from each vault where owner is this contract and receiver is the exchanger contract
                 /// @dev User will retrieve assets from exchanger contract later
                 uint128 sharesAmount =
                     uint128(IERC4626(assetInfo.targetVault).withdraw(assetAmount, addrs_[4], address(this)));
-
+                console.log("Withdraw sharesAmount:", sharesAmount);
                 if (sharesAmount == 0) {
                     revert FixedTermStakingDefs.WithdrawFailed(assetAmount, 0, assetInfo.targetVault);
                 }
             }
-        }
+        }*/
 
         /// @dev If there is still unprepared asset amount due to vault withdraw limits
         /// @dev Try to withdraw the unprepared amount from other vaults again
-        if (unpreparedAssetAmount > 0) {
+        /*if (unpreparedAssetAmount > 0) {
             for (uint256 i = 0; i < assetNumberInBasket; i++) {
                 FixedTermStakingDefs.AssetInfo memory assetInfo = assetsInfoBasket_[i];
                 /// @dev Check the maximum withdrawable amount from the vault
@@ -382,30 +432,124 @@ library FixedTermStakingCore {
                         revert FixedTermStakingDefs.WithdrawFailed(unpreparedAssetAmount, 0, assetInfo.targetVault);
                     }
                     unpreparedAssetAmount = 0;
-
+                    console.log("maxAssetAmount >= unpreparedAssetAmount");
                     break;
                 } else if (maxAssetAmount > 0) {
                     if (IERC4626(assetInfo.targetVault).withdraw(maxAssetAmount, addrs_[4], address(this)) == 0) {
                         revert FixedTermStakingDefs.WithdrawFailed(maxAssetAmount, 0, assetInfo.targetVault);
                     }
                     unpreparedAssetAmount -= maxAssetAmount;
+                    console.log("maxAssetAmount < unpreparedAssetAmount");
                 }
             }
-        }
+        }*/
 
         if (unpreparedAssetAmount > 0) {
             /// @dev Emit event to warn off-chain monitoring system
             /// @dev Protocl should top-up equivalent amount of asset tokens to exchanger to avoid unpegging risk
+            //console.log("Unpagged Risk:", unpreparedAssetAmount);
             emit FixedTermStakingDefs.UnderlyingTokenUnpeggedRisk(unpreparedAssetAmount);
         }
 
         /// @dev After withdrawing from all vaults, we repay underlying tokens to user
         /// @dev User will retrieve assets from exchanger contract later
         if (results_[0] > 0) {
-            SafeERC20.safeTransfer(IERC20(addrs_[3]), addrs_[1], uint256(results_[0]));
+            uint256 maxRepayableAmount = IERC20(addrs_[3]).balanceOf(address(this));
+            uint256(results_[0]) > maxRepayableAmount
+                ? SafeERC20.safeTransfer(IERC20(addrs_[3]), addrs_[1], maxRepayableAmount)
+                : SafeERC20.safeTransfer(IERC20(addrs_[3]), addrs_[1], uint256(results_[0]));
         }
 
         emit FixedTermStakingDefs.Unstake(addrs_[0], addrs_[1], stakeInfo.principal, interest, uint256(paras_[0]));
+    }
+
+    function _sumOfInterestDifference(
+        FixedTermStakingDefs.AssetInfo[] storage assetsInfoBasket_,
+        FixedTermStakingDefs.StakeInfo storage stakeInfo_,
+        mapping(address => mapping(uint64 => int128)) storage dailyInterestDifferenceOfNeighboringVaults_,
+        mapping(uint64 => uint128) storage startDate_principal_,
+        mapping(uint64 => uint128) storage maturityDate_principal_,
+        uint256[] storage timepoints_
+    ) internal view returns (int128[] memory sumOfInterestDifference_) {
+        uint256 assetNumberInBasket = assetsInfoBasket_.length;
+        sumOfInterestDifference_ = new int128[](assetNumberInBasket);
+        uint64 dateCounter = stakeInfo_.startDate;
+        while (dateCounter < stakeInfo_.maturityDate) {
+            uint128 interestBearingPrincipal = timepoints_.calculateInterestBearingPrincipal(
+                startDate_principal_, maturityDate_principal_, dateCounter
+            );
+            for (uint256 i = 0; i < assetNumberInBasket; i++) {
+                /*
+                console.log(
+                    "dailyInterestDifference",
+                    dailyInterestDifferenceOfNeighboringVaults_[assetsInfoBasket_[i].targetVault][dateCounter
+                        + uint64(1 days)]
+                );
+                */
+                sumOfInterestDifference_[i] += dailyInterestDifferenceOfNeighboringVaults_[assetsInfoBasket_[i]
+                    .targetVault][dateCounter + uint64(1 days)] * int128(stakeInfo_.principal)
+                    / int128(interestBearingPrincipal);
+            }
+            dateCounter += uint64(1 days);
+        }
+    }
+
+    function _withdrawFromVault(
+        mapping(uint256 => FixedTermStakingDefs.StakeInfo) storage tokenId_stakeInfo_,
+        FixedTermStakingDefs.AssetInfo[] storage assetsInfoBasket_,
+        int128[] memory interestCollectedFromEachVaults_,
+        address exchanger_,
+        uint256 tokenId_
+    ) internal returns (uint128 unpreparedAssetAmount_) {
+        FixedTermStakingDefs.StakeInfo storage stakeInfo = tokenId_stakeInfo_[tokenId_];
+        uint256 assetNumberInBasket = assetsInfoBasket_.length;
+        for (uint256 i = 0; i < assetNumberInBasket; i++) {
+            FixedTermStakingDefs.AssetInfo memory assetInfo = assetsInfoBasket_[i];
+            /// @dev When user unstake a fixed-term staking, protocol should withdraw corresponding amount from each vault
+            /// @dev The key issue is how much underlying token should be withdrawn from all vaults
+            /// @dev We choose to only withdraw principal amount from each vaults by proportion, just like what we did when staking
+            /// @dev No matter vaults value will decrease or increase later, protocol have settled with user immediately when user unstakes
+            /// @dev round up the asset amount to avoid under-withdraw and thus under-repay, which may cause bad user experience and even bad debt if loss happens in vaults after unstaking
+            uint128 assetAmount = UnderlyingTokenExchanger(exchanger_).dryrunExchange(
+                uint128(
+                    int128((stakeInfo.principal * assetInfo.weight) / FixedTermStakingDefs.PRECISION)
+                        + interestCollectedFromEachVaults_[i]
+                ),
+                false
+            );
+            //console.log("asset amount:", assetAmount);
+            /// @dev Check the maximum withdrawable amount from the vault
+            uint128 maxAssetAmount = uint128(IERC4626(assetInfo.targetVault).maxWithdraw(address(this)));
+            /// @dev Adjust the withdraw amount if it exceeds the maximum withdrawable amount
+            /// @dev This may happen when asset portfolio is modified, e.g. one asset's weight is increased significantly after this stake
+            /// @dev In this case, protocol should follow the new strategy and be responsible for the loss or profit
+            if (assetAmount > maxAssetAmount) {
+                //console.log("assetAmount > maxAssetAmount");
+                unpreparedAssetAmount_ += (assetAmount - maxAssetAmount);
+                assetAmount = maxAssetAmount;
+                //console.log("unpreparedAssetAmount:", unpreparedAssetAmount_);
+            } else if (assetAmount + unpreparedAssetAmount_ > maxAssetAmount) {
+                //console.log("assetAmount + unpreparedAssetAmount > maxAssetAmount");
+                unpreparedAssetAmount_ -= (maxAssetAmount - assetAmount);
+                assetAmount = maxAssetAmount;
+                //console.log("unpreparedAssetAmount:", unpreparedAssetAmount_);
+            } else {
+                //console.log("assetAmount + unpreparedAssetAmount <= maxAssetAmount");
+                assetAmount += unpreparedAssetAmount_;
+                unpreparedAssetAmount_ = 0;
+                //console.log("unpreparedAssetAmount:", unpreparedAssetAmount_);
+            }
+            if (assetAmount > 0) {
+                /// @dev Withdraw asset from each vault where owner is this contract and receiver is the exchanger contract
+                /// @dev User will retrieve assets from exchanger contract later
+                uint128 sharesAmount =
+                    uint128(IERC4626(assetInfo.targetVault).withdraw(assetAmount, exchanger_, address(this)));
+                //console.log("Withdraw sharesAmount:", sharesAmount);
+                if (sharesAmount == 0) {
+                    revert FixedTermStakingDefs.WithdrawFailed(assetAmount, 0, assetInfo.targetVault);
+                }
+            }
+        }
     }
 
     function feed(
@@ -434,8 +578,9 @@ library FixedTermStakingCore {
             /// @dev Calculate interest bearing principal at normalizedTimestamp
             /// @dev Sum up all principals that started before or on normalizedTimestamp and not yet matured
             interestBearingPrincipal = timepoints_.calculateInterestBearingPrincipal(
-                startDate_principal_, maturityDate_principal_, normalizedTimestamp
+                startDate_principal_, maturityDate_principal_, normalizedTimestamp - 1 days
             );
+            //console.log("Interest Bearing Principal:", interestBearingPrincipal);
             if (interestBearingPrincipal == 0) {
                 accumulatedInterestRate_[normalizedTimestamp] = accumulatedInterestRate_[lastFeedTime_];
 
@@ -487,8 +632,13 @@ library FixedTermStakingCore {
                 /// @dev Calculate interest earned or lost since last feed time
                 //int128 interest = int128(totalAssetValueInBasket_) - int128(totalPrincipal_) - int128(totalInterest_);
                 /// @dev Calculate interest rate per day in base points (1_000_000 = 100%)
-                int64 interestRate =
-                    int64(interest_ * int128(int64(FixedTermStakingDefs.PRECISION)) / int128(interestBearingPrincipal));
+                int64 interestRate = int64(
+                    interest_ * int128(int64(FixedTermStakingDefs.PRECISION * FixedTermStakingDefs.PRECISION))
+                        / int128(interestBearingPrincipal)
+                );
+                //console.log("Interest Rate:", interestRate);
+                interestRate = interestRate < 0 ? interestRate - 1 : interestRate;
+                //console.log("Interest Rate:", interestRate);
                 /// @dev Prevent malicious oracle feed to asset vaults which may cause unbelievable interest rate
                 if (
                     interestRate >= FixedTermStakingDefs.MAX_INTEREST_RATE_PER_DAY
