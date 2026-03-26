@@ -6,6 +6,7 @@ import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
+import {Roles} from "src/common/Roles.sol";
 import {Whitelist} from "src/whitelist/Whitelist.sol";
 import {Blacklist} from "src/blacklist/Blacklist.sol";
 import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
@@ -42,11 +43,15 @@ contract DeployContractSuite is Script {
     uint48 internal _vault1MinimumPercentageInALoan;
     uint48 internal _vault1MaximumPercentageInALoan;
     uint64 internal _vault1WeightInAStake;
+    uint256 internal _vault1AllowanceForTimeLinearLoan;
+    uint256 internal _vault1AllowanceForTimePowerLoan;
     string internal _vault2Name;
     string internal _vault2Symbol;
     uint48 internal _vault2MinimumPercentageInALoan;
     uint48 internal _vault2MaximumPercentageInALoan;
     uint64 internal _vault2WeightInAStake;
+    uint256 internal _vault2AllowanceForTimeLinearLoan;
+    uint256 internal _vault2AllowanceForTimePowerLoan;
     uint256 internal _timePowerLoanAllowance;
     uint256 internal _timeLinearLoanAllowance;
     uint64[] internal _timePowerLoanInterestRates;
@@ -101,11 +106,15 @@ contract DeployContractSuite is Script {
         _vault1MinimumPercentageInALoan = uint48(vm.envUint("NEXUSFI_VAULT_1_MINIMUM_PERCENTAGE_IN_A_LOAN"));
         _vault1MaximumPercentageInALoan = uint48(vm.envUint("NEXUSFI_VAULT_1_MAXIMUM_PERCENTAGE_IN_A_LOAN"));
         _vault1WeightInAStake = uint64(vm.envUint("NEXUSFI_VAULT_1_WEIGHT_IN_A_STAKE"));
+        _vault1AllowanceForTimeLinearLoan = vm.envUint("NEXUSFI_VAULT_1_ALLOWANCE_FOR_TIME_LINEAR_LOAN");
+        _vault1AllowanceForTimePowerLoan = vm.envUint("NEXUSFI_VAULT_1_ALLOWANCE_FOR_TIME_POWER_LOAN");
         _vault2Name = vm.envString("NEXUSFI_VAULT_2_NAME");
         _vault2Symbol = vm.envString("NEXUSFI_VAULT_2_SYMBOL");
         _vault2MinimumPercentageInALoan = uint48(vm.envUint("NEXUSFI_VAULT_2_MINIMUM_PERCENTAGE_IN_A_LOAN"));
         _vault2MaximumPercentageInALoan = uint48(vm.envUint("NEXUSFI_VAULT_2_MAXIMUM_PERCENTAGE_IN_A_LOAN"));
         _vault2WeightInAStake = uint64(vm.envUint("NEXUSFI_VAULT_2_WEIGHT_IN_A_STAKE"));
+        _vault2AllowanceForTimeLinearLoan = vm.envUint("NEXUSFI_VAULT_2_ALLOWANCE_FOR_TIME_LINEAR_LOAN");
+        _vault2AllowanceForTimePowerLoan = vm.envUint("NEXUSFI_VAULT_2_ALLOWANCE_FOR_TIME_POWER_LOAN");
         _timePowerLoanAllowance = vm.envUint("NEXUSFI_TIME_POWER_LOAN_ALLOWANCE");
         _timeLinearLoanAllowance = vm.envUint("NEXUSFI_TIME_LINEAR_LOAN_ALLOWANCE");
         uint256[] memory timePowerLoanInterestRates = vm.envUint("NEXUSFI_TIME_POWER_LOAN_INTEREST_RATES", ",");
@@ -257,6 +266,8 @@ contract DeployContractSuite is Script {
                 timeLinearLoanTrustedVaults
             )
         );
+
+        _setContractDependencies();
 
         vm.stopBroadcast();
     }
@@ -526,5 +537,56 @@ contract DeployContractSuite is Script {
                 )
             )
         );
+    }
+
+    /**
+     * whitelist.grantRole(_owner, operator_role)
+     * blacklist.grantRole(_owner, operator_role)
+     * underlyingToken.grantRole(_underlyingTokenExchanger, operator_role)
+     * underlyingToken.grantRole(_fixedTermStaking, operator_role)
+     * underlyingToken.grantRole(_openTermStaking, operator_role)
+     * underlyingTokenExchanger.grantRole(_fixedTermStaking, investment_manager_role)
+     * underlyingTokenExchanger.grantRole(_openTermStaking, investment_manager_role)
+     * _valueInflationVault1.grantRole(_owner, operator_role)
+     * _valueInfaltionVault1.addTrustedLender(_fixedTermStaking)
+     * _valueInfaltionVault1.addTrustedLender(_openTermStaking)
+     * _valueInflationVault1.addTrustedBorrower(_timeLinearLoan)
+     * _valueInflationVault1.approveTrustedBorrower(_timeLinearLoan, allowance)
+     * _valueInflationVault1.addTrustedBorrower(_timePowerLoan)
+     * _valueInflationVault1.approveTrustedBorrower(_timePowerLoan, allowance)
+     * _valueInflationVault2.grantRole(_owner, operator_role)
+     * _valueInfaltionVault2.addTrustedLender(_fixedTermStaking)
+     * _valueInfaltionVault2..addTrustedLender(_openTermStaking)
+     * _valueInflationVault2.addTrustedBorrower(_timeLinearLoan)
+     * _valueInflationVault2.approveTrustedBorrower(_timeLinearLoan, allowance)
+     * _valudInflationVault2.addTrustedBorrower(_timeLinearLoan)
+     * _valueInflationVault2.approveTrustedBorrower(_timePowerLoan, allowance)
+     * _timePowerLoan.grantRole(_owner, operator_role)
+     * _timeLinearLoan.grantRole(_owner, operator_role)
+     */
+    function _setContractDependencies() internal {
+        _whitelist.grantRole(Roles.OPERATOR_ROLE, _owner);
+        _blacklist.grantRole(Roles.OPERATOR_ROLE, _owner);
+        _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_underlyingTokenExchanger));
+        _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_fixedTermStaking));
+        _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_openTermStaking));
+        _underlyingTokenExchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, address(_fixedTermStaking));
+        _underlyingTokenExchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, address(_openTermStaking));
+        _vault1.grantRole(Roles.OPERATOR_ROLE, _owner);
+        _vault1.addTrustedLender(address(_fixedTermStaking));
+        _vault1.addTrustedLender(address(_openTermStaking));
+        _vault1.addTrustedBorrower(address(_timeLinearLoan));
+        _vault1.approveTrustedBorrower(address(_timeLinearLoan), _vault1AllowanceForTimeLinearLoan);
+        _vault1.addTrustedBorrower(address(_timePowerLoan));
+        _vault1.approveTrustedBorrower(address(_timePowerLoan), _vault1AllowanceForTimePowerLoan);
+        _vault2.grantRole(Roles.OPERATOR_ROLE, _owner);
+        _vault2.addTrustedLender(address(_fixedTermStaking));
+        _vault2.addTrustedLender(address(_openTermStaking));
+        _vault2.addTrustedBorrower(address(_timeLinearLoan));
+        _vault2.approveTrustedBorrower(address(_timeLinearLoan), _vault2AllowanceForTimeLinearLoan);
+        _vault2.addTrustedBorrower(address(_timePowerLoan));
+        _vault2.approveTrustedBorrower(address(_timePowerLoan), _vault2AllowanceForTimePowerLoan);
+        _timePowerLoan.grantRole(Roles.OPERATOR_ROLE, _owner);
+        _timeLinearLoan.grantRole(Roles.OPERATOR_ROLE, _owner);
     }
 }
