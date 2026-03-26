@@ -107,14 +107,15 @@ contract FixedTermStaking is
     /// @dev vault at index len - 1 is neighbor of vault at index 0 and index len - 2
     /// @notice mapping storage, used for interest collection from all vaults when unstaking
     mapping(address => mapping(uint64 => int128)) public _dailyInterestDifferenceOfNeighboringVaults;
-
+    /*
     function _logDailyInterestDifferenceOfNeighboringVaults(uint64 normalizedTimestamp_) internal view {
         uint256 len = _assetsInfoBasket.length;
         for (uint256 i = 0; i < len; i++) {
             FixedTermStakingDefs.AssetInfo memory assetInfo = _assetsInfoBasket[i];
+            
             int128 interestDifference =
                 _dailyInterestDifferenceOfNeighboringVaults[assetInfo.targetVault][normalizedTimestamp_];
-            /*
+            
             console.log(
                 string.concat(
                     "vault : ",
@@ -125,12 +126,13 @@ contract FixedTermStaking is
                     int256(interestDifference).toStringSigned()
                 )
             );
-            */
+            
         }
     }
-
+    */
     /// @dev whitelist check modifier
     /// @param who_ The address to be checked against the whitelist
+
     modifier onlyWhitelisted(address who_) {
         _whitelist.onlyWhitelisted(who_);
         _;
@@ -224,7 +226,7 @@ contract FixedTermStaking is
     {
         /// @dev subtract 1 from _lastFeedTime to ensure _lastFeedTime unchanged after normalized
         _feed(_lastFeedTime - 1, true);
-        _logDailyInterestDifferenceOfNeighboringVaults(_lastFeedTime);
+        //        _logDailyInterestDifferenceOfNeighboringVaults(_lastFeedTime);
         /**
          * uint128 updatedTotalPrincipal_,
          * uint128 updatedRemainingBalance_,
@@ -497,7 +499,7 @@ contract FixedTermStaking is
     /// @return dividends_ Whether there are dividends to distribute
     function feed(uint64 timestamp_) external whenNotPaused nonReentrant returns (bool dividends_) {
         dividends_ = _feed(timestamp_, false);
-        _logDailyInterestDifferenceOfNeighboringVaults(_lastFeedTime);
+        //        _logDailyInterestDifferenceOfNeighboringVaults(_lastFeedTime);
     }
 
     /// @notice only controller roles can force feeding at the same timestamp

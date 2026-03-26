@@ -2772,23 +2772,23 @@ contract TimePowerLoanTest is Test {
         }
     }
 
-    function testGetTotalTrustedBorrowers() public {
+    function testGetTotalTrustedBorrowers() public view {
         assertEq(_timePowerLoan.getTotalTrustedBorrowers(), 0);
     }
 
-    function testGetTotalTrustedVaults() public {
+    function testGetTotalTrustedVaults() public view {
         assertEq(_timePowerLoan.getTotalTrustedVaults(), 4);
     }
 
-    function testGetTotalLoans() public {
+    function testGetTotalLoans() public view {
         assertEq(_timePowerLoan.getTotalLoans(), 0);
     }
 
-    function testGetTotalDebts() public {
+    function testGetTotalDebts() public view {
         assertEq(_timePowerLoan.getTotalDebts(), 0);
     }
 
-    function testGetTotalTranches() public {
+    function testGetTotalTranches() public view {
         assertEq(_timePowerLoan.getTotalTranches(), 0);
     }
 

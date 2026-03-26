@@ -2716,23 +2716,23 @@ contract TimeLinearLoanTest is Test {
         }
     }
 
-    function testGetTotalTrustedBorrowers() public {
+    function testGetTotalTrustedBorrowers() public view {
         assertEq(_timeLinearLoan.getTotalTrustedBorrowers(), 0);
     }
 
-    function testGetTotalTrustedVaults() public {
+    function testGetTotalTrustedVaults() public view {
         assertEq(_timeLinearLoan.getTotalTrustedVaults(), 4);
     }
 
-    function testGetTotalLoans() public {
+    function testGetTotalLoans() public view {
         assertEq(_timeLinearLoan.getTotalLoans(), 0);
     }
 
-    function testGetTotalDebts() public {
+    function testGetTotalDebts() public view {
         assertEq(_timeLinearLoan.getTotalDebts(), 0);
     }
 
-    function testGetTotalTranches() public {
+    function testGetTotalTranches() public view {
         assertEq(_timeLinearLoan.getTotalTranches(), 0);
     }
 
