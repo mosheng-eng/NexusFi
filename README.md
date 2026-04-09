@@ -69,6 +69,11 @@
   Fixed term staking contract stores daily accumulated interest rates for calculation of any nfiFTT token's interest amount at any day before or at or after maturity date. Daily accumulated interest rates make on-chain interest calculations more efficient.  
   The following picture shows **the basic mathematical formula**.
   ![FixedTermStaking](doc/FixedTermStaking.png "Fixed Term Staking")
+  FixedTermStaking will deposit funds into one or more vaults based on the investment strategy to earn profits and distribute them to investors when they redeem tokens. However, the performance of each vault is totally unpredictable. Some vaults may suffer huge losses and others may make great profits. The problem is how to automatically and safely calculate the reasonable interests collected from each vault when any investors redeem their tokens after maturity date.  
+  Here is our solutions:
+  ![FixedTermStaking](doc/FixedTermStaking-CalculationForInterestOfEachVault1.png "FixedTermStaking-CalculationForInterestOfEachVault1")
+  ![FixedTermStaking](doc/FixedTermStaking-CalculationForInterestOfEachVault2.png "FixedTermStaking-CalculationForInterestOfEachVault2")
+  ![FixedTermStaking](doc/FixedTermStaking-CalculationForInterestOfEachVault3.png "FixedTermStaking-CalculationForInterestOfEachVault3")
 * **[FixedTermToken](https://github.com/mosheng-eng/NexusFi/blob/master/src/protocols/lender/fixed-term/FixedTermToken.sol)**  
   This is a ERC721 token that is used to represent a fixed term staking (e.g. referred to as nfiFTT). Investor will get a specific token id of nfiFTT after stake nfiUSD into fixed term staking protocol. Each nfiFTT token is unique because of the different start date, maturity date and principal.  
   We know that NFT is not friendly to DeFi or vault protocol. So we are working on the wrapper functions of nfiFTT and will upgrade protocol soon.
