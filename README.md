@@ -70,7 +70,7 @@
   The following picture shows **the basic mathematical formula**.
   ![FixedTermStaking](doc/FixedTermStaking.png "Fixed Term Staking")
   FixedTermStaking will deposit funds into one or more vaults based on the investment strategy to earn profits and distribute them to investors when they redeem tokens. However, the performance of each vault is totally unpredictable. Some vaults may suffer huge losses and others may make great profits. The problem is how to automatically and safely calculate the reasonable interests collected from each vault when any investors redeem their tokens after maturity date.  
-  Here is our solutions:
+  Here is our solution:
   ![FixedTermStaking](doc/FixedTermStaking-CalculationForInterestOfEachVault1.png "FixedTermStaking-CalculationForInterestOfEachVault1")
   ![FixedTermStaking](doc/FixedTermStaking-CalculationForInterestOfEachVault2.png "FixedTermStaking-CalculationForInterestOfEachVault2")
   ![FixedTermStaking](doc/FixedTermStaking-CalculationForInterestOfEachVault3.png "FixedTermStaking-CalculationForInterestOfEachVault3")
