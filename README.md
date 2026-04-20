@@ -40,13 +40,13 @@
   > 6. 0x10 BLS12_MAP_FP_TO_G1
   > 7. 0x11 BLS12_MAP_FP2_TO_G2
 * **[ThresholdWallet](https://github.com/mosheng-eng/NexusFi/blob/master/src/multisig/ThresholdWallet.sol)**  
-  This is an m of n wallet where n means the total signers and where **m** represents the required threshold. Threshold wallet contract holds all signers' public keys and on-chain Member IDs. Each on-chain Member ID is signed by all signers. In other words, each signer’s membership is agreed upon by all participants through consensus. Threshold wallet contract is built on BLS algorithm and supports two modes:
+  This is an m of n wallet where n means the total signers and where **m** represents the required threshold. Threshold wallet contract holds all signers' public keys and on-chain IDs. Each on-chain ID is signed by all signers. In other words, each signer’s membership is agreed upon by all participants through consensus. Threshold wallet contract is built on BLS algorithm and supports two modes:
   * **Public key on G1 and Private key on G2 :**  
   Public key is a point on G1 which has two coordinates. Each coordinate is 48 bytes (uint384) stored in two words (bytes32).  
-  Signature and on-chain Member ID are points on G2 which has two complex coordinates. Each complex coordinate consists of a real part and imaginary part. Both real part and imaginary part are 48 bytes (uint384) stored in two words (bytes32).  
+  Signature and on-chain ID are points on G2 which has two complex coordinates. Each complex coordinate consists of a real part and imaginary part. Both real part and imaginary part are 48 bytes (uint384) stored in two words (bytes32).  
   * **Public key on G2 and Private key on G1 :**  
   Public key is a point on G2 which has two complex coordinates. Each complex coordinate consists of a real part and imaginary part. Both real part and imaginary part are 48 bytes (uint384) stored in two words (bytes32).  
-  Signature and on-chain Member ID are points on G1 which has two coordinates. Each coordinate is 48 bytes (uint384) stored in two words (bytes32).  
+  Signature and on-chain ID are points on G1 which has two coordinates. Each coordinate is 48 bytes (uint384) stored in two words (bytes32).  
   The following two pictures show **the prototype design of threshold wallet**:  
   ![Prototype Design](doc/ThresholdWallet-When-PKs-on-G1.png "Public Key On G1")
   ![Prototype Design](doc/ThresholdWallet-When-PKs-on-G2.png "Public Key On G2")
