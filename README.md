@@ -5,7 +5,7 @@
 * **Apple Lender Co:** a lender company
   * **Staff:**
     * **Alice:** a signer holding a private key
-    * **Brian:** a signer holding a private key
+    * **Brain:** a signer holding a private key
     * **Clark:** a signer holding a private key
   * **Wallet:**
     * **Multisig:** 3 signers in total and 1 aggregated signature from all signers required
