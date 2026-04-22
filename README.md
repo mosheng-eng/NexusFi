@@ -296,29 +296,29 @@ $ export NEXUSFI_BORROWER=0x622F1e8492ffFc31A58b686AbF01ac60598D6303 # replace w
 $ forge script script/ContractDependency.s.sol:ContractDependencyScript --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize  
 ```
 5. Following are test contracts already deployed on sepolia network.
-* Whitelist Proxy	                      
+* Whitelist	                      
     **[0x85FFEaB7650b8a08BD757780b4D2A0b0878408Da](https://sepolia.etherscan.io/address/0x85FFEaB7650b8a08BD757780b4D2A0b0878408Da)**
-* Blacklist Proxy	                      
+* Blacklist	                      
     **[0xF41639623C4d0fEa2A01997AC71C05150456B43a](https://sepolia.etherscan.io/address/0xF41639623C4d0fEa2A01997AC71C05150456B43a)**
-* UnderlyingToken Proxy	                      
+* UnderlyingToken	                      
     **[0xabD7E811aeE89DB1C130b78f7aC6eB978b2aDA83](https://sepolia.etherscan.io/address/0xabD7E811aeE89DB1C130b78f7aC6eB978b2aDA83)**
-* UnderlyingTokenExchanger Proxy	                      
+* UnderlyingTokenExchanger	                      
     **[0x36319D75a32F84CD6dfd7cEFfa0C4Bf315a327c5](https://sepolia.etherscan.io/address/0x36319D75a32F84CD6dfd7cEFfa0C4Bf315a327c5)**
-* MultisigWallet Proxy	                      
+* MultisigWallet	                      
     **[0x036dA3104C47075fe6d7CE2843B510103837b305](https://sepolia.etherscan.io/address/0x036dA3104C47075fe6d7CE2843B510103837b305)**
-* ThresholdWallet Proxy	                      
+* ThresholdWallet	                      
     **[0xb952E1e0FF7869d38eD778717b7A91D97ac89F39](https://sepolia.etherscan.io/address/0xb952E1e0FF7869d38eD778717b7A91D97ac89F39)**
-* ValueInflationVault(RWA) Proxy	                      
+* ValueInflationVault(RWA)	                      
     **[0x03C798D8E3C765d42dFcAFc215267Ff6bEbEa5aa](https://sepolia.etherscan.io/address/0x03C798D8E3C765d42dFcAFc215267Ff6bEbEa5aa)**
-* ValueInflationVault(MMF) Proxy	                      
+* ValueInflationVault(MMF)	                      
     **[0x937509401620a0EC70E9A0d6BbE5aaf9aBe524A2](https://sepolia.etherscan.io/address/0x937509401620a0EC70E9A0d6BbE5aaf9aBe524A2)**
-* FixedTermStaking Proxy	                      
+* FixedTermStaking	                      
     **[0x9444aD139De6F70661be02Dda5982A19f670fd86](https://sepolia.etherscan.io/address/0x9444aD139De6F70661be02Dda5982A19f670fd86)**
-* OpenTermStaking Proxy	                      
+* OpenTermStaking	                      
     **[0x936Ffb31eB2964ce67c40864CA4838F9dA727293](https://sepolia.etherscan.io/address/0x936Ffb31eB2964ce67c40864CA4838F9dA727293)**
-* TimePowerLoan Proxy	                      
+* TimePowerLoan	                      
     **[0x47f51EF51B7aa23Ff031898C67Fbb6eCa3609b73](https://sepolia.etherscan.io/address/0x47f51EF51B7aa23Ff031898C67Fbb6eCa3609b73)**
-* TimeLinearLoan Proxy	                      
+* TimeLinearLoan	                      
     **[0x5848aC0b92583292C314Fe1f3A4A78b5de304df5](https://sepolia.etherscan.io/address/0x5848aC0b92583292C314Fe1f3A4A78b5de304df5)**
 
 #### Main Network
