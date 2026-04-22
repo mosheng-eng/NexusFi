@@ -147,7 +147,7 @@ $ make coverageReport
 This is the latest coverage report (you can use **make coverage** to get latest report).  
 Just focus on Solidity files under **[src](https://github.com/mosheng-eng/NexusFi/tree/master/src)** directory.  
 We have tried our best to increase the coverage rate and will continue to work on it.
-![Coverage Report](doc/CoverageReport-20260410.png "Latest Coverage Report")
+![Coverage Report](doc/CoverageReport-20260422.png "Latest Coverage Report")
 
 ### Deploy
 #### Local Network
