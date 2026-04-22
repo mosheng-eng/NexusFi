@@ -590,6 +590,8 @@ contract ThresholdWalletTest is Test {
     }
 
     function testSubmitInvalidOperations() public {
+        uint256 time = block.timestamp;
+
         console.log("case1: empty operations");
         vm.expectRevert(ThresholdWalletLibs.EmptyOperations.selector);
         _thresholdWalletPKOnG1.submitOperations(new ThresholdWalletLibs.Operation[](0));
@@ -631,13 +633,13 @@ contract ThresholdWalletTest is Test {
 
         console.log("case4: Operation.expirationTime earlier than current time");
         (operationsG1, operationHashG1) = _operations(_thresholdWalletPKOnG1);
-        vm.warp(block.timestamp + 30 days + 1 minutes);
+        vm.warp(time += (30 days + 1 minutes));
         vm.expectRevert(
             abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.expirationTime earlier than current time")
         );
         _thresholdWalletPKOnG1.submitOperations(operationsG1);
         (operationsG2, operationHashG2) = _operations(_thresholdWalletPKOnG2);
-        vm.warp(block.timestamp + 30 days + 1 minutes);
+        vm.warp(time += (30 days + 1 minutes));
         vm.expectRevert(
             abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.expirationTime earlier than current time")
         );

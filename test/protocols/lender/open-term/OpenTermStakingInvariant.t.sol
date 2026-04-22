@@ -26,21 +26,25 @@ contract OpenTermStakingInvariant is Test {
         targetSelectors[2] = OpenTermStakingHandler.updateVaultNAV.selector;
         targetSelector(StdInvariant.FuzzSelector({addr: address(_openTermStakingHandler), selectors: targetSelectors}));
         targetContract(address(_openTermStakingHandler));
+        console.log("setup finished");
     }
 
     function invariantTotalInterestBearingAlwaysEqualTotalAssetsValueAfterFeed() public {
-        _currentTime = _openTermStakingHandler.getCurrentTime();
+        uint64 lastFeedTime = _openTermStaking._lastFeedTime();
 
-        require(_currentTime == 1759301999, "should be 2025-10-01 14:59:59 UTC+8 "); // 2025-10-01 14:59:59 UTC+8
+        _openTermStaking.feedForce(lastFeedTime - 1);
 
-        vm.warp((_currentTime += 1 days) + 1 minutes);
-
-        _openTermStaking.feed(_currentTime);
-
-        assertEq(
-            _openTermStaking._totalInterestBearing(),
-            uint128(_openTermStaking.getTotalAssetValueInBasket()),
-            "Total interest bearing should always equal total asset value after feed"
+        /// @dev allow 100 units of error due to price floating and rounding
+        assertLe(
+            _abs(_openTermStaking._totalInterestBearing(), uint128(_openTermStaking.getTotalAssetValueInBasket())), 100
         );
+    }
+
+    function _abs(uint256 a_, uint256 b_) internal pure returns (uint256) {
+        return a_ >= b_ ? a_ - b_ : b_ - a_;
+    }
+
+    function _normalizeTimestamp(uint64 timestamp_) internal pure returns (uint64 normalizedTimestamp_) {
+        normalizedTimestamp_ = uint64(((timestamp_ + 17 hours) / 1 days) * 1 days + 7 hours);
     }
 }

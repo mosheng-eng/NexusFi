@@ -16,15 +16,15 @@ abiValueInflationVault:; forge inspect ValueInflationVault abi > abi/ValueInflat
 
 coverage:; forge coverage --ir-minimum --no-match-test invariant* --no-match-contract Temp*  --ffi
 coverageReport:; forge coverage --ir-minimum --no-match-test invariant* --no-match-contract Temp* --ffi --report debug > report/coverage.txt
-testMultisigWallet:; forge test --match-contract MultisigWalletTest --ffi -vvv
-testThresholdWallet:; forge test --match-contract ThresholdWalletTest --ffi -vvv
-testFixedTermStaking:; forge test --match-contract FixedTermStakingTest --ffi -vvv
-testOpenTermStaking:; forge test --match-contract OpenTermStakingTest --ffi -vvv
-testUnderlyingTokenExchanger:; forge test --match-contract UnderlyingTokenExchangerTest --ffi -vvv
-testWhitelist:; forge test --match-contract WhitelistTest --ffi -vvv
-testBlacklist:; forge test --match-contract BlacklistTest --ffi -vvv
-testTimePowerLoan:; forge test --match-contract TimePowerLoanTest --ffi -vvv
-testTimeLinearLoan:; forge test --match-contract TimeLinearLoanTest --ffi -vvv
-testValueInflationVault:; forge test --match-contract ValueInflationVaultTest --ffi -vvv
-testInvariant:; forge test --match-test invariant* --ffi -vvv
-testAll:; forge test --ffi -vvv
+testMultisigWallet:; forge test --match-contract MultisigWalletTest --ffi --via-ir --optimize -vvv
+testThresholdWallet:; forge test --match-contract ThresholdWalletTest --ffi --via-ir --optimize -vvv
+testFixedTermStaking:; forge test --match-contract FixedTermStakingTest --ffi --via-ir --optimize -vvv
+testOpenTermStaking:; forge test --match-contract OpenTermStakingTest --ffi --via-ir --optimize -vvv
+testUnderlyingTokenExchanger:; forge test --match-contract UnderlyingTokenExchangerTest --ffi --via-ir --optimize -vvv
+testWhitelist:; forge test --match-contract WhitelistTest --ffi --via-ir --optimize -vvv
+testBlacklist:; forge test --match-contract BlacklistTest --ffi --via-ir --optimize -vvv
+testTimePowerLoan:; forge test --match-contract TimePowerLoanTest --ffi --via-ir --optimize -vvv
+testTimeLinearLoan:; forge test --match-contract TimeLinearLoanTest --ffi --via-ir --optimize -vvv
+testValueInflationVault:; forge test --match-contract ValueInflationVaultTest --ffi --via-ir --optimize -vvv
+testInvariant:; forge test --match-test invariant --ffi --via-ir --optimize -vvv
+testAll:; forge test --ffi --via-ir --optimize -vvv

@@ -670,6 +670,8 @@ contract MultisigWalletTest is Test {
     }
 
     function testSubmitInvalidOperations() public {
+        uint256 time = block.timestamp;
+
         console.log("case1: empty operations");
         vm.expectRevert(MultisigWalletLibs.EmptyOperations.selector);
         _multisigWalletPKOnG1.submitOperations(new MultisigWalletLibs.Operation[](0));
@@ -711,13 +713,13 @@ contract MultisigWalletTest is Test {
 
         console.log("case4: Operation.expirationTime earlier than current time");
         (operationsG1, operationHashG1) = _operations(_multisigWalletPKOnG1);
-        vm.warp(block.timestamp + 30 days + 1 minutes);
+        vm.warp(time += (30 days + 1 minutes));
         vm.expectRevert(
             abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.expirationTime earlier than current time")
         );
         _multisigWalletPKOnG1.submitOperations(operationsG1);
         (operationsG2, operationHashG2) = _operations(_multisigWalletPKOnG2);
-        vm.warp(block.timestamp + 30 days + 1 minutes);
+        vm.warp(time += (30 days + 1 minutes));
         vm.expectRevert(
             abi.encodeWithSelector(Errors.InvalidValue.selector, "Operation.expirationTime earlier than current time")
         );

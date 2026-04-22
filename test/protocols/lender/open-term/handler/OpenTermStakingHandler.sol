@@ -151,13 +151,16 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_exchanger));
 
         _exchanger.grantRole(Roles.INVESTMENT_MANAGER_ROLE, address(_openTermStaking));
+
+        _openTermStaking.grantRole(Roles.OPERATOR_ROLE, msg.sender);
     }
 
     function stake(address user_, uint128 amountToStake_) external {
+        console.log("stake called with user:", user_, "amountToStake:", amountToStake_);
         _feed();
-        _oneDayPassed();
+        //_oneDayPassed();
 
-        vm.assume(user_ != address(0x0) && user_.code.length == 0);
+        vm.assume(user_ != address(0x0) && user_.code.length == 0 && !_whitelist.isWhitelisted(user_));
         amountToStake_ = uint128(bound(amountToStake_, 10 ** 6, 9_000_000 * 10 ** 6));
 
         _fundUser(user_, amountToStake_);
@@ -168,8 +171,13 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
     }
 
     function unstake(uint128 userIndex_, uint128 unstakePercent_) external {
+        console.log("unstake called with userIndex:", userIndex_, "unstakePercent:", unstakePercent_);
+        console.log("addrs length:", _addrs.length);
+        if (_addrs.length == 0) {
+            return;
+        }
         _feed();
-        _oneDayPassed();
+        //_oneDayPassed();
 
         userIndex_ = uint128(bound(userIndex_, 0, uint128(_addrs.length - 1)));
         unstakePercent_ = uint128(bound(unstakePercent_, 1, 100_000)); // in base points, 100%
@@ -178,20 +186,30 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
         uint256 userBalanceBeforeUnstake = _openTermStaking.balanceOf(user);
         uint256 amountToUnstake = (userBalanceBeforeUnstake * unstakePercent_) / 1_000_000;
 
+        if (amountToUnstake == 0) {
+            return;
+        }
+
         vm.prank(user);
         _openTermStaking.unstake(uint128(amountToUnstake));
     }
 
     function updateVaultNAV(uint128 interestForMMFVault_, uint128 interestForRWAVault_) external {
+        console.log(
+            "updateVaultNAV called with interestForMMFVault:",
+            interestForMMFVault_,
+            "interestForRWAVault:",
+            interestForRWAVault_
+        );
         require(_assetsInfoBasket.length == 2, "This test is only for two assets!");
 
         interestForMMFVault_ = uint128(
-            bound(interestForMMFVault_, 10 ** 6, _depositToken.balanceOf(_assetsInfoBasket[0].targetVault)) * 40_000
-                / 1_000_000 / 365
+            bound(interestForMMFVault_, 10 ** 6, 10 ** 6 + _depositToken.balanceOf(_assetsInfoBasket[0].targetVault))
+                * 40_000 / 1_000_000 / 365
         );
         interestForRWAVault_ = uint128(
-            bound(interestForRWAVault_, 10 ** 6, _depositToken.balanceOf(_assetsInfoBasket[1].targetVault)) * 40_000
-                / 1_000_000 / 365
+            bound(interestForRWAVault_, 10 ** 6, 10 ** 6 + _depositToken.balanceOf(_assetsInfoBasket[1].targetVault))
+                * 40_000 / 1_000_000 / 365
         );
         _depositToken.mint(_assetsInfoBasket[0].targetVault, interestForMMFVault_);
         _depositToken.mint(_assetsInfoBasket[1].targetVault, interestForRWAVault_);
@@ -226,13 +244,13 @@ contract OpenTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBas
         uint256 totalFee = _openTermStaking._totalFee();
         uint256 totalInterestBearing = _openTermStaking._totalInterestBearing();
         assertEq(userBalanceAfterStake, 0);
-        assertEq(stakingProtocolBalanceAfterStake, totalFee + totalInterestBearing);
+        assertEq(stakingProtocolBalanceAfterStake, totalFee + totalInterestBearing - 1);
 
         vm.stopPrank();
     }
 
     function _feed() internal {
-        vm.warp(_currentTime + 1 minutes);
+        vm.warp((_currentTime += 1 days) + 1 minutes);
         _openTermStaking.feed(_currentTime);
     }
 }

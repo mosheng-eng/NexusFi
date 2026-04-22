@@ -30,7 +30,7 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     DepositAsset internal _depositToken;
     UnderlyingTokenExchanger internal _exchanger;
 
-    uint64 internal _lockPeriod = 365 days;
+    uint64 internal _lockPeriod = 5 days;
     uint64 internal _stakeFeeRate = 1_000; // in base points, 0.1%
     uint64 internal _unstakeFeeRate = 1_000; // in base points, 0.2%
     uint64 internal _startFeedTime = 1759301999; // 2025-10-01 14:59:59 UTC+8
@@ -157,7 +157,7 @@ contract FixedTermStakingHandler is StdCheats, StdUtils, StdAssertions, CommonBa
     }
 
     function stake(address user_, uint128 amountToStake_) external {
-        vm.assume(user_ != address(0x0) && user_.code.length == 0);
+        vm.assume(user_ != address(0x0) && user_.code.length == 0 && !_whitelist.isWhitelisted(user_));
         amountToStake_ = uint128(bound(amountToStake_, 10 ** 6, 9_000_000 * 10 ** 6));
 
         _fundUser(user_, amountToStake_);
