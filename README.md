@@ -156,7 +156,7 @@ We have tried our best to increase the coverage rate and will continue to work o
 $ anvil --fork-url https://api.zan.top/node/v1/eth/mainnet/Your-API-Key --disable-code-size-limit --hardfork prague
 ```
 2. Configure **[.env](https://github.com/mosheng-eng/NexusFi/blob/master/.env)** file
-```
+```shell
 $ export NEXUSFI_OWNER=0xF265639351621C68867d089d95c14a1f0edBfB48 # replace with your own address
 $ export NEXUSFI_UNDERLYING_TOKEN_NAME="NexusFi USD" # replace with your own token name
 $ export NEXUSFI_UNDERLYING_TOKEN_SYMBOL="nfiUSD" # replace with your own token symbol
@@ -167,27 +167,31 @@ $ export NEXUSFI_VAULT_1_NAME="NexusFi RWA Vault" # replace with your own vault 
 $ export NEXUSFI_VAULT_1_SYMBOL="nfiRWA" # replace with your own vault symbol
 $ export NEXUSFI_VAULT_1_MINIMUM_PERCENTAGE_IN_A_LOAN=300000 # 30% (6 decimals)
 $ export NEXUSFI_VAULT_1_MAXIMUM_PERCENTAGE_IN_A_LOAN=600000 # 60% (6 decimals)
-$ export NEXUSFI_VAULT_1_WEIGHT_IN_A_STAKE=50000 # 50% (6 decimals)
+$ export NEXUSFI_VAULT_1_WEIGHT_IN_A_STAKE=350000 # 35% (6 decimals)
+$ export NEXUSFI_VAULT_1_ALLOWANCE_FOR_TIME_LINEAR_LOAN=1000000000000 # 1 million USDC (6 decimals)
+$ export NEXUSFI_VAULT_1_ALLOWANCE_FOR_TIME_POWER_LOAN=1000000000000 # 1 million USDC (6 decimals)
 $ export NEXUSFI_VAULT_2_NAME="NexusFi MMF Vault" # replace with your own vault name
 $ export NEXUSFI_VAULT_2_SYMBOL="nfiMMF" # replace with your own vault symbol
 $ export NEXUSFI_VAULT_2_MINIMUM_PERCENTAGE_IN_A_LOAN=400000 # 40% (6 decimals)
 $ export NEXUSFI_VAULT_2_MAXIMUM_PERCENTAGE_IN_A_LOAN=700000 # 70% (6 decimals)
-$ export NEXUSFI_VAULT_2_WEIGHT_IN_A_STAKE=50000 # 50% (6 decimals)
+$ export NEXUSFI_VAULT_2_WEIGHT_IN_A_STAKE=450000 # 45% (6 decimals)
+$ export NEXUSFI_VAULT_2_ALLOWANCE_FOR_TIME_LINEAR_LOAN=1000000000000 # 1 million USDC (6 decimals)
+$ export NEXUSFI_VAULT_2_ALLOWANCE_FOR_TIME_POWER_LOAN=1000000000000 # 1 million USDC (6 decimals)
 $ export NEXUSFI_TIME_POWER_LOAN_ALLOWANCE=1000000000000000 # 1 billion USDC (6 decimals)
 $ export NEXUSFI_TIME_LINEAR_LOAN_ALLOWANCE=2000000000000000 # 2 billion USDC (6 decimals)
 $ export NEXUSFI_TIME_POWER_LOAN_INTEREST_RATES=1000000000937300000,1000000002732680000,1000000004431820000,1000000006044530000 # 3%, 9%, 15%, 21% APR FIXED18
 $ export NEXUSFI_TIME_LINEAR_LOAN_INTEREST_RATES=951293760,2853881279,4756468798,6659056317 # 3%, 9%, 15%, 21% APR FIXED18
-$ export NEXUSFI_FIXED_TERM_LOCK_PERIOD=365 # days
+$ export NEXUSFI_FIXED_TERM_LOCK_PERIOD=3 # days
 $ export NEXUSFI_FIXED_TERM_STAKE_FEE_RATE=1000 # 0.1%
 $ export NEXUSFI_FIXED_TERM_UNSTAKE_FEE_RATE=1000 # 0.1%
-$ export NEXUSFI_FIXED_TERM_START_FEED_TIME=1759301999 # 2025-10-01 14:59:59 UTC+8
+$ export NEXUSFI_FIXED_TERM_START_FEED_TIME=1774508396 # 2026-03-26 14:59:56
 $ export NEXUSFI_FIXED_TERM_DUST_BALANCE=1000000000 # 1,000 USDC (6 decimals)
 $ export NEXUSFI_FIXED_TERM_MAX_SUPPLY=1000000000000000 # 1 billion underlying tokens (6 decimals)
 $ export NEXUSFI_FIXED_TERM_TOKEN_NAME="NexusFi Fixed Term Token" # replace with your own token name
 $ export NEXUSFI_FIXED_TERM_TOKEN_SYMBOL="nfiFTT" # replace with your own token symbol
 $ export NEXUSFI_OPEN_TERM_STAKE_FEE_RATE=1000 # 0.1%
 $ export NEXUSFI_OPEN_TERM_UNSTAKE_FEE_RATE=1000 # 0.1%
-$ export NEXUSFI_OPEN_TERM_START_FEED_TIME=1759301999 # 2025-10-01 14:59:59 UTC+8
+$ export NEXUSFI_OPEN_TERM_START_FEED_TIME=1774508396 # 2026-03-26 14:59:56
 $ export NEXUSFI_OPEN_TERM_DUST_BALANCE=1000000000 # 1,000 USDC (6 decimals)
 $ export NEXUSFI_OPEN_TERM_MAX_SUPPLY=1000000000000000 # 1 billion underlying tokens (6 decimals)
 $ export NEXUSFI_OPEN_TERM_TOKEN_NAME="NexusFi Open Term Token" # replace with your own token name
@@ -212,7 +216,7 @@ Enter private key:
 ```
 #### Test Network
 1. Configure **[.env](https://github.com/mosheng-eng/NexusFi/blob/master/.env)** file
-```
+```shell
 $ export NEXUSFI_OWNER=0xF265639351621C68867d089d95c14a1f0edBfB48 # replace with your own address
 $ export NEXUSFI_UNDERLYING_TOKEN_NAME="NexusFi USD" # replace with your own token name
 $ export NEXUSFI_UNDERLYING_TOKEN_SYMBOL="nfiUSD" # replace with your own token symbol
@@ -223,27 +227,31 @@ $ export NEXUSFI_VAULT_1_NAME="NexusFi RWA Vault" # replace with your own vault 
 $ export NEXUSFI_VAULT_1_SYMBOL="nfiRWA" # replace with your own vault symbol
 $ export NEXUSFI_VAULT_1_MINIMUM_PERCENTAGE_IN_A_LOAN=300000 # 30% (6 decimals)
 $ export NEXUSFI_VAULT_1_MAXIMUM_PERCENTAGE_IN_A_LOAN=600000 # 60% (6 decimals)
-$ export NEXUSFI_VAULT_1_WEIGHT_IN_A_STAKE=50000 # 50% (6 decimals)
+$ export NEXUSFI_VAULT_1_WEIGHT_IN_A_STAKE=350000 # 35% (6 decimals)
+$ export NEXUSFI_VAULT_1_ALLOWANCE_FOR_TIME_LINEAR_LOAN=1000000000000 # 1 million USDC (6 decimals)
+$ export NEXUSFI_VAULT_1_ALLOWANCE_FOR_TIME_POWER_LOAN=1000000000000 # 1 million USDC (6 decimals)
 $ export NEXUSFI_VAULT_2_NAME="NexusFi MMF Vault" # replace with your own vault name
 $ export NEXUSFI_VAULT_2_SYMBOL="nfiMMF" # replace with your own vault symbol
 $ export NEXUSFI_VAULT_2_MINIMUM_PERCENTAGE_IN_A_LOAN=400000 # 40% (6 decimals)
 $ export NEXUSFI_VAULT_2_MAXIMUM_PERCENTAGE_IN_A_LOAN=700000 # 70% (6 decimals)
-$ export NEXUSFI_VAULT_2_WEIGHT_IN_A_STAKE=50000 # 50% (6 decimals)
+$ export NEXUSFI_VAULT_2_WEIGHT_IN_A_STAKE=450000 # 45% (6 decimals)
+$ export NEXUSFI_VAULT_2_ALLOWANCE_FOR_TIME_LINEAR_LOAN=1000000000000 # 1 million USDC (6 decimals)
+$ export NEXUSFI_VAULT_2_ALLOWANCE_FOR_TIME_POWER_LOAN=1000000000000 # 1 million USDC (6 decimals)
 $ export NEXUSFI_TIME_POWER_LOAN_ALLOWANCE=1000000000000000 # 1 billion USDC (6 decimals)
 $ export NEXUSFI_TIME_LINEAR_LOAN_ALLOWANCE=2000000000000000 # 2 billion USDC (6 decimals)
 $ export NEXUSFI_TIME_POWER_LOAN_INTEREST_RATES=1000000000937300000,1000000002732680000,1000000004431820000,1000000006044530000 # 3%, 9%, 15%, 21% APR FIXED18
 $ export NEXUSFI_TIME_LINEAR_LOAN_INTEREST_RATES=951293760,2853881279,4756468798,6659056317 # 3%, 9%, 15%, 21% APR FIXED18
-$ export NEXUSFI_FIXED_TERM_LOCK_PERIOD=365 # days
+$ export NEXUSFI_FIXED_TERM_LOCK_PERIOD=3 # days
 $ export NEXUSFI_FIXED_TERM_STAKE_FEE_RATE=1000 # 0.1%
 $ export NEXUSFI_FIXED_TERM_UNSTAKE_FEE_RATE=1000 # 0.1%
-$ export NEXUSFI_FIXED_TERM_START_FEED_TIME=1759301999 # 2025-10-01 14:59:59 UTC+8
+$ export NEXUSFI_FIXED_TERM_START_FEED_TIME=1774508396 # 2026-03-26 14:59:56
 $ export NEXUSFI_FIXED_TERM_DUST_BALANCE=1000000000 # 1,000 USDC (6 decimals)
 $ export NEXUSFI_FIXED_TERM_MAX_SUPPLY=1000000000000000 # 1 billion underlying tokens (6 decimals)
 $ export NEXUSFI_FIXED_TERM_TOKEN_NAME="NexusFi Fixed Term Token" # replace with your own token name
 $ export NEXUSFI_FIXED_TERM_TOKEN_SYMBOL="nfiFTT" # replace with your own token symbol
 $ export NEXUSFI_OPEN_TERM_STAKE_FEE_RATE=1000 # 0.1%
 $ export NEXUSFI_OPEN_TERM_UNSTAKE_FEE_RATE=1000 # 0.1%
-$ export NEXUSFI_OPEN_TERM_START_FEED_TIME=1759301999 # 2025-10-01 14:59:59 UTC+8
+$ export NEXUSFI_OPEN_TERM_START_FEED_TIME=1774508396 # 2026-03-26 14:59:56
 $ export NEXUSFI_OPEN_TERM_DUST_BALANCE=1000000000 # 1,000 USDC (6 decimals)
 $ export NEXUSFI_OPEN_TERM_MAX_SUPPLY=1000000000000000 # 1 billion underlying tokens (6 decimals)
 $ export NEXUSFI_OPEN_TERM_TOKEN_NAME="NexusFi Open Term Token" # replace with your own token name
@@ -268,97 +276,50 @@ forge script script/DeployContractSuite.s.sol:DeployContractSuite --via-ir --rpc
 If you don't have an etherscan API key, you can visit **[Etherscan](https://etherscan.io/apidashboard)** and get a free one.  
 3. Configure **[.env](https://github.com/mosheng-eng/NexusFi/blob/master/.env)** file.  
 > Note: all contract addresses are proxy addresses (not logic or proxy admin). You can find them in the outputs of deployment script.
-```
-$ export WHITELIST=0x7dE0576EBE59229e145B49370637fAfa9c4fFe69 # replace with your own whitelist proxy address
-$ export BLACKLIST=0x082f2645F4df9dFe3A5979567B7027a8CAb861eD # replace with your own blacklist proxy address
-$ export UNDERLYING_TOKEN=0x1b4A45315089bb5AC1163e5B0Ea885F354D4Fe75 # replace with your own underlying token proxy address
-$ export UNDERLYING_TOKEN_EXCHANGER=0x15335F44ea80755e4C3b1832549CD8cb29E20786 # replace with your own underlying token exchanger proxy address
-$ export VAULT_1=0x2749a9f58840F493ee74AfE25Ba39fFD0E3Be220 # replace with your own vault1 proxy address
-$ export VAULT_2=0x0305890de546BbAC1cB77cB42eE8B0eB77832Ed5 # replace with your own vault2 proxy address
-$ export FIXED_TERM_STAKING=0x50bAfD607BE003009cE4319938D3500a389028aE # replace with your own fixed term staking proxy address
-$ export OPEN_TERM_STAKING=0xe6B9E96DFC2D8B35A958012d0b9B1D37Ccdfd1eE # replace with your own open term staking proxy address
-$ export TIME_POWER_LOAN=0x8Ca01823e81B9b1B92FF1F398dFA1357D72B3aEC # replace with your own time power loan proxy address
-$ export TIME_LINEAR_LOAN=0x1522C047b4f6b356724dEb169B4df11b6A6fF6A3 # replace with your own time linear loan proxy address
-$ export MULTISIG_WALLET=0xf147AbBeecB5f796f077492b36c3149994c8F528 # replace with your own multisig wallet proxy address
-$ export THRESHOLD_WALLET=0xf9dC047C175E028C904f85E660106ce050F5557F # replace with your own threshold wallet proxy address
+```shell
+$ export WHITELIST=0x85FFEaB7650b8a08BD757780b4D2A0b0878408Da # replace with your own whitelist proxy address
+$ export BLACKLIST=0xF41639623C4d0fEa2A01997AC71C05150456B43a # replace with your own blacklist proxy address
+$ export UNDERLYING_TOKEN=0xabD7E811aeE89DB1C130b78f7aC6eB978b2aDA83 # replace with your own underlying token proxy address
+$ export UNDERLYING_TOKEN_EXCHANGER=0x36319D75a32F84CD6dfd7cEFfa0C4Bf315a327c5 # replace with your own underlying token exchanger proxy address
+$ export VAULT_1=0x03C798D8E3C765d42dFcAFc215267Ff6bEbEa5aa # replace with your own vault1 proxy address
+$ export VAULT_2=0x937509401620a0EC70E9A0d6BbE5aaf9aBe524A2 # replace with your own vault2 proxy address
+$ export FIXED_TERM_STAKING=0x9444aD139De6F70661be02Dda5982A19f670fd86 # replace with your own fixed term staking proxy address
+$ export OPEN_TERM_STAKING=0x936Ffb31eB2964ce67c40864CA4838F9dA727293 # replace with your own open term staking proxy address
+$ export TIME_POWER_LOAN=0x47f51EF51B7aa23Ff031898C67Fbb6eCa3609b73 # replace with your own time power loan proxy address
+$ export TIME_LINEAR_LOAN=0x5848aC0b92583292C314Fe1f3A4A78b5de304df5 # replace with your own time linear loan proxy address
+$ export MULTISIG_WALLET=0x036dA3104C47075fe6d7CE2843B510103837b305 # replace with your own multisig wallet proxy address
+$ export THRESHOLD_WALLET=0xb952E1e0FF7869d38eD778717b7A91D97ac89F39 # replace with your own threshold wallet proxy address
+$ export NEXUSFI_BORROWER=0x622F1e8492ffFc31A58b686AbF01ac60598D6303 # replace with your own borrower address
 ```
 4. Run contract dependency script  
 ```
 $ forge script script/ContractDependency.s.sol:ContractDependencyScript --via-ir --rpc-url https://api.zan.top/node/v1/eth/sepolia/YourAPIKey --broadcast --interactives 1 --optimize  
 ```
 5. Following are test contracts already deployed on sepolia network.
-* Whitelist Logic	                      
-    **[0xE878d42EF66fd75DcB12d29fB6C6aD484BEb658b](https://sepolia.etherscan.io/address/0xE878d42EF66fd75DcB12d29fB6C6aD484BEb658b)**
 * Whitelist Proxy	                      
-    **[0x7dE0576EBE59229e145B49370637fAfa9c4fFe69](https://sepolia.etherscan.io/address/0x7dE0576EBE59229e145B49370637fAfa9c4fFe69)**
-* Whitelist Proxy Admin	                      
-    **[0x59781F0fFfeefbe3c8e260D6D6571C3f0981bb78](https://sepolia.etherscan.io/address/0x59781F0fFfeefbe3c8e260D6D6571C3f0981bb78)**
-* Blacklist Logic	                      
-    **[0x34544805d150984711487fFAf66B912E8ed44Fc8](https://sepolia.etherscan.io/address/0x34544805d150984711487fFAf66B912E8ed44Fc8)**
+    **[0x85FFEaB7650b8a08BD757780b4D2A0b0878408Da](https://sepolia.etherscan.io/address/0x85FFEaB7650b8a08BD757780b4D2A0b0878408Da)**
 * Blacklist Proxy	                      
-    **[0x082f2645F4df9dFe3A5979567B7027a8CAb861eD](https://sepolia.etherscan.io/address/0x082f2645F4df9dFe3A5979567B7027a8CAb861eD)**
-* Blacklist Proxy Admin	                      
-    **[0x527D792884a07530e96f33a058921f3c278F250F](https://sepolia.etherscan.io/address/0x527D792884a07530e96f33a058921f3c278F250F)**
-* UnderlyingToken Logic	                      
-    **[0x3BDD9bE1b179De753e3e7056a7af798B26072A6c](https://sepolia.etherscan.io/address/0x3BDD9bE1b179De753e3e7056a7af798B26072A6c)**
+    **[0xF41639623C4d0fEa2A01997AC71C05150456B43a](https://sepolia.etherscan.io/address/0xF41639623C4d0fEa2A01997AC71C05150456B43a)**
 * UnderlyingToken Proxy	                      
-    **[0x1b4A45315089bb5AC1163e5B0Ea885F354D4Fe75](https://sepolia.etherscan.io/address/0x1b4A45315089bb5AC1163e5B0Ea885F354D4Fe75)**
-* UnderlyingToken Proxy Admin	                      
-    **[0xdB05F240e5DB3e3c2F7C72166eb74879CdB77399](https://sepolia.etherscan.io/address/0xdB05F240e5DB3e3c2F7C72166eb74879CdB77399)**
-* UnderlyingTokenExchanger Logic	                      
-    **[0x252f4723a1038158e69FAa4A43A862DFb972B0e8](https://sepolia.etherscan.io/address/0x252f4723a1038158e69FAa4A43A862DFb972B0e8)**
+    **[0xabD7E811aeE89DB1C130b78f7aC6eB978b2aDA83](https://sepolia.etherscan.io/address/0xabD7E811aeE89DB1C130b78f7aC6eB978b2aDA83)**
 * UnderlyingTokenExchanger Proxy	                      
-    **[0x15335F44ea80755e4C3b1832549CD8cb29E20786](https://sepolia.etherscan.io/address/0x15335F44ea80755e4C3b1832549CD8cb29E20786)**
-* UnderlyingTokenExchanger Proxy Admin	                      
-    **[0x5d9Ac2A3e31A8eb0d869e364fF15d87e4D04F169](https://sepolia.etherscan.io/address/0x5d9Ac2A3e31A8eb0d869e364fF15d87e4D04F169)**
-* MultisigWallet Logic	                      
-    **[0xaC1Db75AE83E432747677B0fcE85CAb777C548B4](https://sepolia.etherscan.io/address/0xaC1Db75AE83E432747677B0fcE85CAb777C548B4)**
+    **[0x36319D75a32F84CD6dfd7cEFfa0C4Bf315a327c5](https://sepolia.etherscan.io/address/0x36319D75a32F84CD6dfd7cEFfa0C4Bf315a327c5)**
 * MultisigWallet Proxy	                      
-    **[0xf147AbBeecB5f796f077492b36c3149994c8F528](https://sepolia.etherscan.io/address/0xf147AbBeecB5f796f077492b36c3149994c8F528)**
-* MultisigWallet Proxy Admin	                      
-    **[0x980Fd965033dFb874e5c8A5FBa283bDb04340d5B](https://sepolia.etherscan.io/address/0x980Fd965033dFb874e5c8A5FBa283bDb04340d5B)**
-* ThresholdWallet Logic	                      
-    **[0x551A8e00B7e014939CfB2713F876188E09772548](https://sepolia.etherscan.io/address/0x551A8e00B7e014939CfB2713F876188E09772548)**
+    **[0x036dA3104C47075fe6d7CE2843B510103837b305](https://sepolia.etherscan.io/address/0x036dA3104C47075fe6d7CE2843B510103837b305)**
 * ThresholdWallet Proxy	                      
-    **[0xf9dC047C175E028C904f85E660106ce050F5557F](https://sepolia.etherscan.io/address/0xf9dC047C175E028C904f85E660106ce050F5557F)**
-* ThresholdWallet Proxy Admin	                      
-    **[0xA3c691386567D46bdcC62AC07469c931e759Be61](https://sepolia.etherscan.io/address/0xA3c691386567D46bdcC62AC07469c931e759Be61)**
-* ValueInflationVault1 Logic	                      
-    **[0xA08fB7fbc1a9cA7Afa473225CB97159BEf829391](https://sepolia.etherscan.io/address/0xA08fB7fbc1a9cA7Afa473225CB97159BEf829391)**
-* ValueInflationVault1 Proxy	                      
-    **[0x2749a9f58840F493ee74AfE25Ba39fFD0E3Be220](https://sepolia.etherscan.io/address/0x2749a9f58840F493ee74AfE25Ba39fFD0E3Be220)**
-* ValueInflationVault1 Proxy Admin	                      
-    **[0x1FBcB9e354F61185b9E9E6B25b5040FC750dFE9c](https://sepolia.etherscan.io/address/0x1FBcB9e354F61185b9E9E6B25b5040FC750dFE9c)**
-* ValueInflationVault2 Logic	                      
-    **[0x8bdAD0163E9686D44A5C5E75651627FeBc2F65dF](https://sepolia.etherscan.io/address/0x8bdAD0163E9686D44A5C5E75651627FeBc2F65dF)**
-* ValueInflationVault2 Proxy	                      
-    **[0x0305890de546BbAC1cB77cB42eE8B0eB77832Ed5](https://sepolia.etherscan.io/address/0x0305890de546BbAC1cB77cB42eE8B0eB77832Ed5)**
-* ValueInflationVault2 Proxy Admin	                      
-    **[0x1DD0Dfa917BA26df6d0a36d4C7DD8F42873dc9cB](https://sepolia.etherscan.io/address/0x1DD0Dfa917BA26df6d0a36d4C7DD8F42873dc9cB)**
-* FixedTermStaking Logic	                      
-    **[0x4652D76a09d94ba76aBAD6f9897829Dc8D507b08](https://sepolia.etherscan.io/address/0x4652D76a09d94ba76aBAD6f9897829Dc8D507b08)**
+    **[0xb952E1e0FF7869d38eD778717b7A91D97ac89F39](https://sepolia.etherscan.io/address/0xb952E1e0FF7869d38eD778717b7A91D97ac89F39)**
+* ValueInflationVault(RWA) Proxy	                      
+    **[0x03C798D8E3C765d42dFcAFc215267Ff6bEbEa5aa](https://sepolia.etherscan.io/address/0x03C798D8E3C765d42dFcAFc215267Ff6bEbEa5aa)**
+* ValueInflationVault(MMF) Proxy	                      
+    **[0x937509401620a0EC70E9A0d6BbE5aaf9aBe524A2](https://sepolia.etherscan.io/address/0x937509401620a0EC70E9A0d6BbE5aaf9aBe524A2)**
 * FixedTermStaking Proxy	                      
-    **[0x50bAfD607BE003009cE4319938D3500a389028aE](https://sepolia.etherscan.io/address/0x50bAfD607BE003009cE4319938D3500a389028aE)**
-* FixedTermStaking Proxy Admin	                      
-    **[0x873A53C92B48e933617989949Bf95Bef05492E81](https://sepolia.etherscan.io/address/0x873A53C92B48e933617989949Bf95Bef05492E81)**
-* OpenTermStaking Logic	                      
-    **[0xb4F36e5A1c5ac68faD12aD3c0ad45e535f19650B](https://sepolia.etherscan.io/address/0xb4F36e5A1c5ac68faD12aD3c0ad45e535f19650B)**
+    **[0x9444aD139De6F70661be02Dda5982A19f670fd86](https://sepolia.etherscan.io/address/0x9444aD139De6F70661be02Dda5982A19f670fd86)**
 * OpenTermStaking Proxy	                      
-    **[0xe6B9E96DFC2D8B35A958012d0b9B1D37Ccdfd1eE](https://sepolia.etherscan.io/address/0xe6B9E96DFC2D8B35A958012d0b9B1D37Ccdfd1eE)**
-* OpenTermStaking Proxy Admin	                      
-    **[0xf1f7f3668B660CAFdb9eE912f19B8f5d23f0d77b](https://sepolia.etherscan.io/address/0xf1f7f3668B660CAFdb9eE912f19B8f5d23f0d77b)**
-* TimePowerLoan Logic	                      
-    **[0xCA94E55a2F04B079FAA16fdc27D34AE2B7E8BC0C](https://sepolia.etherscan.io/address/0xCA94E55a2F04B079FAA16fdc27D34AE2B7E8BC0C)**
+    **[0x936Ffb31eB2964ce67c40864CA4838F9dA727293](https://sepolia.etherscan.io/address/0x936Ffb31eB2964ce67c40864CA4838F9dA727293)**
 * TimePowerLoan Proxy	                      
-    **[0x8Ca01823e81B9b1B92FF1F398dFA1357D72B3aEC](https://sepolia.etherscan.io/address/0x8Ca01823e81B9b1B92FF1F398dFA1357D72B3aEC)**
-* TimePowerLoan Proxy Admin	                      
-    **[0xa80ea21D2DbD1229847f43f2aC7216870108084c](https://sepolia.etherscan.io/address/0xa80ea21D2DbD1229847f43f2aC7216870108084c)**
-* TimeLinearLoan Logic	                      
-    **[0x786d5B4bBEE2bA1b1aE7aaBE897e556E315c5725](https://sepolia.etherscan.io/address/0x786d5B4bBEE2bA1b1aE7aaBE897e556E315c5725)**
+    **[0x47f51EF51B7aa23Ff031898C67Fbb6eCa3609b73](https://sepolia.etherscan.io/address/0x47f51EF51B7aa23Ff031898C67Fbb6eCa3609b73)**
 * TimeLinearLoan Proxy	                      
-    **[0x1522C047b4f6b356724dEb169B4df11b6A6fF6A3](https://sepolia.etherscan.io/address/0x1522C047b4f6b356724dEb169B4df11b6A6fF6A3)**
-* TimeLinearLoan Proxy Admin	                      
-    **[0x7707ead2F5f2676aDe81305112EeE55b153C5506](https://sepolia.etherscan.io/address/0x7707ead2F5f2676aDe81305112EeE55b153C5506)**
+    **[0x5848aC0b92583292C314Fe1f3A4A78b5de304df5](https://sepolia.etherscan.io/address/0x5848aC0b92583292C314Fe1f3A4A78b5de304df5)**
 
 #### Main Network
 > Note: the same as test network.
