@@ -105,7 +105,7 @@
 
 You can run this command to **build all contracts**.
 ```shell
-$ forge build
+$ make buildAll
 ```
 
 ### Test

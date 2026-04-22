@@ -25,11 +25,11 @@ contract TimePowerLoanInvariant is Test {
         vm.label(address(_timePowerLoan), "TimePowerLoan");
 
         bytes4[] memory targetSelectors = new bytes4[](10);
-        targetSelectors[0] = TimePowerLoanHandler.unionHandler1.selector;
-        targetSelectors[1] = TimePowerLoanHandler.unionHandler2.selector;
-        targetSelectors[2] = TimePowerLoanHandler.unionHandler3.selector;
-        targetSelectors[3] = TimePowerLoanHandler.unionHandler4.selector;
-        targetSelectors[4] = TimePowerLoanHandler.unionHandler5.selector;
+        targetSelectors[0] = TimePowerLoanHandler.unionHandler.selector;
+        targetSelectors[1] = TimePowerLoanHandler.unionHandler.selector;
+        targetSelectors[2] = TimePowerLoanHandler.unionHandler.selector;
+        targetSelectors[3] = TimePowerLoanHandler.unionHandler.selector;
+        targetSelectors[4] = TimePowerLoanHandler.unionHandler.selector;
         targetSelectors[5] = TimePowerLoanHandler.timeHandler.selector;
         targetSelectors[6] = TimePowerLoanHandler.repayHandler.selector;
         targetSelectors[7] = TimePowerLoanHandler.defaultHandler.selector;

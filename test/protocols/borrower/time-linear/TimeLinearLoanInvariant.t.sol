@@ -24,11 +24,11 @@ contract TimeLinearLoanInvariant is Test {
         vm.label(address(_timeLinearLoan), "TimeLinearLoan");
 
         bytes4[] memory targetSelectors = new bytes4[](10);
-        targetSelectors[0] = TimeLinearLoanHandler.unionHandler1.selector;
-        targetSelectors[1] = TimeLinearLoanHandler.unionHandler2.selector;
-        targetSelectors[2] = TimeLinearLoanHandler.unionHandler3.selector;
-        targetSelectors[3] = TimeLinearLoanHandler.unionHandler4.selector;
-        targetSelectors[4] = TimeLinearLoanHandler.unionHandler5.selector;
+        targetSelectors[0] = TimeLinearLoanHandler.unionHandler.selector;
+        targetSelectors[1] = TimeLinearLoanHandler.unionHandler.selector;
+        targetSelectors[2] = TimeLinearLoanHandler.unionHandler.selector;
+        targetSelectors[3] = TimeLinearLoanHandler.unionHandler.selector;
+        targetSelectors[4] = TimeLinearLoanHandler.unionHandler.selector;
         targetSelectors[5] = TimeLinearLoanHandler.timeHandler.selector;
         targetSelectors[6] = TimeLinearLoanHandler.repayHandler.selector;
         targetSelectors[7] = TimeLinearLoanHandler.defaultHandler.selector;
