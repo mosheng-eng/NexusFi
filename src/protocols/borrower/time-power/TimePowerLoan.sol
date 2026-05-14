@@ -338,22 +338,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
          */
         TimePowerLoanDefs.TrustedVault[] memory trustedVaults_
     ) external initializer {
-        _trustedVaults.initialize(
-            _vaultToIndex, _secondInterestRates, _accumulatedInterestRates, addrs_, secondInterestRates_, trustedVaults_
-        );
-
-        __AccessControl_init();
-        __ReentrancyGuard_init();
-        __Pausable_init();
-
-        _whitelist = addrs_[1];
-        _blacklist = addrs_[2];
-        _loanToken = addrs_[3];
-        _loanTokenDecimals = IERC20Metadata(_loanToken).decimals();
-        _lastAccumulateInterestTime = uint64(block.timestamp);
-
-        _grantRole(Roles.OWNER_ROLE, addrs_[0]);
-        _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
+        __TimePowerLoan_init(addrs_, secondInterestRates_, trustedVaults_);
     }
 
     /// @dev join as a trusted borrower
@@ -762,6 +747,41 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
     function getTotalTranches() public view virtual returns (uint256) {
         return _allTranches.length;
+    }
+
+    function __TimePowerLoan_init(
+        /**
+         * 0: address owner_,
+         * 1: address whitelist_,
+         * 2: address blacklist_,
+         * 3: address loanToken_,
+         */
+        address[4] memory addrs_,
+        /**
+         * annual interest rates sorted in ascending order
+         */
+        uint64[] memory secondInterestRates_,
+        /**
+         * vaults that are allowed to lend to borrowers
+         */
+        TimePowerLoanDefs.TrustedVault[] memory trustedVaults_
+    ) internal onlyInitializing {
+        _trustedVaults.initialize(
+            _vaultToIndex, _secondInterestRates, _accumulatedInterestRates, addrs_, secondInterestRates_, trustedVaults_
+        );
+
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+
+        _whitelist = addrs_[1];
+        _blacklist = addrs_[2];
+        _loanToken = addrs_[3];
+        _loanTokenDecimals = IERC20Metadata(_loanToken).decimals();
+        _lastAccumulateInterestTime = uint64(block.timestamp);
+
+        _grantRole(Roles.OWNER_ROLE, addrs_[0]);
+        _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
     /// @dev calculates power(x,n) and x is in fixed point with given base
