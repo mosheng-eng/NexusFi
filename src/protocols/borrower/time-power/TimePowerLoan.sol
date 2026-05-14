@@ -361,6 +361,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @notice operator should agree or disagree (don't do anything) the join request later
     function join()
         public
+        virtual
         onlyInitialized
         whenNotPaused
         nonReentrant
@@ -377,6 +378,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @notice if operator agrees, ceiling limit should be set to a value greater than 0
     function agree(address borrower_, uint128 newCeilingLimit_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -393,6 +395,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return loanIndex_ the loan number of the applied loan (bytes.concat(borrower address, loan index))
     function request(uint128 amount_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -411,6 +414,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param interestRateIndex_ the interest rate index to be applied
     function approve(uint64 loanIndex_, uint128 ceilingLimit_, uint64 interestRateIndex_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -429,6 +433,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return debtIndex_ the index of the debt
     function borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -518,6 +523,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return isAllRepaid_ whether all debt is repaid
     function repay(uint64 debtIndex_, uint128 amount_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -537,6 +543,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return remainingDebt_ the remaining debt amount after default
     function defaulted(address borrower_, uint64 debtIndex_, uint64 defaultedInterestRateIndex_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -564,6 +571,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return remainingDebt_ the remaining debt amount after recovery
     function recovery(address borrower_, uint64 debtIndex_, uint128 amount_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -582,6 +590,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return lossDebt_ the loss debt amount
     function close(address borrower_, uint64 debtIndex_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -627,6 +636,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param newCeilingLimit_ the new ceiling limit to be applied
     function updateBorrowerLimit(address borrower_, uint128 newCeilingLimit_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -640,6 +650,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
     function updateLoanLimit(uint64 loanIndex_, uint128 newCeilingLimit_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -655,6 +666,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @param newInterestRateIndex_ the new interest rate index to be applied
     function updateLoanInterestRate(uint64 loanIndex_, uint64 newInterestRateIndex_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -673,6 +685,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @notice if attempting to remove a trusted vault, use update with maximumPercentage set to 0
     function updateTrustedVaults(TimePowerLoanDefs.TrustedVault memory trustedVault_, uint256 vaultIndex_)
         public
+        virtual
         onlyInitialized
         nonReentrant
         whenNotPaused
@@ -683,7 +696,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     }
 
     /// @dev accumulate interest for all loans
-    function pile() public {
+    function pile() public virtual {
         _accumulateInterest();
     }
 
@@ -692,6 +705,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @return totalDebt_ the total debt amount of the borrower
     function totalDebtOfBorrower(address borrower_)
         public
+        virtual
         onlyTrustedBorrower(borrower_)
         returns (uint256 totalDebt_)
     {
@@ -710,7 +724,13 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     /// @dev get total debt of a vault
     /// @param vault_ the address of the vault
     /// @return totalDebt_ the total debt amount of the vault
-    function totalDebtOfVault(address vault_) public view onlyTrustedVault(vault_) returns (uint256 totalDebt_) {
+    function totalDebtOfVault(address vault_)
+        public
+        view
+        virtual
+        onlyTrustedVault(vault_)
+        returns (uint256 totalDebt_)
+    {
         uint256[] memory accumulatedInterestRates = _dryrunAccumulatedInterest();
         uint64[] memory vaultTranches = _tranchesInfoGroupedByVault[_vaultToIndex[vault_]];
         for (uint256 i = 0; i < vaultTranches.length; i++) {
@@ -724,23 +744,23 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         );
     }
 
-    function getTotalTrustedBorrowers() public view returns (uint256) {
+    function getTotalTrustedBorrowers() public view virtual returns (uint256) {
         return _trustedBorrowers.length;
     }
 
-    function getTotalLoans() public view returns (uint256) {
+    function getTotalLoans() public view virtual returns (uint256) {
         return _allLoans.length;
     }
 
-    function getTotalDebts() public view returns (uint256) {
+    function getTotalDebts() public view virtual returns (uint256) {
         return _allDebts.length;
     }
 
-    function getTotalTrustedVaults() public view returns (uint256) {
+    function getTotalTrustedVaults() public view virtual returns (uint256) {
         return _trustedVaults.length;
     }
 
-    function getTotalTranches() public view returns (uint256) {
+    function getTotalTranches() public view virtual returns (uint256) {
         return _allTranches.length;
     }
 
