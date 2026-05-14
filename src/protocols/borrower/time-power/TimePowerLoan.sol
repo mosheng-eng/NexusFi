@@ -337,7 +337,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
          * vaults that are allowed to lend to borrowers
          */
         TimePowerLoanDefs.TrustedVault[] memory trustedVaults_
-    ) external initializer {
+    ) external virtual initializer {
         __TimePowerLoan_init(addrs_, secondInterestRates_, trustedVaults_);
     }
 

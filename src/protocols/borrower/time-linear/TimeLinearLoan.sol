@@ -330,7 +330,7 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
          * vaults that are allowed to lend to borrowers
          */
         TimeLinearLoanDefs.TrustedVault[] memory trustedVaults_
-    ) external initializer {
+    ) external virtual initializer {
         __TimeLinearLoan_init(addrs_, secondInterestRates_, trustedVaults_);
     }
 
