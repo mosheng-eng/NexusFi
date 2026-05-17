@@ -32,5 +32,5 @@ library Errors {
     /// @param owner The owner of the token.
     /// @param spender The address trying to spend the token.
     /// @param tokenId The ID of the token being spent.
-    error InsufficientAllowance(address owner, address spender, uint256 tokenId);
+    error NotApproved(address owner, address spender, uint256 tokenId);
 }
