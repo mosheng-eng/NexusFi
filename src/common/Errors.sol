@@ -31,6 +31,7 @@ library Errors {
     /// @dev Reverted when owner does not approve the spender for a token.
     /// @param owner The owner of the token.
     /// @param spender The address trying to spend the token.
+    /// @param token The address of the token contract.
     /// @param tokenId The ID of the token being spent.
-    error NotApproved(address owner, address spender, uint256 tokenId);
+    error NotApproved(address owner, address spender, address token, uint256 tokenId);
 }
