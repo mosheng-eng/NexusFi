@@ -92,7 +92,7 @@ contract DeployContractSuite is Script {
     ValueInflationVault internal _vault1;
     ValueInflationVault internal _vault2;
 
-    function run() external {
+    function run() external virtual {
         _owner = vm.envAddress("NEXUSFI_OWNER");
         vm.label(_owner, "owner");
         _underlyingTokenName = vm.envString("NEXUSFI_UNDERLYING_TOKEN_NAME");
