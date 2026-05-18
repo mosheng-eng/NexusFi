@@ -86,21 +86,22 @@ library TimePowerLoanCore {
 
     function join(
         TimePowerLoanDefs.TrustedBorrower[] storage trustedBorrowers_,
-        mapping(address => uint64) storage borrowerToIndex_
+        mapping(address => uint64) storage borrowerToIndex_,
+        address borrower_
     ) public returns (uint64 borrowerIndex_) {
         for (uint256 i = 0; i < trustedBorrowers_.length; i++) {
-            if (trustedBorrowers_[i].borrower == msg.sender) {
-                revert TimePowerLoanDefs.BorrowerAlreadyExists(msg.sender, uint64(i));
+            if (trustedBorrowers_[i].borrower == borrower_) {
+                revert TimePowerLoanDefs.BorrowerAlreadyExists(borrower_, uint64(i));
             }
         }
 
         trustedBorrowers_.push(
-            TimePowerLoanDefs.TrustedBorrower({borrower: msg.sender, ceilingLimit: 0, remainingLimit: 0})
+            TimePowerLoanDefs.TrustedBorrower({borrower: borrower_, ceilingLimit: 0, remainingLimit: 0})
         );
         borrowerIndex_ = uint64(trustedBorrowers_.length - 1);
-        borrowerToIndex_[msg.sender] = borrowerIndex_;
+        borrowerToIndex_[borrower_] = borrowerIndex_;
 
-        emit TimePowerLoanDefs.TrustedBorrowerAdded(msg.sender, borrowerIndex_);
+        emit TimePowerLoanDefs.TrustedBorrowerAdded(borrower_, borrowerIndex_);
     }
 
     function agree(
@@ -155,9 +156,10 @@ library TimePowerLoanCore {
         mapping(address => uint64) storage borrowerToIndex_,
         TimePowerLoanDefs.LoanInfo[] storage allLoans_,
         mapping(uint64 => uint64[]) storage loansInfoGroupedByBorrower_,
-        uint128 amount_
+        uint128 amount_,
+        address borrower_
     ) public returns (uint64 loanIndex_) {
-        uint64 borrowerIndex = borrowerToIndex_[msg.sender];
+        uint64 borrowerIndex = borrowerToIndex_[borrower_];
         uint128 borrowerRemainingLimit = trustedBorrowers_[borrowerIndex].remainingLimit;
 
         if (amount_ > borrowerRemainingLimit) {
@@ -181,7 +183,7 @@ library TimePowerLoanCore {
 
         loansInfoGroupedByBorrower_[borrowerIndex].push(loanIndex_);
 
-        emit TimePowerLoanDefs.ReceiveLoanRequest(msg.sender, loanIndex_, amount_);
+        emit TimePowerLoanDefs.ReceiveLoanRequest(borrower_, loanIndex_, amount_);
     }
 
     function approve(

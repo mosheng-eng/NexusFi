@@ -354,7 +354,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyWhitelisted(msg.sender)
         returns (uint64 borrowerIndex_)
     {
-        borrowerIndex_ = _trustedBorrowers.join(_borrowerToIndex);
+        borrowerIndex_ = _join(msg.sender);
     }
 
     /// @dev agree a borrower join request
@@ -372,7 +372,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyNotBlacklisted(borrower_)
         onlyTrustedBorrower(borrower_)
     {
-        _trustedBorrowers.agree(_borrowerToIndex, borrower_, newCeilingLimit_);
+        _agree(borrower_, newCeilingLimit_);
     }
 
     /// @dev request for a loan
@@ -390,7 +390,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyValidBorrower(_borrowerToIndex[msg.sender])
         returns (uint64 loanIndex_)
     {
-        loanIndex_ = _trustedBorrowers.request(_borrowerToIndex, _allLoans, _loansInfoGroupedByBorrower, amount_);
+        loanIndex_ = _requrest(amount_, msg.sender);
     }
 
     /// @dev approve a loan
@@ -407,7 +407,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyPendingLoan(loanIndex_)
         onlyValidInterestRate(interestRateIndex_)
     {
-        _trustedBorrowers.approve(_allLoans, loanIndex_, ceilingLimit_, interestRateIndex_);
+        _approve(loanIndex_, ceilingLimit_, interestRateIndex_);
     }
 
     /// @dev borrow a loan
@@ -747,6 +747,23 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
 
     function getTotalTranches() public view virtual returns (uint256) {
         return _allTranches.length;
+    }
+
+    function _join(address borrower_) internal returns (uint64 borrowerIndex_) {
+        borrowerIndex_ = _trustedBorrowers.join(_borrowerToIndex, borrower_);
+    }
+
+    function _agree(address borrower_, uint128 newCeilingLimit_) internal {
+        _trustedBorrowers.agree(_borrowerToIndex, borrower_, newCeilingLimit_);
+    }
+
+    function _requrest(uint128 amount_, address borrower_) internal returns (uint64 loanIndex_) {
+        loanIndex_ =
+            _trustedBorrowers.request(_borrowerToIndex, _allLoans, _loansInfoGroupedByBorrower, amount_, borrower_);
+    }
+
+    function _approve(uint64 loanIndex_, uint128 ceilingLimit_, uint64 interestRateIndex_) internal {
+        _trustedBorrowers.approve(_allLoans, loanIndex_, ceilingLimit_, interestRateIndex_);
     }
 
     function __TimePowerLoan_init(
