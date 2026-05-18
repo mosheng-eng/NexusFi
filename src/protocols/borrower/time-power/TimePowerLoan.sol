@@ -390,7 +390,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyValidBorrower(_borrowerToIndex[msg.sender])
         returns (uint64 loanIndex_)
     {
-        loanIndex_ = _requrest(amount_, msg.sender);
+        loanIndex_ = _request(amount_, msg.sender);
     }
 
     /// @dev approve a loan
@@ -757,7 +757,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _trustedBorrowers.agree(_borrowerToIndex, borrower_, newCeilingLimit_);
     }
 
-    function _requrest(uint128 amount_, address borrower_) internal returns (uint64 loanIndex_) {
+    function _request(uint128 amount_, address borrower_) internal returns (uint64 loanIndex_) {
         loanIndex_ =
             _trustedBorrowers.request(_borrowerToIndex, _allLoans, _loansInfoGroupedByBorrower, amount_, borrower_);
     }
