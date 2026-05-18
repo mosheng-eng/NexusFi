@@ -5,8 +5,8 @@ pragma solidity ^0.8.24;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {Errors} from "src/common/Errors.sol";
-import {TimePowerLoanDefs} from "src/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {TimePowerLoanDefs} from "@nexusfi/contracts/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
 
 library TimePowerLoanLibs {
     using Math for uint256;

@@ -6,18 +6,18 @@ import {Script} from "forge-std/Script.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-import {Roles} from "src/common/Roles.sol";
-import {Whitelist} from "src/whitelist/Whitelist.sol";
-import {Blacklist} from "src/blacklist/Blacklist.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
-import {ValueInflationVault} from "src/vault/ValueInflationVault.sol";
-import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
-import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
-import {TimePowerLoan} from "src/protocols/borrower/time-power/TimePowerLoan.sol";
-import {TimeLinearLoan} from "src/protocols/borrower/time-linear/TimeLinearLoan.sol";
-import {MultisigWallet} from "src/wallet/multisig/MultisigWallet.sol";
-import {ThresholdWallet} from "src/wallet/threshold/ThresholdWallet.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Whitelist} from "@nexusfi/contracts/whitelist/Whitelist.sol";
+import {Blacklist} from "@nexusfi/contracts/blacklist/Blacklist.sol";
+import {UnderlyingToken} from "@nexusfi/contracts/underlying/UnderlyingToken.sol";
+import {UnderlyingTokenExchanger} from "@nexusfi/contracts/underlying/UnderlyingTokenExchanger.sol";
+import {ValueInflationVault} from "@nexusfi/contracts/vault/ValueInflationVault.sol";
+import {FixedTermStaking} from "@nexusfi/contracts/protocols/lender/fixed-term/FixedTermStaking.sol";
+import {OpenTermStaking} from "@nexusfi/contracts/protocols/lender/open-term/OpenTermStaking.sol";
+import {TimePowerLoan} from "@nexusfi/contracts/protocols/borrower/time-power/TimePowerLoan.sol";
+import {TimeLinearLoan} from "@nexusfi/contracts/protocols/borrower/time-linear/TimeLinearLoan.sol";
+import {MultisigWallet} from "@nexusfi/contracts/wallet/multisig/MultisigWallet.sol";
+import {ThresholdWallet} from "@nexusfi/contracts/wallet/threshold/ThresholdWallet.sol";
 
 contract ContractDependencyScript is Script {
     address owner_ = vm.envAddress("NEXUSFI_OWNER");

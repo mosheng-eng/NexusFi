@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.24;
 
-import {Roles} from "../../../common/Roles.sol";
-import {Errors} from "../../../common/Errors.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
 
-import {BLS} from "../../utils/BLS.sol";
+import {BLS} from "@nexusfi/contracts/wallet/utils/BLS.sol";
 
 library MultisigWalletLibs {
     using BLS for BLS.G1Point;

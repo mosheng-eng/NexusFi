@@ -5,9 +5,9 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {Errors} from "src/common/Errors.sol";
-import {Roles} from "src/common/Roles.sol";
+import {IWhitelist} from "@nexusfi/contracts/whitelist/IWhitelist.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
 
 /// @title Whitelist
 /// @author Mr.Silent

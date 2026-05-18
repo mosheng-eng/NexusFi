@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {BLS} from "./BLS.sol";
+import {BLS} from "@nexusfi/contracts/wallet/utils/BLS.sol";
 
 /// @title BLSTool
 /// @author Mr.Silent

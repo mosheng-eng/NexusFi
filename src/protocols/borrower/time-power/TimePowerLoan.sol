@@ -11,13 +11,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {TimePowerLoanCore} from "src/protocols/borrower/time-power/utils/TimePowerLoanCore.sol";
-import {TimePowerLoanLibs} from "src/protocols/borrower/time-power/utils/TimePowerLoanLibs.sol";
-import {TimePowerLoanDefs} from "src/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
-import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {IBlacklist} from "src/blacklist/IBlacklist.sol";
-import {Roles} from "src/common/Roles.sol";
-import {Errors} from "src/common/Errors.sol";
+import {TimePowerLoanCore} from "@nexusfi/contracts/protocols/borrower/time-power/utils/TimePowerLoanCore.sol";
+import {TimePowerLoanLibs} from "@nexusfi/contracts/protocols/borrower/time-power/utils/TimePowerLoanLibs.sol";
+import {TimePowerLoanDefs} from "@nexusfi/contracts/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
+import {IWhitelist} from "@nexusfi/contracts/whitelist/IWhitelist.sol";
+import {IBlacklist} from "@nexusfi/contracts/blacklist/IBlacklist.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
 
 contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable {
     using Math for uint256;

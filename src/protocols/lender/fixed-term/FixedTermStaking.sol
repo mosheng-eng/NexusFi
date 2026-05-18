@@ -7,12 +7,12 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Arrays} from "@openzeppelin/contracts/utils/Arrays.sol";
 
-import {Roles} from "src/common/Roles.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
-import {FixedTermToken} from "src/protocols/lender/fixed-term/FixedTermToken.sol";
-import {FixedTermStakingCore} from "src/protocols/lender/fixed-term/utils/FixedTermStakingCore.sol";
-import {FixedTermStakingLibs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
-import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {UnderlyingToken} from "@nexusfi/contracts/underlying/UnderlyingToken.sol";
+import {FixedTermToken} from "@nexusfi/contracts/protocols/lender/fixed-term/FixedTermToken.sol";
+import {FixedTermStakingCore} from "@nexusfi/contracts/protocols/lender/fixed-term/utils/FixedTermStakingCore.sol";
+import {FixedTermStakingLibs} from "@nexusfi/contracts/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
+import {FixedTermStakingDefs} from "@nexusfi/contracts/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
 //import {console} from "forge-std/Test.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";

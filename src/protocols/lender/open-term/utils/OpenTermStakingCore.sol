@@ -6,11 +6,11 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {Errors} from "src/common/Errors.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
-import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
-import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {UnderlyingToken} from "@nexusfi/contracts/underlying/UnderlyingToken.sol";
+import {UnderlyingTokenExchanger} from "@nexusfi/contracts/underlying/UnderlyingTokenExchanger.sol";
+import {OpenTermStakingDefs} from "@nexusfi/contracts/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
+import {OpenTermStakingLibs} from "@nexusfi/contracts/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
 
 library OpenTermStakingCore {
     using OpenTermStakingLibs for uint64;

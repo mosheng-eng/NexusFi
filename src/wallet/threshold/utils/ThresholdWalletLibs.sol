@@ -1,8 +1,8 @@
-// SPDX-Licensed-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.24;
 
-import {BLS} from "../../utils/BLS.sol";
+import {BLS} from "@nexusfi/contracts/wallet/utils/BLS.sol";
 
 library ThresholdWalletLibs {
     using BLS for BLS.G1Point;

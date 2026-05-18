@@ -5,9 +5,9 @@ pragma solidity ^0.8.24;
 import {Arrays} from "@openzeppelin/contracts/utils/Arrays.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
-import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
+import {IWhitelist} from "@nexusfi/contracts/whitelist/IWhitelist.sol";
+import {UnderlyingTokenExchanger} from "@nexusfi/contracts/underlying/UnderlyingTokenExchanger.sol";
+import {FixedTermStakingDefs} from "@nexusfi/contracts/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
 //import {console} from "forge-std/Test.sol";
 

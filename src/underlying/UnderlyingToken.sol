@@ -8,8 +8,8 @@ import {ERC20BurnableUpgradeable} from
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 
-import {Roles} from "src/common/Roles.sol";
-import {Errors} from "src/common/Errors.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
 
 /// @title UnderlyingToken
 /// @author Mr.Silent

@@ -7,11 +7,11 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import {Roles} from "src/common/Roles.sol";
-import {OpenTermToken} from "src/protocols/lender/open-term/OpenTermToken.sol";
-import {OpenTermStakingCore} from "src/protocols/lender/open-term/utils/OpenTermStakingCore.sol";
-import {OpenTermStakingLibs} from "src/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
-import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {OpenTermToken} from "@nexusfi/contracts/protocols/lender/open-term/OpenTermToken.sol";
+import {OpenTermStakingCore} from "@nexusfi/contracts/protocols/lender/open-term/utils/OpenTermStakingCore.sol";
+import {OpenTermStakingLibs} from "@nexusfi/contracts/protocols/lender/open-term/utils/OpenTermStakingLibs.sol";
+import {OpenTermStakingDefs} from "@nexusfi/contracts/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
 
 contract OpenTermStaking is
     Initializable,

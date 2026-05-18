@@ -2,8 +2,7 @@
 
 pragma solidity ^0.8.24;
 
-import {BLSHelper} from "./BLSHelper.sol";
-import {console} from "forge-std/console.sol";
+import {BLSHelper} from "@nexusfi/contracts/wallet/utils/BLSHelper.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title BLS library

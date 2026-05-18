@@ -8,11 +8,11 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {Errors} from "src/common/Errors.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
-import {FixedTermStakingLibs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
-import {FixedTermStakingDefs} from "src/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {UnderlyingToken} from "@nexusfi/contracts/underlying/UnderlyingToken.sol";
+import {UnderlyingTokenExchanger} from "@nexusfi/contracts/underlying/UnderlyingTokenExchanger.sol";
+import {FixedTermStakingLibs} from "@nexusfi/contracts/protocols/lender/fixed-term/utils/FixedTermStakingLibs.sol";
+import {FixedTermStakingDefs} from "@nexusfi/contracts/protocols/lender/fixed-term/utils/FixedTermStakingDefs.sol";
 
 //import {console} from "forge-std/Test.sol";
 

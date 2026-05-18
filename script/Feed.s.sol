@@ -4,8 +4,8 @@ pragma solidity ^0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
-import {FixedTermStaking} from "src/protocols/lender/fixed-term/FixedTermStaking.sol";
-import {OpenTermStaking} from "src/protocols/lender/open-term/OpenTermStaking.sol";
+import {FixedTermStaking} from "@nexusfi/contracts/protocols/lender/fixed-term/FixedTermStaking.sol";
+import {OpenTermStaking} from "@nexusfi/contracts/protocols/lender/open-term/OpenTermStaking.sol";
 
 contract Feed is Script {
     FixedTermStaking internal _fixedTermStaking;

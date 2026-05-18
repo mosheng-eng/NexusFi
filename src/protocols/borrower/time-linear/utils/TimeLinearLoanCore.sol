@@ -7,9 +7,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {Errors} from "src/common/Errors.sol";
-import {TimeLinearLoanLibs} from "src/protocols/borrower/time-linear/utils/TimeLinearLoanLibs.sol";
-import {TimeLinearLoanDefs} from "src/protocols/borrower/time-linear/utils/TimeLinearLoanDefs.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {TimeLinearLoanLibs} from "@nexusfi/contracts/protocols/borrower/time-linear/utils/TimeLinearLoanLibs.sol";
+import {TimeLinearLoanDefs} from "@nexusfi/contracts/protocols/borrower/time-linear/utils/TimeLinearLoanDefs.sol";
 
 library TimeLinearLoanCore {
     using Math for uint256;

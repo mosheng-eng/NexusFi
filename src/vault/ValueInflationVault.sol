@@ -10,9 +10,9 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
-import {Roles} from "src/common/Roles.sol";
-import {Errors} from "src/common/Errors.sol";
-import {IVaultBorrower} from "src/vault/IVaultBorrower.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {IVaultBorrower} from "@nexusfi/contracts/vault/IVaultBorrower.sol";
 
 contract ValueInflationVault is
     Initializable,

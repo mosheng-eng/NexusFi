@@ -4,9 +4,9 @@ pragma solidity ^0.8.24;
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {UnderlyingTokenExchanger} from "src/underlying/UnderlyingTokenExchanger.sol";
-import {OpenTermStakingDefs} from "src/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
+import {IWhitelist} from "@nexusfi/contracts/whitelist/IWhitelist.sol";
+import {UnderlyingTokenExchanger} from "@nexusfi/contracts/underlying/UnderlyingTokenExchanger.sol";
+import {OpenTermStakingDefs} from "@nexusfi/contracts/protocols/lender/open-term/utils/OpenTermStakingDefs.sol";
 
 library OpenTermStakingLibs {
     function addNewAssetIntoBasket(

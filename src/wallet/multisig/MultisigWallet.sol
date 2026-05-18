@@ -8,14 +8,14 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Roles} from "../../common/Roles.sol";
-import {Errors} from "../../common/Errors.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
 
-import {MultisigWalletLibs} from "./utils/MultisigWalletLibs.sol";
-import {MultisigWalletPKOnG1} from "./utils/MultisigWalletPKOnG1.sol";
-import {MultisigWalletPKOnG2} from "./utils/MultisigWalletPKOnG2.sol";
+import {MultisigWalletLibs} from "@nexusfi/contracts/wallet/multisig/utils/MultisigWalletLibs.sol";
+import {MultisigWalletPKOnG1} from "@nexusfi/contracts/wallet/multisig/utils/MultisigWalletPKOnG1.sol";
+import {MultisigWalletPKOnG2} from "@nexusfi/contracts/wallet/multisig/utils/MultisigWalletPKOnG2.sol";
 
-import {BLS} from "../utils/BLS.sol";
+import {BLS} from "@nexusfi/contracts/wallet/utils/BLS.sol";
 
 contract MultisigWallet is
     Initializable,

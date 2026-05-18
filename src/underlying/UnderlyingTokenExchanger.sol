@@ -9,11 +9,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {Errors} from "src/common/Errors.sol";
-import {Roles} from "src/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
 
-import {IWhitelist} from "src/whitelist/IWhitelist.sol";
-import {UnderlyingToken} from "src/underlying/UnderlyingToken.sol";
+import {IWhitelist} from "@nexusfi/contracts/whitelist/IWhitelist.sol";
+import {UnderlyingToken} from "@nexusfi/contracts/underlying/UnderlyingToken.sol";
 
 /// @title UnderlyingTokenExchanger
 /// @author Mr.Silent

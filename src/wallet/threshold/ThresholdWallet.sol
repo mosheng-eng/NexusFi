@@ -8,13 +8,13 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {Roles} from "../../common/Roles.sol";
-import {Errors} from "../../common/Errors.sol";
+import {Roles} from "@nexusfi/contracts/common/Roles.sol";
+import {Errors} from "@nexusfi/contracts/common/Errors.sol";
 
-import {BLS} from "../utils/BLS.sol";
-import {ThresholdWalletLibs} from "./utils/ThresholdWalletLibs.sol";
-import {ThresholdWalletPKOnG1} from "./utils/ThresholdWalletPKOnG1.sol";
-import {ThresholdWalletPKOnG2} from "./utils/ThresholdWalletPKOnG2.sol";
+import {BLS} from "@nexusfi/contracts/wallet/utils/BLS.sol";
+import {ThresholdWalletLibs} from "@nexusfi/contracts/wallet/threshold/utils/ThresholdWalletLibs.sol";
+import {ThresholdWalletPKOnG1} from "@nexusfi/contracts/wallet/threshold/utils/ThresholdWalletPKOnG1.sol";
+import {ThresholdWalletPKOnG2} from "@nexusfi/contracts/wallet/threshold/utils/ThresholdWalletPKOnG2.sol";
 
 contract ThresholdWallet is
     Initializable,
