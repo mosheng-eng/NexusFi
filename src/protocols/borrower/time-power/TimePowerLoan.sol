@@ -428,78 +428,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyLoanOwner(loanIndex_, msg.sender)
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
-        if (maturityTime_ <= uint64(block.timestamp)) {
-            revert TimePowerLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
-        }
-
-        _accumulateInterest();
-
-        TimePowerLoanDefs.LoanInfo memory loan = _allLoans[loanIndex_];
-
-        if (amount_ > loan.remainingLimit) {
-            revert TimePowerLoanDefs.BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
-        }
-
-        (uint256[] memory trancheAmounts, uint256 availableAmount) = _trustedVaults.prepareFunds(_loanToken, amount_);
-
-        isAllSatisfied_ = availableAmount == uint256(amount_);
-
-        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
-        uint128 normalizedPrincipal = 0;
-
-        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
-            if (trancheAmounts[i] == 0) {
-                continue;
-            }
-
-            uint256 normalizedPrincipalForTranche =
-                trancheAmounts[i].mulDiv(TimePowerLoanDefs.FIXED18, accumulatedInterestRate, Math.Rounding.Ceil);
-
-            normalizedPrincipal += uint128(normalizedPrincipalForTranche);
-
-            _allTranches.push(
-                TimePowerLoanDefs.TrancheInfo({
-                    vaultIndex: uint64(i),
-                    debtIndex: uint64(_allDebts.length),
-                    loanIndex: loanIndex_,
-                    borrowerIndex: loan.borrowerIndex,
-                    normalizedPrincipal: uint128(normalizedPrincipalForTranche)
-                })
-            );
-
-            uint64 trancheIndex = uint64(_allTranches.length - 1);
-
-            _tranchesInfoGroupedByDebt[uint64(_allDebts.length)].push(trancheIndex);
-            _tranchesInfoGroupedByLoan[loanIndex_].push(trancheIndex);
-            _tranchesInfoGroupedByBorrower[loan.borrowerIndex].push(trancheIndex);
-            _tranchesInfoGroupedByVault[uint64(i)].push(trancheIndex);
-        }
-
-        loan.remainingLimit -= uint128(availableAmount);
-
-        loan.normalizedPrincipal += normalizedPrincipal;
-
-        _allLoans[loanIndex_] = loan;
-
-        _allDebts.push(
-            TimePowerLoanDefs.DebtInfo({
-                startTime: uint64(block.timestamp),
-                maturityTime: maturityTime_,
-                principal: uint128(availableAmount),
-                normalizedPrincipal: normalizedPrincipal,
-                loanIndex: loanIndex_,
-                status: TimePowerLoanDefs.DebtStatus.ACTIVE
-            })
-        );
-
-        debtIndex_ = uint64(_allDebts.length - 1);
-
-        _debtsInfoGroupedByLoan[loanIndex_].push(debtIndex_);
-        _debtsInfoGroupedByBorrower[loan.borrowerIndex].push(debtIndex_);
-
-        IERC20(_loanToken).safeTransfer(msg.sender, availableAmount);
-
-        emit TimePowerLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
+        (isAllSatisfied_, debtIndex_) = _borrow(loanIndex_, amount_, maturityTime_);
     }
 
     /// @dev repay a loan
@@ -870,6 +799,84 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         } else {
             accumulatedInterestRates_ = _accumulatedInterestRates;
         }
+    }
+
+    function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
+        internal
+        returns (bool isAllSatisfied_, uint64 debtIndex_)
+    {
+        if (maturityTime_ <= uint64(block.timestamp)) {
+            revert TimePowerLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
+        }
+
+        _accumulateInterest();
+
+        TimePowerLoanDefs.LoanInfo memory loan = _allLoans[loanIndex_];
+
+        if (amount_ > loan.remainingLimit) {
+            revert TimePowerLoanDefs.BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
+        }
+
+        (uint256[] memory trancheAmounts, uint256 availableAmount) = _trustedVaults.prepareFunds(_loanToken, amount_);
+
+        isAllSatisfied_ = availableAmount == uint256(amount_);
+
+        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
+        uint128 normalizedPrincipal = 0;
+
+        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
+            if (trancheAmounts[i] == 0) {
+                continue;
+            }
+
+            uint256 normalizedPrincipalForTranche =
+                trancheAmounts[i].mulDiv(TimePowerLoanDefs.FIXED18, accumulatedInterestRate, Math.Rounding.Ceil);
+
+            normalizedPrincipal += uint128(normalizedPrincipalForTranche);
+
+            _allTranches.push(
+                TimePowerLoanDefs.TrancheInfo({
+                    vaultIndex: uint64(i),
+                    debtIndex: uint64(_allDebts.length),
+                    loanIndex: loanIndex_,
+                    borrowerIndex: loan.borrowerIndex,
+                    normalizedPrincipal: uint128(normalizedPrincipalForTranche)
+                })
+            );
+
+            uint64 trancheIndex = uint64(_allTranches.length - 1);
+
+            _tranchesInfoGroupedByDebt[uint64(_allDebts.length)].push(trancheIndex);
+            _tranchesInfoGroupedByLoan[loanIndex_].push(trancheIndex);
+            _tranchesInfoGroupedByBorrower[loan.borrowerIndex].push(trancheIndex);
+            _tranchesInfoGroupedByVault[uint64(i)].push(trancheIndex);
+        }
+
+        loan.remainingLimit -= uint128(availableAmount);
+
+        loan.normalizedPrincipal += normalizedPrincipal;
+
+        _allLoans[loanIndex_] = loan;
+
+        _allDebts.push(
+            TimePowerLoanDefs.DebtInfo({
+                startTime: uint64(block.timestamp),
+                maturityTime: maturityTime_,
+                principal: uint128(availableAmount),
+                normalizedPrincipal: normalizedPrincipal,
+                loanIndex: loanIndex_,
+                status: TimePowerLoanDefs.DebtStatus.ACTIVE
+            })
+        );
+
+        debtIndex_ = uint64(_allDebts.length - 1);
+
+        _debtsInfoGroupedByLoan[loanIndex_].push(debtIndex_);
+        _debtsInfoGroupedByBorrower[loan.borrowerIndex].push(debtIndex_);
+
+        IERC20(_loanToken).safeTransfer(msg.sender, availableAmount);
+
+        emit TimePowerLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
     }
 
     function _repay(address borrower_, uint64 debtIndex_, uint128 amount_)

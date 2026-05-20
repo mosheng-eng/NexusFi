@@ -421,70 +421,7 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
         onlyLoanOwner(loanIndex_, msg.sender)
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
-        if (maturityTime_ <= uint64(block.timestamp)) {
-            revert TimeLinearLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
-        }
-
-        TimeLinearLoanDefs.LoanInfo memory loan = _allLoans[loanIndex_];
-
-        if (amount_ > loan.remainingLimit) {
-            revert TimeLinearLoanDefs.BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
-        }
-
-        (uint256[] memory trancheAmounts, uint256 availableAmount) =
-            _trustedVaults.prepareFunds(_loanToken, uint256(amount_));
-
-        isAllSatisfied_ = availableAmount == uint256(amount_);
-
-        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
-            if (trancheAmounts[i] == 0) {
-                continue;
-            }
-
-            _allTranches.push(
-                TimeLinearLoanDefs.TrancheInfo({
-                    vaultIndex: uint64(i),
-                    debtIndex: uint64(_allDebts.length),
-                    loanIndex: loanIndex_,
-                    borrowerIndex: loan.borrowerIndex,
-                    principal: uint128(trancheAmounts[i])
-                })
-            );
-
-            uint64 trancheIndex = uint64(_allTranches.length - 1);
-
-            _tranchesInfoGroupedByDebt[uint64(_allDebts.length)].push(trancheIndex);
-            _tranchesInfoGroupedByLoan[loanIndex_].push(trancheIndex);
-            _tranchesInfoGroupedByBorrower[loan.borrowerIndex].push(trancheIndex);
-            _tranchesInfoGroupedByVault[uint64(i)].push(trancheIndex);
-        }
-
-        loan.remainingLimit -= uint128(availableAmount);
-
-        _allLoans[loanIndex_] = loan;
-
-        _allDebts.push(
-            TimeLinearLoanDefs.DebtInfo({
-                loanIndex: loanIndex_,
-                startTime: uint64(block.timestamp),
-                maturityTime: maturityTime_,
-                lastUpdateTime: uint64(block.timestamp),
-                principal: uint128(availableAmount),
-                netRemainingDebt: uint128(availableAmount),
-                interestBearingAmount: uint128(availableAmount),
-                netRemainingInterest: 0,
-                status: TimeLinearLoanDefs.DebtStatus.ACTIVE
-            })
-        );
-
-        debtIndex_ = uint64(_allDebts.length - 1);
-
-        _debtsInfoGroupedByLoan[loanIndex_].push(debtIndex_);
-        _debtsInfoGroupedByBorrower[loan.borrowerIndex].push(debtIndex_);
-
-        IERC20(_loanToken).safeTransfer(msg.sender, availableAmount);
-
-        emit TimeLinearLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
+        (isAllSatisfied_, debtIndex_) = _borrow(loanIndex_, amount_, maturityTime_);
     }
 
     /// @dev repay a loan
@@ -754,6 +691,76 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
 
         _grantRole(Roles.OWNER_ROLE, addrs_[0]);
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
+    }
+
+    function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
+        internal
+        returns (bool isAllSatisfied_, uint64 debtIndex_)
+    {
+        if (maturityTime_ <= uint64(block.timestamp)) {
+            revert TimeLinearLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
+        }
+
+        TimeLinearLoanDefs.LoanInfo memory loan = _allLoans[loanIndex_];
+
+        if (amount_ > loan.remainingLimit) {
+            revert TimeLinearLoanDefs.BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
+        }
+
+        (uint256[] memory trancheAmounts, uint256 availableAmount) =
+            _trustedVaults.prepareFunds(_loanToken, uint256(amount_));
+
+        isAllSatisfied_ = availableAmount == uint256(amount_);
+
+        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
+            if (trancheAmounts[i] == 0) {
+                continue;
+            }
+
+            _allTranches.push(
+                TimeLinearLoanDefs.TrancheInfo({
+                    vaultIndex: uint64(i),
+                    debtIndex: uint64(_allDebts.length),
+                    loanIndex: loanIndex_,
+                    borrowerIndex: loan.borrowerIndex,
+                    principal: uint128(trancheAmounts[i])
+                })
+            );
+
+            uint64 trancheIndex = uint64(_allTranches.length - 1);
+
+            _tranchesInfoGroupedByDebt[uint64(_allDebts.length)].push(trancheIndex);
+            _tranchesInfoGroupedByLoan[loanIndex_].push(trancheIndex);
+            _tranchesInfoGroupedByBorrower[loan.borrowerIndex].push(trancheIndex);
+            _tranchesInfoGroupedByVault[uint64(i)].push(trancheIndex);
+        }
+
+        loan.remainingLimit -= uint128(availableAmount);
+
+        _allLoans[loanIndex_] = loan;
+
+        _allDebts.push(
+            TimeLinearLoanDefs.DebtInfo({
+                loanIndex: loanIndex_,
+                startTime: uint64(block.timestamp),
+                maturityTime: maturityTime_,
+                lastUpdateTime: uint64(block.timestamp),
+                principal: uint128(availableAmount),
+                netRemainingDebt: uint128(availableAmount),
+                interestBearingAmount: uint128(availableAmount),
+                netRemainingInterest: 0,
+                status: TimeLinearLoanDefs.DebtStatus.ACTIVE
+            })
+        );
+
+        debtIndex_ = uint64(_allDebts.length - 1);
+
+        _debtsInfoGroupedByLoan[loanIndex_].push(debtIndex_);
+        _debtsInfoGroupedByBorrower[loan.borrowerIndex].push(debtIndex_);
+
+        IERC20(_loanToken).safeTransfer(msg.sender, availableAmount);
+
+        emit TimeLinearLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
     }
 
     function _repay(address borrower_, uint64 debtIndex_, uint128 amount_)
