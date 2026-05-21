@@ -564,7 +564,7 @@ contract DeployContractSuite is Script {
      * _timePowerLoan.grantRole(_owner, operator_role)
      * _timeLinearLoan.grantRole(_owner, operator_role)
      */
-    function _setContractDependencies() internal {
+    function _setContractDependencies() internal virtual {
         _whitelist.grantRole(Roles.OPERATOR_ROLE, _owner);
         _blacklist.grantRole(Roles.OPERATOR_ROLE, _owner);
         _underlyingToken.grantRole(Roles.OPERATOR_ROLE, address(_underlyingTokenExchanger));
