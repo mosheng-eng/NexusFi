@@ -25,6 +25,8 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     using TimePowerLoanLibs for TimePowerLoanDefs.DebtInfo[];
     using TimePowerLoanLibs for TimePowerLoanDefs.LoanInfo[];
     using TimePowerLoanLibs for TimePowerLoanDefs.TrustedVault[];
+    using TimePowerLoanCore for uint256[];
+    using TimePowerLoanCore for TimePowerLoanDefs.LoanInfo[];
     using TimePowerLoanCore for TimePowerLoanDefs.TrustedVault[];
     using TimePowerLoanCore for TimePowerLoanDefs.TrustedBorrower[];
 
@@ -730,153 +732,39 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
-    /// @dev calculates power(x,n) and x is in fixed point with given base
-    /// @param x the base number in fixed point
-    /// @param n the exponent
-    /// @param base the fixed point base
-    /// @return z the result of x^n in fixed point
-    function _rpow(uint256 x, uint256 n, uint256 base) internal pure returns (uint256 z) {
-        assembly {
-            switch x
-            case 0 {
-                switch n
-                case 0 { z := base }
-                default { z := 0 }
-            }
-            default {
-                switch mod(n, 2)
-                case 0 { z := base }
-                default { z := x }
-                let half := div(base, 2) // for rounding.
-                for { n := div(n, 2) } n { n := div(n, 2) } {
-                    let xx := mul(x, x)
-                    if iszero(eq(div(xx, x), x)) { revert(0, 0) }
-                    let xxRound := add(xx, half)
-                    if lt(xxRound, xx) { revert(0, 0) }
-                    x := div(xxRound, base)
-                    if mod(n, 2) {
-                        let zx := mul(z, x)
-                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0, 0) }
-                        let zxRound := add(zx, half)
-                        if lt(zxRound, zx) { revert(0, 0) }
-                        z := div(zxRound, base)
-                    }
-                }
-            }
-        }
-    }
-
     /// @dev internal function to accumulate interest for all loans
     function _accumulateInterest() internal {
-        uint64 currentTime = uint64(block.timestamp);
-        if (currentTime > _lastAccumulateInterestTime) {
-            uint64 timePeriod = currentTime - _lastAccumulateInterestTime;
-            for (uint256 i = 0; i < _secondInterestRates.length; i++) {
-                _accumulatedInterestRates[i] = _accumulatedInterestRates[i].mulDiv(
-                    _rpow(_secondInterestRates[i], timePeriod, TimePowerLoanDefs.FIXED18),
-                    TimePowerLoanDefs.FIXED18,
-                    Math.Rounding.Ceil
-                );
-            }
-            _lastAccumulateInterestTime = currentTime;
-
-            emit TimePowerLoanDefs.AccumulatedInterestUpdated(currentTime);
-        }
+        _lastAccumulateInterestTime =
+            _accumulatedInterestRates.accumulateInterest(_secondInterestRates, _lastAccumulateInterestTime);
     }
 
     function _dryrunAccumulatedInterest() internal view returns (uint256[] memory accumulatedInterestRates_) {
-        uint64 currentTime = uint64(block.timestamp);
-        if (currentTime > _lastAccumulateInterestTime) {
-            uint64 timePeriod = currentTime - _lastAccumulateInterestTime;
-            accumulatedInterestRates_ = new uint256[](_secondInterestRates.length);
-            for (uint256 i = 0; i < _secondInterestRates.length; i++) {
-                accumulatedInterestRates_[i] = _accumulatedInterestRates[i].mulDiv(
-                    _rpow(_secondInterestRates[i], timePeriod, TimePowerLoanDefs.FIXED18),
-                    TimePowerLoanDefs.FIXED18,
-                    Math.Rounding.Ceil
-                );
-            }
-        } else {
-            accumulatedInterestRates_ = _accumulatedInterestRates;
-        }
+        accumulatedInterestRates_ =
+            _accumulatedInterestRates.dryrunAccumulatedInterest(_secondInterestRates, _lastAccumulateInterestTime);
     }
 
     function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
         internal
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
-        if (maturityTime_ <= uint64(block.timestamp)) {
-            revert TimePowerLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
-        }
-
         _accumulateInterest();
 
-        TimePowerLoanDefs.LoanInfo memory loan = _allLoans[loanIndex_];
-
-        if (amount_ > loan.remainingLimit) {
-            revert TimePowerLoanDefs.BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
-        }
-
-        (uint256[] memory trancheAmounts, uint256 availableAmount) = _trustedVaults.prepareFunds(_loanToken, amount_);
-
-        isAllSatisfied_ = availableAmount == uint256(amount_);
-
-        uint256 accumulatedInterestRate = _accumulatedInterestRates[loan.interestRateIndex];
-        uint128 normalizedPrincipal = 0;
-
-        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
-            if (trancheAmounts[i] == 0) {
-                continue;
-            }
-
-            uint256 normalizedPrincipalForTranche =
-                trancheAmounts[i].mulDiv(TimePowerLoanDefs.FIXED18, accumulatedInterestRate, Math.Rounding.Ceil);
-
-            normalizedPrincipal += uint128(normalizedPrincipalForTranche);
-
-            _allTranches.push(
-                TimePowerLoanDefs.TrancheInfo({
-                    vaultIndex: uint64(i),
-                    debtIndex: uint64(_allDebts.length),
-                    loanIndex: loanIndex_,
-                    borrowerIndex: loan.borrowerIndex,
-                    normalizedPrincipal: uint128(normalizedPrincipalForTranche)
-                })
-            );
-
-            uint64 trancheIndex = uint64(_allTranches.length - 1);
-
-            _tranchesInfoGroupedByDebt[uint64(_allDebts.length)].push(trancheIndex);
-            _tranchesInfoGroupedByLoan[loanIndex_].push(trancheIndex);
-            _tranchesInfoGroupedByBorrower[loan.borrowerIndex].push(trancheIndex);
-            _tranchesInfoGroupedByVault[uint64(i)].push(trancheIndex);
-        }
-
-        loan.remainingLimit -= uint128(availableAmount);
-
-        loan.normalizedPrincipal += normalizedPrincipal;
-
-        _allLoans[loanIndex_] = loan;
-
-        _allDebts.push(
-            TimePowerLoanDefs.DebtInfo({
-                startTime: uint64(block.timestamp),
-                maturityTime: maturityTime_,
-                principal: uint128(availableAmount),
-                normalizedPrincipal: normalizedPrincipal,
-                loanIndex: loanIndex_,
-                status: TimePowerLoanDefs.DebtStatus.ACTIVE
-            })
+        (isAllSatisfied_, debtIndex_) = _allLoans.borrow(
+            _allTranches,
+            _allDebts,
+            _trustedVaults,
+            _debtsInfoGroupedByLoan,
+            _debtsInfoGroupedByBorrower,
+            _tranchesInfoGroupedByDebt,
+            _tranchesInfoGroupedByLoan,
+            _tranchesInfoGroupedByBorrower,
+            _tranchesInfoGroupedByVault,
+            _accumulatedInterestRates,
+            loanIndex_,
+            amount_,
+            maturityTime_,
+            _loanToken
         );
-
-        debtIndex_ = uint64(_allDebts.length - 1);
-
-        _debtsInfoGroupedByLoan[loanIndex_].push(debtIndex_);
-        _debtsInfoGroupedByBorrower[loan.borrowerIndex].push(debtIndex_);
-
-        IERC20(_loanToken).safeTransfer(msg.sender, availableAmount);
-
-        emit TimePowerLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
     }
 
     function _repay(address borrower_, uint64 debtIndex_, uint128 amount_)
@@ -885,86 +773,17 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
     {
         _accumulateInterest();
 
-        TimePowerLoanDefs.DebtInfo memory debt = _allDebts[debtIndex_];
-        TimePowerLoanDefs.LoanInfo memory loan = _allLoans[debt.loanIndex];
-
-        /// @dev layoff temporary variables
-        /// @dev params[0]: accumulatedInterestRate
-        /// @dev params[1]: debtNormalizedPrincipal
-        /// @dev params[2]: totalDebt
-        /// @dev params[3]: remainingNormalizedPrincipal
-        uint256[] memory params = new uint256[](4);
-        /* uint256 accumulatedInterestRate */
-        params[0] = _accumulatedInterestRates[loan.interestRateIndex];
-        /* uint128 debtNormalizedPrincipal */
-        params[1] = debt.normalizedPrincipal;
-        /* uint256 totalDebt */
-        params[2] = uint256(params[1]).mulDiv(params[0], TimePowerLoanDefs.FIXED18, Math.Rounding.Ceil);
-
-        if (amount_ >= params[2]) {
-            amount_ = uint128(params[2]);
-            isAllRepaid_ = true;
-            debt.status = TimePowerLoanDefs.DebtStatus.REPAID;
-        } else {
-            isAllRepaid_ = false;
-        }
-
-        remainingDebt_ = uint128(params[2] - uint256(amount_));
-
-        /// @dev ramining normalized principal maybe over than debt normalized principal if repay amount is below debt interest
-        /* uint128 remainingNormalizedPrincipal */
-        params[3] = uint256(remainingDebt_).mulDiv(TimePowerLoanDefs.FIXED18, params[0], Math.Rounding.Ceil);
-
-        /// @dev loan normalized principal should decrease if repay amount is over debt interest
-        /// @dev loan normalized principal should increase if repay amount is below debt interest
-        loan.normalizedPrincipal = loan.normalizedPrincipal + uint128(params[3]) - uint128(params[1]);
-
-        /// @dev repay amount is greater than or equal to debt total interest
-        /// @dev loan remaining limit is impossible to decrease in this case
-        if (amount_ + debt.principal >= params[2]) {
-            loan.remainingLimit += (amount_ + debt.principal - uint128(params[2]));
-        } else {
-            uint128 decreasedLimit = uint128(params[2]) - (amount_ + debt.principal);
-            /// @dev repay amount is not enough to cover debt interest
-            /// @dev loan limit will decrease in this case
-            /// @dev meaning that unrepaid interest become new debt principal and reduce loan limit
-            if (loan.remainingLimit > decreasedLimit) {
-                loan.remainingLimit -= decreasedLimit;
-            }
-            /// @dev if loan remaining limit is not enough to cover the decreased limit, revert TimePowerLoanDefs.the transaction
-            /// @dev borrower should repay more to cover the decreased limit
-            else {
-                revert TimePowerLoanDefs.RepayTooLittle(
-                    borrower_, debtIndex_, uint128(params[2]) - debt.principal - loan.remainingLimit, amount_
-                );
-            }
-        }
-
-        /// @dev debt normalized principal should decrease if repay amount is over debt interest
-        /// @dev debt normalized principal should increase if repay amount is below debt interest
-        debt.normalizedPrincipal = uint128(params[3]);
-        /// @dev debt principal should decrease if repay amount is over debt interest
-        /// @dev debt principal should remain the same if repay amount is below debt interest
-        debt.principal = remainingDebt_;
-
-        _allDebts[debtIndex_] = debt;
-        _allLoans[debt.loanIndex] = loan;
-
-        IERC20(_loanToken).safeTransferFrom(borrower_, address(this), uint256(amount_));
-
-        _trustedVaults.distributeFunds(
-            _allLoans,
+        (isAllRepaid_, remainingDebt_) = _allLoans.repay(
             _allTranches,
+            _allDebts,
+            _trustedVaults,
             _tranchesInfoGroupedByDebt,
             _accumulatedInterestRates,
-            _loanToken,
+            borrower_,
             debtIndex_,
-            uint128(params[1]),
-            uint128(params[3]),
-            uint256(amount_)
+            amount_,
+            _loanToken
         );
-
-        emit TimePowerLoanDefs.Repaid(borrower_, debtIndex_, amount_, isAllRepaid_);
     }
 
     function _updateLoanInterestRate(uint64 loanIndex_, uint64 newInterestRateIndex_)

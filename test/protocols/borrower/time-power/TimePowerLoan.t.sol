@@ -3389,6 +3389,6 @@ contract MockTimePowerLoan is TimePowerLoan {
     function mockOnlyValidVault(uint64 vaultIndex_) public view onlyValidVault(vaultIndex_) {}
 
     function mockPower(uint256 x_, uint256 n_, uint256 base_) public pure returns (uint256) {
-        return _rpow(x_, n_, base_);
+        return TimePowerLoanLibs.rpow(x_, n_, base_);
     }
 }

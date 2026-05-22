@@ -9,6 +9,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {Errors} from "@nexusfi/contracts/common/Errors.sol";
 import {TimePowerLoanDefs} from "@nexusfi/contracts/protocols/borrower/time-power/utils/TimePowerLoanDefs.sol";
+import {TimePowerLoanLibs} from "@nexusfi/contracts/protocols/borrower/time-power/utils/TimePowerLoanLibs.sol";
 
 library TimePowerLoanCore {
     using Math for uint256;
@@ -317,5 +318,232 @@ library TimePowerLoanCore {
                 totalNormalizedPrincipal += newTrancheNormalizedPrincipal;
             }
         }
+    }
+
+    function accumulateInterest(
+        uint256[] storage accumulatedInterestRates_,
+        uint256[] storage secondInterestRates_,
+        uint64 lastAccumulateInterestTime_
+    ) public returns (uint64) {
+        uint64 currentTime = uint64(block.timestamp);
+        if (currentTime > lastAccumulateInterestTime_) {
+            uint64 timePeriod = currentTime - lastAccumulateInterestTime_;
+            for (uint256 i = 0; i < secondInterestRates_.length; i++) {
+                accumulatedInterestRates_[i] = accumulatedInterestRates_[i].mulDiv(
+                    TimePowerLoanLibs.rpow(secondInterestRates_[i], timePeriod, TimePowerLoanDefs.FIXED18),
+                    TimePowerLoanDefs.FIXED18,
+                    Math.Rounding.Ceil
+                );
+            }
+            lastAccumulateInterestTime_ = currentTime;
+
+            emit TimePowerLoanDefs.AccumulatedInterestUpdated(currentTime);
+        }
+        return lastAccumulateInterestTime_;
+    }
+
+    function dryrunAccumulatedInterest(
+        uint256[] storage accumulatedInterestRates_,
+        uint256[] storage secondInterestRates_,
+        uint64 lastAccumulateInterestTime_
+    ) public view returns (uint256[] memory updatedAccumulatedInterestRates_) {
+        uint64 currentTime = uint64(block.timestamp);
+        if (currentTime > lastAccumulateInterestTime_) {
+            uint64 timePeriod = currentTime - lastAccumulateInterestTime_;
+            updatedAccumulatedInterestRates_ = new uint256[](secondInterestRates_.length);
+            for (uint256 i = 0; i < secondInterestRates_.length; i++) {
+                updatedAccumulatedInterestRates_[i] = accumulatedInterestRates_[i].mulDiv(
+                    TimePowerLoanLibs.rpow(secondInterestRates_[i], timePeriod, TimePowerLoanDefs.FIXED18),
+                    TimePowerLoanDefs.FIXED18,
+                    Math.Rounding.Ceil
+                );
+            }
+        } else {
+            updatedAccumulatedInterestRates_ = accumulatedInterestRates_;
+        }
+    }
+
+    function borrow(
+        TimePowerLoanDefs.LoanInfo[] storage allLoans_,
+        TimePowerLoanDefs.TrancheInfo[] storage allTranches_,
+        TimePowerLoanDefs.DebtInfo[] storage allDebts_,
+        TimePowerLoanDefs.TrustedVault[] storage trustedVaults_,
+        mapping(uint64 => uint64[]) storage debtsInfoGroupedByLoan_,
+        mapping(uint64 => uint64[]) storage debtsInfoGroupedByBorrower_,
+        mapping(uint64 => uint64[]) storage tranchesInfoGroupedByDebt_,
+        mapping(uint64 => uint64[]) storage tranchesInfoGroupedByLoan_,
+        mapping(uint64 => uint64[]) storage tranchesInfoGroupedByBorrower_,
+        mapping(uint64 => uint64[]) storage tranchesInfoGroupedByVault_,
+        uint256[] storage accumulatedInterestRates_,
+        uint64 loanIndex_,
+        uint128 amount_,
+        uint64 maturityTime_,
+        address loanToken_
+    ) public returns (bool isAllSatisfied_, uint64 debtIndex_) {
+        if (maturityTime_ <= uint64(block.timestamp)) {
+            revert TimePowerLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
+        }
+
+        TimePowerLoanDefs.LoanInfo memory loan = allLoans_[loanIndex_];
+
+        if (amount_ > loan.remainingLimit) {
+            revert TimePowerLoanDefs.BorrowAmountOverLoanRemainingLimit(amount_, loan.remainingLimit, loanIndex_);
+        }
+
+        (uint256[] memory trancheAmounts, uint256 availableAmount) = prepareFunds(trustedVaults_, loanToken_, amount_);
+
+        isAllSatisfied_ = availableAmount == uint256(amount_);
+
+        uint256 accumulatedInterestRate = accumulatedInterestRates_[loan.interestRateIndex];
+        uint128 normalizedPrincipal = 0;
+
+        for (uint256 i = 0; i < trancheAmounts.length; ++i) {
+            if (trancheAmounts[i] == 0) {
+                continue;
+            }
+
+            uint256 normalizedPrincipalForTranche =
+                trancheAmounts[i].mulDiv(TimePowerLoanDefs.FIXED18, accumulatedInterestRate, Math.Rounding.Ceil);
+
+            normalizedPrincipal += uint128(normalizedPrincipalForTranche);
+
+            allTranches_.push(
+                TimePowerLoanDefs.TrancheInfo({
+                    vaultIndex: uint64(i),
+                    debtIndex: uint64(allDebts_.length),
+                    loanIndex: loanIndex_,
+                    borrowerIndex: loan.borrowerIndex,
+                    normalizedPrincipal: uint128(normalizedPrincipalForTranche)
+                })
+            );
+
+            uint64 trancheIndex = uint64(allTranches_.length - 1);
+
+            tranchesInfoGroupedByDebt_[uint64(allDebts_.length)].push(trancheIndex);
+            tranchesInfoGroupedByLoan_[loanIndex_].push(trancheIndex);
+            tranchesInfoGroupedByBorrower_[loan.borrowerIndex].push(trancheIndex);
+            tranchesInfoGroupedByVault_[uint64(i)].push(trancheIndex);
+        }
+
+        loan.remainingLimit -= uint128(availableAmount);
+
+        loan.normalizedPrincipal += normalizedPrincipal;
+
+        allLoans_[loanIndex_] = loan;
+
+        allDebts_.push(
+            TimePowerLoanDefs.DebtInfo({
+                startTime: uint64(block.timestamp),
+                maturityTime: maturityTime_,
+                principal: uint128(availableAmount),
+                normalizedPrincipal: normalizedPrincipal,
+                loanIndex: loanIndex_,
+                status: TimePowerLoanDefs.DebtStatus.ACTIVE
+            })
+        );
+
+        debtIndex_ = uint64(allDebts_.length - 1);
+
+        debtsInfoGroupedByLoan_[loanIndex_].push(debtIndex_);
+        debtsInfoGroupedByBorrower_[loan.borrowerIndex].push(debtIndex_);
+
+        IERC20(loanToken_).safeTransfer(msg.sender, availableAmount);
+
+        emit TimePowerLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
+    }
+
+    function repay(
+        TimePowerLoanDefs.LoanInfo[] storage allLoans_,
+        TimePowerLoanDefs.TrancheInfo[] storage allTranches_,
+        TimePowerLoanDefs.DebtInfo[] storage allDebts_,
+        TimePowerLoanDefs.TrustedVault[] storage trustedVaults_,
+        mapping(uint64 => uint64[]) storage tranchesInfoGroupedByDebt_,
+        uint256[] storage accumulatedInterestRates_,
+        address borrower_,
+        uint64 debtIndex_,
+        uint128 amount_,
+        address loanToken_
+    ) public returns (bool isAllRepaid_, uint128 remainingDebt_) {
+        TimePowerLoanDefs.DebtInfo memory debt = allDebts_[debtIndex_];
+        TimePowerLoanDefs.LoanInfo memory loan = allLoans_[debt.loanIndex];
+
+        /// @dev layoff temporary variables
+        /// @dev params[0]: accumulatedInterestRate
+        /// @dev params[1]: debtNormalizedPrincipal
+        /// @dev params[2]: totalDebt
+        /// @dev params[3]: remainingNormalizedPrincipal
+        uint256[] memory params = new uint256[](4);
+        /* uint256 accumulatedInterestRate */
+        params[0] = accumulatedInterestRates_[loan.interestRateIndex];
+        /* uint128 debtNormalizedPrincipal */
+        params[1] = debt.normalizedPrincipal;
+        /* uint256 totalDebt */
+        params[2] = uint256(params[1]).mulDiv(params[0], TimePowerLoanDefs.FIXED18, Math.Rounding.Ceil);
+
+        if (amount_ >= params[2]) {
+            amount_ = uint128(params[2]);
+            isAllRepaid_ = true;
+            debt.status = TimePowerLoanDefs.DebtStatus.REPAID;
+        } else {
+            isAllRepaid_ = false;
+        }
+
+        remainingDebt_ = uint128(params[2] - uint256(amount_));
+
+        /// @dev ramining normalized principal maybe over than debt normalized principal if repay amount is below debt interest
+        /* uint128 remainingNormalizedPrincipal */
+        params[3] = uint256(remainingDebt_).mulDiv(TimePowerLoanDefs.FIXED18, params[0], Math.Rounding.Ceil);
+
+        /// @dev loan normalized principal should decrease if repay amount is over debt interest
+        /// @dev loan normalized principal should increase if repay amount is below debt interest
+        loan.normalizedPrincipal = loan.normalizedPrincipal + uint128(params[3]) - uint128(params[1]);
+
+        /// @dev repay amount is greater than or equal to debt total interest
+        /// @dev loan remaining limit is impossible to decrease in this case
+        if (amount_ + debt.principal >= params[2]) {
+            loan.remainingLimit += (amount_ + debt.principal - uint128(params[2]));
+        } else {
+            uint128 decreasedLimit = uint128(params[2]) - (amount_ + debt.principal);
+            /// @dev repay amount is not enough to cover debt interest
+            /// @dev loan limit will decrease in this case
+            /// @dev meaning that unrepaid interest become new debt principal and reduce loan limit
+            if (loan.remainingLimit > decreasedLimit) {
+                loan.remainingLimit -= decreasedLimit;
+            }
+            /// @dev if loan remaining limit is not enough to cover the decreased limit, revert TimePowerLoanDefs.the transaction
+            /// @dev borrower should repay more to cover the decreased limit
+            else {
+                revert TimePowerLoanDefs.RepayTooLittle(
+                    borrower_, debtIndex_, uint128(params[2]) - debt.principal - loan.remainingLimit, amount_
+                );
+            }
+        }
+
+        /// @dev debt normalized principal should decrease if repay amount is over debt interest
+        /// @dev debt normalized principal should increase if repay amount is below debt interest
+        debt.normalizedPrincipal = uint128(params[3]);
+        /// @dev debt principal should decrease if repay amount is over debt interest
+        /// @dev debt principal should remain the same if repay amount is below debt interest
+        debt.principal = remainingDebt_;
+
+        allDebts_[debtIndex_] = debt;
+        allLoans_[debt.loanIndex] = loan;
+
+        IERC20(loanToken_).safeTransferFrom(borrower_, address(this), uint256(amount_));
+
+        distributeFunds(
+            trustedVaults_,
+            allLoans_,
+            allTranches_,
+            tranchesInfoGroupedByDebt_,
+            accumulatedInterestRates_,
+            loanToken_,
+            debtIndex_,
+            uint128(params[1]),
+            uint128(params[3]),
+            uint256(amount_)
+        );
+
+        emit TimePowerLoanDefs.Repaid(borrower_, debtIndex_, amount_, isAllRepaid_);
     }
 }
