@@ -14,8 +14,8 @@ abiTimePowerLoan:; forge inspect TimePowerLoan abi > abi/TimePowerLoan.abi
 abiTimeLinearLoan:; forge inspect TimeLinearLoan abi > abi/TimeLinearLoan.abi
 abiValueInflationVault:; forge inspect ValueInflationVault abi > abi/ValueInflationVault.abi
 
-coverage:; forge coverage --ir-minimum --no-match-test invariant --no-match-contract Temp  --ffi
-coverageReport:; forge coverage --ir-minimum --no-match-test invariant --no-match-contract Temp --ffi --report debug > report/coverage.txt
+coverage:; forge coverage --ir-minimum --no-match-test invariant --no-match-contract Temp  --ffi --skip .s.sol
+coverageReport:; forge coverage --ir-minimum --no-match-test invariant --no-match-contract Temp --ffi --skip .s.sol --report debug > report/coverage.txt
 testMultisigWallet:; forge test --match-contract MultisigWalletTest --ffi --via-ir --optimize -vvv
 testThresholdWallet:; forge test --match-contract ThresholdWalletTest --ffi --via-ir --optimize -vvv
 testFixedTermStaking:; forge test --match-contract FixedTermStakingTest --ffi --via-ir --optimize -vvv
