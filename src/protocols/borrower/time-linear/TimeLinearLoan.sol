@@ -711,7 +711,8 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
             loanIndex_,
             amount_,
             maturityTime_,
-            _loanToken
+            _loanToken,
+            msg.sender
         );
     }
 

@@ -378,7 +378,8 @@ library TimePowerLoanCore {
         uint64 loanIndex_,
         uint128 amount_,
         uint64 maturityTime_,
-        address loanToken_
+        address loanToken_,
+        address receiver_
     ) public returns (bool isAllSatisfied_, uint64 debtIndex_) {
         if (maturityTime_ <= uint64(block.timestamp)) {
             revert TimePowerLoanDefs.MaturityTimeShouldAfterBlockTimestamp(maturityTime_, uint64(block.timestamp));
@@ -447,9 +448,9 @@ library TimePowerLoanCore {
         debtsInfoGroupedByLoan_[loanIndex_].push(debtIndex_);
         debtsInfoGroupedByBorrower_[loan.borrowerIndex].push(debtIndex_);
 
-        IERC20(loanToken_).safeTransfer(msg.sender, availableAmount);
+        IERC20(loanToken_).safeTransfer(receiver_, availableAmount);
 
-        emit TimePowerLoanDefs.Borrowed(msg.sender, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
+        emit TimePowerLoanDefs.Borrowed(receiver_, loanIndex_, uint128(availableAmount), isAllSatisfied_, debtIndex_);
     }
 
     function repay(
