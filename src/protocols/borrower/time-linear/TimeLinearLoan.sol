@@ -422,7 +422,7 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
         onlyLoanOwner(loanIndex_, msg.sender)
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
-        (isAllSatisfied_, debtIndex_) = _borrow(loanIndex_, amount_, maturityTime_);
+        (isAllSatisfied_, debtIndex_) = _borrow(loanIndex_, amount_, maturityTime_, msg.sender);
     }
 
     /// @dev repay a loan
@@ -694,7 +694,7 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
         _setRoleAdmin(Roles.OPERATOR_ROLE, Roles.OWNER_ROLE);
     }
 
-    function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
+    function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_, address receiver_)
         internal
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
@@ -712,7 +712,7 @@ contract TimeLinearLoan is Initializable, AccessControlUpgradeable, ReentrancyGu
             amount_,
             maturityTime_,
             _loanToken,
-            msg.sender
+            receiver_
         );
     }
 

@@ -430,7 +430,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
         onlyLoanOwner(loanIndex_, msg.sender)
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
-        (isAllSatisfied_, debtIndex_) = _borrow(loanIndex_, amount_, maturityTime_);
+        (isAllSatisfied_, debtIndex_) = _borrow(loanIndex_, amount_, maturityTime_, msg.sender);
     }
 
     /// @dev repay a loan
@@ -743,7 +743,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             _accumulatedInterestRates.dryrunAccumulatedInterest(_secondInterestRates, _lastAccumulateInterestTime);
     }
 
-    function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_)
+    function _borrow(uint64 loanIndex_, uint128 amount_, uint64 maturityTime_, address receiver_)
         internal
         returns (bool isAllSatisfied_, uint64 debtIndex_)
     {
@@ -764,7 +764,7 @@ contract TimePowerLoan is Initializable, AccessControlUpgradeable, ReentrancyGua
             amount_,
             maturityTime_,
             _loanToken,
-            msg.sender
+            receiver_
         );
     }
 
